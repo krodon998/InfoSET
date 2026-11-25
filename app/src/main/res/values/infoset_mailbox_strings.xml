@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="infoset_desktop_mailbox">Mailbox</string>
+  <string name="mailbox_days_until">Arrives in %1$d days</string>
+  <string name="mailbox_empty_archive">Opened letters will be kept here.</string>
+  <string name="mailbox_empty_ready">No letter is waiting to be opened.</string>
+  <string name="mailbox_empty_upcoming">No letter is on its way yet.</string>
+  <string name="mailbox_letter_title">Letter</string>
+  <string name="mailbox_letter_unavailable">This letter has not arrived yet.</string>
+  <string name="mailbox_locked_letter">A letter is on its way</string>
+  <string name="mailbox_ready_to_open">Ready to open</string>
+  <string name="mailbox_subtitle">Some words need to arrive on their own day.</string>
+  <string name="mailbox_tab_archive">Archive</string>
+  <string name="mailbox_tab_ready">Ready %1$d</string>
+  <string name="mailbox_tab_upcoming">Upcoming</string>
+  <string name="mailbox_title">Mailbox</string>
+</resources>

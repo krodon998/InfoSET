@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="infoset_desktop_mailbox">信箱</string>
+  <string name="mailbox_days_until">%1$d 天后抵达</string>
+  <string name="mailbox_empty_archive">拆过的信会安静地留在这里。</string>
+  <string name="mailbox_empty_ready">现在没有等你拆开的信。</string>
+  <string name="mailbox_empty_upcoming">暂时还没有正在路上的信。</string>
+  <string name="mailbox_letter_title">信</string>
+  <string name="mailbox_letter_unavailable">这封信还没有抵达。</string>
+  <string name="mailbox_locked_letter">有一封信正在路上</string>
+  <string name="mailbox_ready_to_open">可以拆开了</string>
+  <string name="mailbox_subtitle">有些话，要在属于它的那一天抵达。</string>
+  <string name="mailbox_tab_archive">归档</string>
+  <string name="mailbox_tab_ready">可拆 %1$d</string>
+  <string name="mailbox_tab_upcoming">待抵达</string>
+  <string name="mailbox_title">信箱</string>
+</resources>
