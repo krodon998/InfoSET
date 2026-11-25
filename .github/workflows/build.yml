@@ -54,4 +54,5 @@ jobs:
           name: InfoSET-0.1.0-debug
           path: app/build/outputs/apk/github/debug/*.apk
           if-no-files-found: error
+          retention-days: 3
 
