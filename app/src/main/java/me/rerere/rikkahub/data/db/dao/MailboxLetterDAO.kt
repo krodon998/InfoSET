@@ -9,7 +9,9 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
 
-/** 未抵达信件的安全投影：查询层严格只携带标识与抵达时间。 */
+/**
+ * 未抵达信件的安全投影。查询层严格只携带标识与抵达时间，避免正文提前进入界面层。
+ */
 data class UpcomingLetterProjection(
     val id: String,
     @ColumnInfo("unlock_at") val unlockAt: Long,
