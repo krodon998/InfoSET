@@ -40,6 +40,12 @@ jobs:
           git add -A
           git commit -m "chore: import RikkaHub 1fb09152942a"
           git am /tmp/infoset-bootstrap.patch
+
+          # The repository GitHub App may write workflows through the Contents API,
+          # while the Actions token cannot introduce a second workflow in this push.
+          # Publish the source first; build.yml is restored separately after bootstrap.
+          git rm .github/workflows/build.yml
+          git commit --amend --no-edit
           git push origin HEAD:main
 
       - name: Set up JDK
