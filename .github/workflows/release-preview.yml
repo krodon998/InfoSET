@@ -1,65 +1,51 @@
-name: Release InfoSET Preview
+name: Publish InfoSET Preview
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Git tag for this preview
-        required: true
-        default: v0.1.0-preview.1
+  workflow_run:
+    workflows: ["Build InfoSET"]
+    types: [completed]
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
-  android:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v0.1.0-preview.1
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: web-ui/pnpm-lock.yaml
-
-      - name: Install web dependencies
-        working-directory: web-ui
-        run: pnpm install --frozen-lockfile
-
-      - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Test and build preview APK
+      - name: Download APK from successful build
         run: |
-          chmod +x gradlew
-          ./gradlew test assembleGithubDebug
+          mkdir artifact
+          gh run download "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name InfoSET-0.1.0-debug \
+            --dir artifact
 
       - name: Prepare release asset
         run: |
-          cp app/build/outputs/apk/github/debug/app-github-debug.apk \
-            InfoSET-0.1.0-preview-debug.apk
+          apk_path="$(find artifact -type f -name '*.apk' -print -quit)"
+          test -n "$apk_path"
+          cp "$apk_path" InfoSET-0.1.0-preview-debug.apk
 
       - name: Publish GitHub prerelease
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          gh release create "$RELEASE_TAG" \
-            InfoSET-0.1.0-preview-debug.apk \
-            --target "$GITHUB_SHA" \
-            --title "InfoSET 0.1.0 Preview" \
-            --prerelease \
-            --notes "First installable InfoSET verification build. Package: com.infoset.app.debug."
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              InfoSET-0.1.0-preview-debug.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$RELEASE_TAG" \
+              InfoSET-0.1.0-preview-debug.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$HEAD_SHA" \
+              --title "InfoSET 0.1.0 Preview" \
+              --prerelease \
+              --notes "First installable InfoSET verification build. Package: com.infoset.app.debug."
+          fi
