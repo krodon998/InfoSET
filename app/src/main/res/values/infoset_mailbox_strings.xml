@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="assistant_page_local_tools_mailbox_desc">Let this assistant place private letters in InfoSET for a future date.</string>
+  <string name="assistant_page_local_tools_mailbox_title">Write to Mailbox</string>
   <string name="infoset_desktop_mailbox">Mailbox</string>
   <string name="mailbox_days_until">Arrives in %1$d days</string>
   <string name="mailbox_empty_archive">Opened letters will be kept here.</string>

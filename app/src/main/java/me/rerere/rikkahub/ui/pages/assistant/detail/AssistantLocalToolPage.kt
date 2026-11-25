@@ -278,6 +278,12 @@ private fun AssistantLocalToolContent(
                 title = R.string.assistant_page_local_tools_chart_display_title,
                 description = R.string.assistant_page_local_tools_chart_display_desc,
             )
+            toolItem(
+                option = LocalToolOption.Mailbox,
+                icon = HugeIcons.MessageQuestion,
+                title = R.string.assistant_page_local_tools_mailbox_title,
+                description = R.string.assistant_page_local_tools_mailbox_desc,
+            )
             // 只有 github 渠道的 Android 11 及以上才有
             if (PhoneUseManager.isSupported) {
                 toolItem(

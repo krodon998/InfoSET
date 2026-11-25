@@ -49,6 +49,13 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Test InfoSET shell and mailbox
+        run: |
+          chmod +x gradlew
+          ./gradlew testGithubDebugUnitTest \
+            --tests me.rerere.rikkahub.ui.context.NavigatorTest \
+            --tests me.rerere.rikkahub.data.ai.tools.local.MailboxToolTest
+
       - name: Build APK
         run: |
           chmod +x gradlew

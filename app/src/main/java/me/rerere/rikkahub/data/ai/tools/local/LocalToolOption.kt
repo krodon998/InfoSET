@@ -38,6 +38,10 @@ sealed class LocalToolOption {
     data object ChartDisplay : LocalToolOption()
 
     @Serializable
+    @SerialName("mailbox")
+    data object Mailbox : LocalToolOption()
+
+    @Serializable
     @SerialName("phone_use")
     data object PhoneUse : LocalToolOption()
 }

@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.db.dao.MailboxLetterDAO
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.phoneuse.PhoneUseManager
@@ -17,6 +18,7 @@ class LocalTools(
     private val settingsStore: SettingsStore,
     private val phoneUseManager: PhoneUseManager,
     private val filesManager: FilesManager,
+    private val mailboxLetterDAO: MailboxLetterDAO,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -35,6 +37,8 @@ class LocalTools(
     val calendarCreateTool by lazy { buildCalendarCreateTool(context) }
 
     val chartDisplayTool by lazy { buildChartDisplayTool() }
+
+    val mailboxWriteTool by lazy { buildMailboxWriteTool(mailboxLetterDAO) }
 
     val phoneUseTool by lazy {
         buildPhoneUseTool(
@@ -78,6 +82,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.ChartDisplay)) {
             tools.add(chartDisplayTool)
+        }
+        if (options.contains(LocalToolOption.Mailbox)) {
+            tools.add(mailboxWriteTool)
         }
         // 不支持的渠道和系统版本上，之前在别处开过（比如导入的备份）也不提供
         if (options.contains(LocalToolOption.PhoneUse) && PhoneUseManager.isSupported) {

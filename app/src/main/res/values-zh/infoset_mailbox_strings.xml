@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="assistant_page_local_tools_mailbox_desc">允许这个助手把信写进 InfoSET，并在未来的日期送达。</string>
+  <string name="assistant_page_local_tools_mailbox_title">写信到信箱</string>
   <string name="infoset_desktop_mailbox">信箱</string>
   <string name="mailbox_days_until">%1$d 天后抵达</string>
   <string name="mailbox_empty_archive">拆过的信会安静地留在这里。</string>

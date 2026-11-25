@@ -30,6 +30,24 @@ class Navigator(private val backStack: MutableList<NavKey>) {
         backStack.add(screen)
     }
 
+    /**
+     * Replace the current InfoSET app surface while keeping the shell beneath it.
+     *
+     * RikkaHub used to treat chat as the root destination. Inside InfoSET, clearing the whole
+     * stack would also discard Desktop and make an opened conversation unable to return home.
+     */
+    fun replaceAppSurface(screen: Screen) {
+        val desktopIndex = backStack.indexOfLast { it == Screen.Desktop }
+        if (desktopIndex == -1) {
+            clearAndNavigate(screen)
+            return
+        }
+        repeat(backStack.size - desktopIndex - 1) {
+            backStack.removeLastOrNull()
+        }
+        backStack.add(screen)
+    }
+
     fun popBackStack() {
         if (backStack.size > 1) backStack.removeLastOrNull()
     }

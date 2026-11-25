@@ -97,7 +97,7 @@ internal fun QuickStartGeneralTab(vm: QuickStartVM) {
             }
             if (doneSteps == REQUIRED_STEPS) {
                 Button(
-                    onClick = { navController.clearAndNavigate(Screen.Chat(Uuid.random().toString())) },
+                    onClick = { navController.replaceAppSurface(Screen.Chat(Uuid.random().toString())) },
                     modifier = Modifier.align(Alignment.End),
                 ) {
                     Text(stringResource(R.string.quick_start_page_start_chat))
