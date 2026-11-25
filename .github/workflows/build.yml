@@ -59,6 +59,8 @@ jobs:
           if [ "$build_status" -ne 0 ]; then
             grep -Ei '(\.xml|PositionXmlParser|ValueResourceParser|ResourceSet|Index -1|packageGithubDebugResources)' \
               build-debug.log | tail -n 1000
+            echo "XML inputs matching the parser buffer length:"
+            find app /home/runner/.gradle/caches -type f -size 150059c -print 2>/dev/null || true
           fi
           exit "$build_status"
 
