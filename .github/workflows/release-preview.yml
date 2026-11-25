@@ -1,0 +1,65 @@
+name: Release InfoSET Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag for this preview
+        required: true
+        default: v0.1.0-preview.1
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web-ui/pnpm-lock.yaml
+
+      - name: Install web dependencies
+        working-directory: web-ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Test and build preview APK
+        run: |
+          chmod +x gradlew
+          ./gradlew test assembleGithubDebug
+
+      - name: Prepare release asset
+        run: |
+          cp app/build/outputs/apk/github/debug/app-github-debug.apk \
+            InfoSET-0.1.0-preview-debug.apk
+
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            InfoSET-0.1.0-preview-debug.apk \
+            --target "$GITHUB_SHA" \
+            --title "InfoSET 0.1.0 Preview" \
+            --prerelease \
+            --notes "First installable InfoSET verification build. Package: com.infoset.app.debug."
