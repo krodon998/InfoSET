@@ -58,20 +58,24 @@ android {
 
             if (localPropertiesFile.exists()) {
                 localProperties.load(FileInputStream(localPropertiesFile))
+            }
 
-                val storeFilePath = localProperties.getProperty("storeFile")
-                val storePasswordValue = localProperties.getProperty("storePassword")
-                val keyAliasValue = localProperties.getProperty("keyAlias")
-                val keyPasswordValue = localProperties.getProperty("keyPassword")
+            val storeFilePath = System.getenv("INFOSET_KEYSTORE_PATH")
+                ?: localProperties.getProperty("storeFile")
+            val storePasswordValue = System.getenv("INFOSET_STORE_PASSWORD")
+                ?: localProperties.getProperty("storePassword")
+            val keyAliasValue = System.getenv("INFOSET_KEY_ALIAS")
+                ?: localProperties.getProperty("keyAlias")
+            val keyPasswordValue = System.getenv("INFOSET_KEY_PASSWORD")
+                ?: localProperties.getProperty("keyPassword")
 
-                if (storeFilePath != null && storePasswordValue != null &&
-                    keyAliasValue != null && keyPasswordValue != null
-                ) {
-                    storeFile = file(storeFilePath)
-                    storePassword = storePasswordValue
-                    keyAlias = keyAliasValue
-                    keyPassword = keyPasswordValue
-                }
+            if (storeFilePath != null && storePasswordValue != null &&
+                keyAliasValue != null && keyPasswordValue != null
+            ) {
+                storeFile = file(storeFilePath)
+                storePassword = storePasswordValue
+                keyAlias = keyAliasValue
+                keyPassword = keyPasswordValue
             }
         }
     }
