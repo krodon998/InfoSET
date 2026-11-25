@@ -44,7 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -337,7 +336,6 @@ private fun LockShortcutButton(
     Box(
         modifier = Modifier
             .size(54.dp)
-            .shadow(8.dp, CircleShape)
             .clip(CircleShape)
             .background(
                 if (active) LockBlue.copy(alpha = 0.9f)

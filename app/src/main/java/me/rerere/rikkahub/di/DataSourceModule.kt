@@ -130,6 +130,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().mailboxLetterDao()
+    }
+
+    single {
         UsageRecorder(dao = get(), scope = get<AppScope>())
     }
 

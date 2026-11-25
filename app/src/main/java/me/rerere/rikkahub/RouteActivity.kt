@@ -111,6 +111,8 @@ import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
 import me.rerere.rikkahub.ui.pages.history.HistoryPage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
+import me.rerere.rikkahub.ui.pages.mailbox.MailboxLetterPage
+import me.rerere.rikkahub.ui.pages.mailbox.MailboxPage
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationPage
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsPage
 import me.rerere.rikkahub.ui.pages.search.SearchPage
@@ -397,8 +399,23 @@ class RouteActivity : ComponentActivity() {
                                         if (backStack.lastOrNull() == Screen.Desktop) {
                                             backStack.add(initialChatScreen)
                                         }
-                                    }
+                                    },
+                                    onOpenMailbox = {
+                                        if (backStack.lastOrNull() == Screen.Desktop) {
+                                            backStack.add(Screen.Mailbox)
+                                        }
+                                    },
                                 )
+                            }
+
+                            entry<Screen.Mailbox> {
+                                MailboxPage(
+                                    onOpenLetter = { id -> backStack.add(Screen.MailboxLetter(id)) }
+                                )
+                            }
+
+                            entry<Screen.MailboxLetter> { key ->
+                                MailboxLetterPage(id = key.id)
                             }
 
                             entry<Screen.Chat>(
@@ -714,6 +731,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Desktop : Screen
+
+    @Serializable
+    data object Mailbox : Screen
+
+    @Serializable
+    data class MailboxLetter(val id: String) : Screen
 
     @Serializable
     data class Chat(
