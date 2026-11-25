@@ -52,7 +52,15 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew :app:packageGithubDebugResources --debug --stacktrace --no-configuration-cache
+          set +e
+          ./gradlew :app:packageGithubDebugResources --debug --stacktrace --no-configuration-cache \
+            > build-debug.log 2>&1
+          build_status=$?
+          if [ "$build_status" -ne 0 ]; then
+            grep -Ei '(\.xml|PositionXmlParser|ValueResourceParser|ResourceSet|Index -1|packageGithubDebugResources)' \
+              build-debug.log | tail -n 1000
+          fi
+          exit "$build_status"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

@@ -9,7 +9,7 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
 
-/** 未抵达信件的安全投影：只允许标识与抵达时间跨过数据边界。 */
+/** 未抵达信件的安全投影：查询结果只携带标识与抵达时间。 */
 data class UpcomingLetterProjection(
     val id: String,
     @ColumnInfo("unlock_at") val unlockAt: Long,
