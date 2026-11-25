@@ -7,6 +7,8 @@ on:
       - "**/*.md"
       - "docs/**"
       - ".github/workflows/**"
+      - ".gitignore"
+      - "scripts/setup-release-signing.ps1"
   workflow_dispatch:
 
 permissions:
