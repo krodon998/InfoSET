@@ -29,8 +29,8 @@ private const val TAG = "ChatGenerationFgs"
  */
 class ChatGenerationForegroundService : Service() {
     companion object {
-        private const val ACTION_ACQUIRE = "me.rerere.rikkahub.action.CHAT_GENERATION_ACQUIRE"
-        private const val ACTION_RELEASE = "me.rerere.rikkahub.action.CHAT_GENERATION_RELEASE"
+        private const val ACTION_ACQUIRE = "com.infoset.app.action.CHAT_GENERATION_ACQUIRE"
+        private const val ACTION_RELEASE = "com.infoset.app.action.CHAT_GENERATION_RELEASE"
         private const val EXTRA_GENERATION_ID = "generation_id"
         private const val EXTRA_CONVERSATION_ID = "conversation_id"
         private const val EXTRA_ACTIVITY = "activity"
@@ -164,7 +164,7 @@ class ChatGenerationForegroundService : Service() {
 
     private fun buildNotification(generation: ActiveGeneration) =
         NotificationCompat.Builder(this, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_rikkahub)
+            .setSmallIcon(R.drawable.ic_stat_infoset)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(
                 getString(

@@ -1,0 +1,13 @@
+InfoSET
+Copyright (C) 2026 InfoSET contributors
+
+InfoSET is based on RikkaHub:
+https://github.com/rikkahub/rikkahub
+
+Imported upstream revision:
+1fb09152942a0f3ae46bf796fe17eeaf2b022f19 (2026-11-25)
+
+RikkaHub and InfoSET are licensed under the GNU Affero General Public License version 3.
+The full license is included in LICENSE. InfoSET is independently maintained and is not an official
+RikkaHub build. The initial InfoSET commit records the complete derivative-source baseline and the
+upstream revision above.

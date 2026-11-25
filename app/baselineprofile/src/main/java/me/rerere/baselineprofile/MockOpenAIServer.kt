@@ -143,7 +143,7 @@ class MockOpenAIServer(private val port: Int = PORT) {
         private const val CHUNK_SIZE = 24
         private const val CHUNK_DELAY_MS = 20L
 
-        private const val TITLE = "Hello RikkaHub"
+        private const val TITLE = "Hello InfoSET"
         private const val SUGGESTIONS = "再举个例子\n解释一下代码\n换个写法"
 
         private val REASONING = """

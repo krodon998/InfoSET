@@ -2,9 +2,13 @@
 
 ## Project Overview
 
-RikkaHub is a native Android LLM chat client that supports switching between different AI providers
-for conversations.
+InfoSET is an independently maintained native Android LLM client based on RikkaHub revision
+`1fb09152942a0f3ae46bf796fe17eeaf2b022f19`. It supports switching between different AI providers
+while growing InfoSET-owned continuity, archive, and capability features.
 Built with Jetpack Compose, Kotlin, and follows Material 3 Expressive (MD3 Expressive) design language.
+
+Do not merge upstream automatically. Review and port individual upstream changes when they are
+explicitly selected. Preserve `LICENSE`, `NOTICE`, and upstream attribution.
 
 ## Design Language
 
@@ -22,16 +26,15 @@ Material 3 look (cards with dividers, plain forms).
 
 ```bash
 ./gradlew assembleGithubDebug    # 构建 GitHub 渠道的 Debug APK
-./gradlew assembleGithubRelease  # 构建 GitHub Release / 每日构建用的 APK
-./gradlew bundlePlayRelease      # 构建上架 Google Play 的 AAB
 ./gradlew test                   # 运行所有模块的 JVM 单元测试
 ./gradlew lint                   # 运行 Android Lint
 ./gradlew spotlessApply          # 用 ktlint 格式化相对 origin/master 改动过的 Kotlin 文件
 ./gradlew spotlessCheck          # 只检查格式不改文件
 ```
 
-App 有一个 `distribution` 维度的 product flavor：`github`（默认）和 `play`，共用同一个 applicationId。
-渠道差异用 `BuildConfig.IS_PLAY_STORE` 判断（如 Play 版不检查更新、不显示更新提醒）。
+App 有一个 `distribution` 维度的 product flavor：`github`（默认）和 `play`。InfoSET 当前只发布
+GitHub Debug 验证包。应用 ID 为 `com.infoset.app`，Debug 后缀为 `.debug`；上游更新机制由
+`BuildConfig.APP_UPDATES_ENABLED=false` 关闭。
 
 ## Module Structure
 

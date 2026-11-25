@@ -25,8 +25,8 @@ private const val TAG = "MediaCreationFgs"
  */
 class MediaCreationForegroundService : Service() {
     companion object {
-        private const val ACTION_ACQUIRE = "me.rerere.rikkahub.action.MEDIA_CREATION_ACQUIRE"
-        private const val ACTION_RELEASE = "me.rerere.rikkahub.action.MEDIA_CREATION_RELEASE"
+        private const val ACTION_ACQUIRE = "com.infoset.app.action.MEDIA_CREATION_ACQUIRE"
+        private const val ACTION_RELEASE = "com.infoset.app.action.MEDIA_CREATION_RELEASE"
         private const val EXTRA_RECORD_ID = "record_id"
         private const val EXTRA_SESSION_ID = "session_id"
 
@@ -152,7 +152,7 @@ class MediaCreationForegroundService : Service() {
 
     private fun buildNotification() =
         NotificationCompat.Builder(this, MEDIA_CREATION_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_rikkahub)
+            .setSmallIcon(R.drawable.ic_stat_infoset)
             .setContentTitle(getString(R.string.media_creation_title))
             .setContentText(getString(R.string.media_creation_notification_running, activeRecords.size))
             .setContentIntent(sessionPendingIntent(this, activeRecords.values.last()))

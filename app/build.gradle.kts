@@ -23,11 +23,14 @@ android {
     }
 
     defaultConfig {
-        applicationId = "me.rerere.rikkahub"
+        applicationId = "com.infoset.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 198
-        versionName = "3.3.1"
+        versionCode = 1
+        versionName = "0.1.0"
+
+        // InfoSET owns its release cadence. Upstream RikkaHub update checks stay disabled.
+        buildConfigField("boolean", "APP_UPDATES_ENABLED", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

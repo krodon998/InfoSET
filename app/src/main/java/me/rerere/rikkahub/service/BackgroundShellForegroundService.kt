@@ -25,8 +25,8 @@ private const val TAG = "BackgroundShellFgs"
  */
 class BackgroundShellForegroundService : Service() {
     companion object {
-        private const val ACTION_ACQUIRE = "me.rerere.rikkahub.action.BACKGROUND_SHELL_ACQUIRE"
-        private const val ACTION_RELEASE = "me.rerere.rikkahub.action.BACKGROUND_SHELL_RELEASE"
+        private const val ACTION_ACQUIRE = "com.infoset.app.action.BACKGROUND_SHELL_ACQUIRE"
+        private const val ACTION_RELEASE = "com.infoset.app.action.BACKGROUND_SHELL_RELEASE"
         private const val EXTRA_TASK_ID = "task_id"
         private const val EXTRA_CONVERSATION_ID = "conversation_id"
 
@@ -134,7 +134,7 @@ class BackgroundShellForegroundService : Service() {
 
     private fun buildNotification() =
         NotificationCompat.Builder(this, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_rikkahub)
+            .setSmallIcon(R.drawable.ic_stat_infoset)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.notification_background_shell_running, activeTasks.size))
             .setContentIntent(getConversationPendingIntent(activeTasks.values.last()))

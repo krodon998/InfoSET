@@ -27,8 +27,8 @@ private const val TAG = "MemoryDreamFgs"
  */
 class MemoryDreamForegroundService : Service() {
     companion object {
-        private const val ACTION_ACQUIRE = "me.rerere.rikkahub.action.MEMORY_DREAM_ACQUIRE"
-        private const val ACTION_RELEASE = "me.rerere.rikkahub.action.MEMORY_DREAM_RELEASE"
+        private const val ACTION_ACQUIRE = "com.infoset.app.action.MEMORY_DREAM_ACQUIRE"
+        private const val ACTION_RELEASE = "com.infoset.app.action.MEMORY_DREAM_RELEASE"
         private const val EXTRA_HOLD_ID = "hold_id"
 
         const val NOTIFICATION_ID = 2004
@@ -134,7 +134,7 @@ class MemoryDreamForegroundService : Service() {
 
     private fun buildNotification() =
         NotificationCompat.Builder(this, MEMORY_DREAM_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_rikkahub)
+            .setSmallIcon(R.drawable.ic_stat_infoset)
             .setContentTitle(getString(R.string.memory_dreaming))
             .setContentText(getString(R.string.memory_dream_notification_text))
             .setContentIntent(

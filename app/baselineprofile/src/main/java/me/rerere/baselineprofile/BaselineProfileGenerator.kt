@@ -80,7 +80,7 @@ class BaselineProfileGenerator {
             // 点击输入框并输入一条 Markdown 文本（覆盖 Markdown / 代码块渲染路径）
             input.click()
             input.text = """
-                # Hello RikkaHub
+                # Hello InfoSET
 
                 这是一段 **Markdown** 文本，包含 *斜体*、`行内代码` 和列表：
 
