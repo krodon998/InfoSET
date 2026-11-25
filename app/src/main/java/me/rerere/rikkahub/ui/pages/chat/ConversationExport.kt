@@ -102,6 +102,7 @@ import me.rerere.rikkahub.ui.components.message.ThinkingStep
 import me.rerere.rikkahub.ui.components.message.ChatMessageServerToolStep
 import me.rerere.rikkahub.ui.components.message.groupMessageParts
 import me.rerere.rikkahub.ui.components.message.tools.memoryToolTitle
+import me.rerere.rikkahub.ui.components.message.tools.isMailboxToolLocked
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
@@ -431,16 +432,24 @@ private fun buildMarkdownExport(
                         appendLine()
                     }
 
-                    append("Input:")
-                    appendLine()
-                    append("```json")
-                    appendLine()
-                    append(JsonInstantPretty.encodeToString(part.inputAsJson()))
-                    appendLine()
-                    append("```")
-                    appendLine()
+                    val arguments = part.inputAsJson()
+                    val sealedMailboxLetter = part.toolName == "mailbox_write_letter" &&
+                        isMailboxToolLocked(arguments, System.currentTimeMillis())
+                    if (sealedMailboxLetter) {
+                        append("Input: `[sealed until delivery]`")
+                        appendLine()
+                    } else {
+                        append("Input:")
+                        appendLine()
+                        append("```json")
+                        appendLine()
+                        append(JsonInstantPretty.encodeToString(arguments))
+                        appendLine()
+                        append("```")
+                        appendLine()
+                    }
 
-                    if (part.output.isNotEmpty()) {
+                    if (part.output.isNotEmpty() && !sealedMailboxLetter) {
                         append("Output:")
                         appendLine()
                         part.output.forEach { outputPart ->

@@ -16,4 +16,8 @@
   <string name="mailbox_tab_ready">可拆 %1$d</string>
   <string name="mailbox_tab_upcoming">待抵达</string>
   <string name="mailbox_title">信箱</string>
+  <string name="mailbox_tool_arrived">未来信已抵达</string>
+  <string name="mailbox_tool_arrives_at">%1$s 抵达</string>
+  <string name="mailbox_tool_locked_body">标题和正文已经封存，在信件抵达前不会从工具详情中显示。</string>
+  <string name="mailbox_tool_locked_title">未来信已封存</string>
 </resources>

@@ -16,4 +16,8 @@
   <string name="mailbox_tab_ready">Ready %1$d</string>
   <string name="mailbox_tab_upcoming">Upcoming</string>
   <string name="mailbox_title">Mailbox</string>
+  <string name="mailbox_tool_arrived">Future letter arrived</string>
+  <string name="mailbox_tool_arrives_at">Arrives %1$s</string>
+  <string name="mailbox_tool_locked_body">Its title and contents stay hidden here until the letter arrives.</string>
+  <string name="mailbox_tool_locked_title">Future letter sealed</string>
 </resources>

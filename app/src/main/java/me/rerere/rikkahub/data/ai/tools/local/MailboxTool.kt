@@ -30,6 +30,7 @@ internal fun buildMailboxWriteTool(
         Use this only when deliberately sending words that should arrive later.
         The user can see that a letter is waiting, while its title and contents remain hidden until unlock_at.
         Date-only and offset-free values use Asia/Shanghai time. The result never repeats the private letter body.
+        After scheduling, do not quote or summarize the title or body in chat; only say that the letter was sealed.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

@@ -300,7 +300,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             ),
             onDismissRequest = { showResult = false },
             content = {
-                if (outputUnparsable) {
+                if (outputUnparsable && renderer.revealRawArgumentsOnUnparsableOutput) {
                     DefaultToolPreview(context = context)
                 } else {
                     renderer.Preview(

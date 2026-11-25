@@ -60,6 +60,9 @@ interface ToolUIRenderer {
     /** 渲染器对应的工具名 */
     val toolName: String
 
+    /** 输出损坏时是否允许回退到会显示原始参数的通用详情。 */
+    val revealRawArgumentsOnUnparsableOutput: Boolean get() = true
+
     /** 折叠步骤的图标 */
     fun icon(context: ToolUIContext): ImageVector = HugeIcons.Tools
 
@@ -102,6 +105,7 @@ object ToolUIRegistry {
         CalendarQueryToolUI,
         CalendarCreateToolUI,
         ChartDisplayToolUI,
+        MailboxWriteToolUI,
         UseSkillToolUI,
         RecentChatsToolUI,
         ConversationSearchToolUI,
