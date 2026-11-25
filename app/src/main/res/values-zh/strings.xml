@@ -9,6 +9,9 @@
   <string name="add">添加</string>
   <string name="app_name">InfoSET</string>
   <string name="infoset_desktop_chat">聊天</string>
+  <string name="infoset_lock_camera">相机</string>
+  <string name="infoset_lock_flashlight">手电筒</string>
+  <string name="infoset_lock_swipe_up">上滑解锁</string>
   <string name="asr_button_content_description">语音识别</string>
   <string name="asr_button_stop">停止</string>
   <string name="assistant_detail_basic_desc">配置名称、头像、模型和参数</string>

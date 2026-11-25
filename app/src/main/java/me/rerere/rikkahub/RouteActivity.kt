@@ -94,6 +94,7 @@ import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
 import me.rerere.rikkahub.ui.pages.debug.DebugPage
 import me.rerere.rikkahub.ui.pages.desktop.InfoSetDesktopPage
+import me.rerere.rikkahub.ui.pages.desktop.InfoSetLockScreenPage
 import me.rerere.rikkahub.ui.pages.extensions.ExtensionsPage
 import me.rerere.rikkahub.ui.pages.extensions.PromptPage
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesPage
@@ -166,6 +167,7 @@ class RouteActivity : ComponentActivity() {
     private val mediaCreationRepository by inject<MediaCreationRepository>()
     private var navStack: MutableList<NavKey>? = null
     private val pendingIntents = ArrayDeque<Intent>()
+    private var shellUnlocked = false
 
     // Volume key listener registry — last registered handler wins
     internal val volumeKeyListeners = mutableListOf<(isVolumeUp: Boolean) -> Boolean>()
@@ -234,6 +236,10 @@ class RouteActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        if (!shellUnlocked) {
+            pendingIntents.addLast(intent)
+            return
+        }
         val backStack = navStack ?: run {
             // Compose 尚未创建导航栈，待就绪后处理。
             pendingIntents.addLast(intent)
@@ -257,6 +263,12 @@ class RouteActivity : ComponentActivity() {
         }
         if (destination != null && backStack.lastOrNull() != destination) {
             backStack.add(destination)
+        }
+    }
+
+    private fun drainPendingIntents() {
+        while (shellUnlocked && pendingIntents.isNotEmpty()) {
+            handleIntent(pendingIntents.removeFirst())
         }
     }
 
@@ -307,12 +319,10 @@ class RouteActivity : ComponentActivity() {
             )
         }
 
-        val backStack = rememberNavBackStack(Screen.Desktop)
+        val backStack = rememberNavBackStack(Screen.LockScreen)
         SideEffect {
             navStack = backStack
-            while (pendingIntents.isNotEmpty()) {
-                handleIntent(pendingIntents.removeFirst())
-            }
+            if (shellUnlocked) drainPendingIntents()
         }
 
         SharedTransitionLayout {
@@ -339,7 +349,14 @@ class RouteActivity : ComponentActivity() {
                         ),
                         modifier = Modifier.fillMaxSize(),
                         // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
-                        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+                        onBack = {
+                            if (backStack.size > 1) {
+                                if (backStack.lastOrNull() == Screen.Desktop) {
+                                    shellUnlocked = false
+                                }
+                                backStack.removeLastOrNull()
+                            }
+                        },
                         transitionSpec = {
                             if (backStack.size == 1) fadeIn() togetherWith fadeOut()
                             else {
@@ -356,6 +373,21 @@ class RouteActivity : ComponentActivity() {
                                 slideOutHorizontally { it }
                         },
                         entryProvider = entryProvider {
+                            entry<Screen.LockScreen>(
+                                metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() }
+                                    + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
+                            ) {
+                                InfoSetLockScreenPage(
+                                    onUnlock = {
+                                        if (backStack.lastOrNull() == Screen.LockScreen) {
+                                            shellUnlocked = true
+                                            backStack.add(Screen.Desktop)
+                                            drainPendingIntents()
+                                        }
+                                    }
+                                )
+                            }
+
                             entry<Screen.Desktop>(
                                 metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() }
                                     + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
@@ -620,7 +652,11 @@ class RouteActivity : ComponentActivity() {
                             }
                         }
                     )
-                    if (BuildConfig.DEBUG) {
+                    if (BuildConfig.DEBUG && backStack.lastOrNull() !in setOf(
+                            Screen.LockScreen,
+                            Screen.Desktop,
+                        )
+                    ) {
                         Text(
                             text = "[开发模式]",
                             modifier = Modifier
@@ -673,6 +709,9 @@ class RouteActivity : ComponentActivity() {
 }
 
 sealed interface Screen : NavKey {
+    @Serializable
+    data object LockScreen : Screen
+
     @Serializable
     data object Desktop : Screen
 
