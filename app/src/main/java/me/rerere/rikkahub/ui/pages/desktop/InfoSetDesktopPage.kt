@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -85,6 +86,7 @@ fun InfoSetDesktopPage(
                         )
                         .clip(RoundedCornerShape(24.dp))
                         .background(Color(0xFFDCEEFF).copy(alpha = 0.92f))
+                        .testTag("infoset-desktop-chat")
                         .semantics { contentDescription = chatLabel }
                         .clickable(role = Role.Button, onClick = onOpenChat)
                         .padding(2.dp),

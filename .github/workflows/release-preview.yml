@@ -36,10 +36,18 @@ jobs:
       - name: Publish GitHub prerelease
         run: |
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" \
-              InfoSET-0.1.0-preview-debug.apk \
-              --repo "$GITHUB_REPOSITORY" \
-              --clobber
+            for attempt in 1 2 3; do
+              if gh release upload "$RELEASE_TAG" \
+                InfoSET-0.1.0-preview-debug.apk \
+                --repo "$GITHUB_REPOSITORY" \
+                --clobber; then
+                exit 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 10))
+              fi
+            done
+            exit 1
           else
             gh release create "$RELEASE_TAG" \
               InfoSET-0.1.0-preview-debug.apk \
