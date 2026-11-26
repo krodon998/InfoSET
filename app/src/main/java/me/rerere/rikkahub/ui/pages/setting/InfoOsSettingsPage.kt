@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -59,10 +60,12 @@ import me.rerere.rikkahub.data.datastore.InfoOsNotificationPreference
 import me.rerere.rikkahub.data.datastore.InfoOsWallpaper
 import me.rerere.rikkahub.data.datastore.NewAppPlacement
 import me.rerere.rikkahub.data.datastore.RequirePasscode
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
@@ -140,15 +143,6 @@ fun InfoOsSettingsPage(
         }
     }
 
-    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            updateInfo { it.copy(decorativeAvatarUri = uri.toString()) }
-        }
-    }
-
     var showPasscodeDialog by remember { mutableStateOf(false) }
     var passcode by remember { mutableStateOf("") }
     var passcodeError by remember { mutableStateOf(false) }
@@ -222,25 +216,27 @@ fun InfoOsSettingsPage(
                             trailingContent = { CardGroupValue(displayName) },
                         )
                         formItem(headlineContent = { Text(stringResource(R.string.infoos_settings_decorative_avatar)) }) {
-                            if (info.decorativeAvatarUri.isNotBlank()) {
-                                AsyncImage(
-                                    model = info.decorativeAvatarUri,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .height(128.dp)
-                                        .fillMaxWidth()
-                                        .clip(MaterialTheme.shapes.extraLarge),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Button(onClick = { avatarPicker.launch(arrayOf("image/*")) }) {
-                                    Text(stringResource(R.string.infoos_settings_choose_image))
-                                }
-                                if (info.decorativeAvatarUri.isNotBlank()) {
-                                    OutlinedButton(onClick = { updateInfo { it.copy(decorativeAvatarUri = "") } }) {
-                                        Text(stringResource(R.string.infoos_settings_restore_initial))
+                            UIAvatar(
+                                name = displayName,
+                                value = settings.displaySetting.userAvatar,
+                                modifier = Modifier.size(128.dp),
+                                onUpdate = { avatar ->
+                                    vm.updateSettings { latest ->
+                                        latest.copy(
+                                            displaySetting = latest.displaySetting.copy(userAvatar = avatar)
+                                        )
                                     }
+                                },
+                            )
+                            if (settings.displaySetting.userAvatar !is Avatar.Dummy) {
+                                OutlinedButton(onClick = {
+                                    vm.updateSettings { latest ->
+                                        latest.copy(
+                                            displaySetting = latest.displaySetting.copy(userAvatar = Avatar.Dummy)
+                                        )
+                                    }
+                                }) {
+                                    Text(stringResource(R.string.infoos_settings_restore_initial))
                                 }
                             }
                         }
