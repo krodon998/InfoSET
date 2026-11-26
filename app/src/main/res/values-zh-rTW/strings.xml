@@ -1934,4 +1934,12 @@
   <string name="setting_page_preferences_notification_battery_optimization">忽略電池最佳化</string>
   <string name="setting_page_preferences_notification_battery_optimization_on">已允許。背景生成較不容易被系統停止</string>
   <string name="setting_page_preferences_notification_battery_optimization_off">未允許。系統可能會為了節省電量而停止背景生成</string>
+  <string name="setting_group_appearance_and_use">顯示與使用</string>
+  <string name="setting_group_intelligence_and_models">智慧與模型</string>
+  <string name="setting_group_connections_and_services">連線與服務</string>
+  <string name="setting_group_data_and_storage">資料與儲存空間</string>
+  <string name="setting_group_about_and_support">關於與支援</string>
+  <string name="setting_search_placeholder">搜尋設定</string>
+  <string name="setting_search_clear">清除設定搜尋</string>
+  <string name="setting_search_no_results">找不到相關設定</string>
 </resources>
