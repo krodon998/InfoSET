@@ -1998,6 +1998,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="infoos_settings_lock_layout">锁定布局</string>
   <string name="infoos_settings_desktop_folders">桌面文件夹</string>
   <string name="infoos_settings_no_folders">还没有桌面文件夹</string>
+  <string name="infoos_settings_new_folder">新建文件夹</string>
+  <string name="infoos_settings_folder_name">文件夹名称</string>
   <string name="infoos_settings_folder_cover_size">文件夹封面大小</string>
   <string name="infoos_settings_folder_expanded_grid">文件夹展开网格</string>
   <string name="infoos_settings_large_icons">使用大 App 图标</string>

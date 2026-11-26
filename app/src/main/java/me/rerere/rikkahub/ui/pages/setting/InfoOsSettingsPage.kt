@@ -57,6 +57,7 @@ import me.rerere.rikkahub.data.datastore.FolderCoverSize
 import me.rerere.rikkahub.data.datastore.FolderGrid
 import me.rerere.rikkahub.data.datastore.HomeGrid
 import me.rerere.rikkahub.data.datastore.InfoOsNotificationPreference
+import me.rerere.rikkahub.data.datastore.InfoOsDesktopFolder
 import me.rerere.rikkahub.data.datastore.InfoOsWallpaper
 import me.rerere.rikkahub.data.datastore.NewAppPlacement
 import me.rerere.rikkahub.data.datastore.RequirePasscode
@@ -153,6 +154,9 @@ fun InfoOsSettingsPage(
     var showRequireDialog by remember { mutableStateOf(false) }
     var showFolderCoverDialog by remember { mutableStateOf(false) }
     var showFolderGridDialog by remember { mutableStateOf(false) }
+    var showNewFolderDialog by remember { mutableStateOf(false) }
+    var folderName by remember { mutableStateOf("") }
+    var editingFolderId by remember { mutableStateOf<String?>(null) }
     var showAppearanceScheduleDialog by remember { mutableStateOf(false) }
     var customMinutes by remember(info.requirePasscodeAfterMinutes) {
         mutableStateOf(info.requirePasscodeAfterMinutes.toString())
@@ -543,23 +547,68 @@ fun InfoOsSettingsPage(
                 }
 
                 InfoOsSettingSection.DESKTOP_FOLDERS -> item {
-                    CardGroup {
-                        item(
-                            onClick = { showFolderCoverDialog = true },
-                            headlineContent = { Text(stringResource(R.string.infoos_settings_folder_cover_size)) },
-                            supportingContent = {
-                                Text("${info.folderCoverSize.columns} × ${info.folderCoverSize.rows}")
-                            },
-                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
-                        )
-                        item(
-                            onClick = { showFolderGridDialog = true },
-                            headlineContent = { Text(stringResource(R.string.infoos_settings_folder_expanded_grid)) },
-                            supportingContent = {
-                                Text("${info.folderGrid.columns} × ${info.folderGrid.rows}")
-                            },
-                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Button(onClick = { showNewFolderDialog = true }) {
+                            Text(stringResource(R.string.infoos_settings_new_folder))
+                        }
+                        if (info.desktopFolders.isEmpty()) {
+                            Text(stringResource(R.string.infoos_settings_no_folders))
+                        }
+                        info.desktopFolders.forEach { folder ->
+                            CardGroup(title = { Text(folder.name) }) {
+                                item(
+                                    onClick = {
+                                        editingFolderId = folder.id
+                                        showFolderCoverDialog = true
+                                    },
+                                    headlineContent = { Text(stringResource(R.string.infoos_settings_folder_cover_size)) },
+                                    trailingContent = {
+                                        CardGroupValue("${folder.coverSize.columns} × ${folder.coverSize.rows}")
+                                    },
+                                )
+                                item(
+                                    onClick = {
+                                        editingFolderId = folder.id
+                                        showFolderGridDialog = true
+                                    },
+                                    headlineContent = { Text(stringResource(R.string.infoos_settings_folder_expanded_grid)) },
+                                    trailingContent = {
+                                        CardGroupValue("${folder.expandedGrid.columns} × ${folder.expandedGrid.rows}")
+                                    },
+                                )
+                                listOf("chat", "mailbox", "settings").forEach { appId ->
+                                    switchItem(
+                                        checked = appId in folder.appIds,
+                                        onCheckedChange = { checked ->
+                                            updateInfo { current ->
+                                                current.copy(desktopFolders = current.desktopFolders.map { candidate ->
+                                                    if (candidate.id != folder.id) {
+                                                        candidate.copy(appIds = candidate.appIds - appId)
+                                                    } else {
+                                                        candidate.copy(
+                                                            appIds = if (checked) {
+                                                                (candidate.appIds + appId).distinct()
+                                                            } else {
+                                                                candidate.appIds - appId
+                                                            }
+                                                        )
+                                                    }
+                                                })
+                                            }
+                                        },
+                                        headlineContent = { Text(stringResource(appId.notificationTitleRes())) },
+                                    )
+                                }
+                                item(
+                                    onClick = {
+                                        updateInfo { current ->
+                                            current.copy(desktopFolders = current.desktopFolders.filterNot { it.id == folder.id })
+                                        }
+                                    },
+                                    headlineContent = { Text(stringResource(R.string.delete)) },
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -868,23 +917,73 @@ fun InfoOsSettingsPage(
         )
     }
     if (showFolderCoverDialog) {
+        val folder = info.desktopFolders.find { it.id == editingFolderId }
         ChoiceDialog(
             title = stringResource(R.string.infoos_settings_folder_cover_size),
             options = FolderCoverSize.entries,
-            selected = info.folderCoverSize,
+            selected = folder?.coverSize ?: FolderCoverSize.ONE_BY_ONE,
             label = { "${it.columns} × ${it.rows}" },
-            onSelect = { updateInfo { current -> current.copy(folderCoverSize = it) } },
+            onSelect = { selected ->
+                updateInfo { current ->
+                    current.copy(desktopFolders = current.desktopFolders.map {
+                        if (it.id == editingFolderId) it.copy(coverSize = selected) else it
+                    })
+                }
+            },
             onDismiss = { showFolderCoverDialog = false },
         )
     }
     if (showFolderGridDialog) {
+        val folder = info.desktopFolders.find { it.id == editingFolderId }
         ChoiceDialog(
             title = stringResource(R.string.infoos_settings_folder_expanded_grid),
             options = FolderGrid.entries,
-            selected = info.folderGrid,
+            selected = folder?.expandedGrid ?: FolderGrid.THREE_BY_THREE,
             label = { "${it.columns} × ${it.rows}" },
-            onSelect = { updateInfo { current -> current.copy(folderGrid = it) } },
+            onSelect = { selected ->
+                updateInfo { current ->
+                    current.copy(desktopFolders = current.desktopFolders.map {
+                        if (it.id == editingFolderId) it.copy(expandedGrid = selected) else it
+                    })
+                }
+            },
             onDismiss = { showFolderGridDialog = false },
+        )
+    }
+    if (showNewFolderDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewFolderDialog = false },
+            title = { Text(stringResource(R.string.infoos_settings_new_folder)) },
+            text = {
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it.take(24) },
+                    label = { Text(stringResource(R.string.infoos_settings_folder_name)) },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = folderName.isNotBlank(),
+                    onClick = {
+                        updateInfo {
+                            it.copy(
+                                desktopFolders = it.desktopFolders + InfoOsDesktopFolder(
+                                    id = UUID.randomUUID().toString(),
+                                    name = folderName.trim(),
+                                )
+                            )
+                        }
+                        folderName = ""
+                        showNewFolderDialog = false
+                    },
+                ) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewFolderDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
     if (showAppearanceScheduleDialog) {

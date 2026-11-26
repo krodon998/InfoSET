@@ -104,8 +104,7 @@ data class InfoOsSettings(
     val boldText: Boolean = false,
     val homeGrid: HomeGrid = HomeGrid.FOUR_BY_SEVEN,
     val layoutLocked: Boolean = false,
-    val folderCoverSize: FolderCoverSize = FolderCoverSize.ONE_BY_ONE,
-    val folderGrid: FolderGrid = FolderGrid.THREE_BY_THREE,
+    val desktopFolders: List<InfoOsDesktopFolder> = emptyList(),
     val largeAppIcons: Boolean = false,
     val newAppPlacement: NewAppPlacement = NewAppPlacement.HOME_AND_DRAWER,
     val dockVisible: Boolean = false,
@@ -154,6 +153,15 @@ enum class FolderGrid(val columns: Int, val rows: Int) {
     THREE_BY_FOUR(3, 4),
     FOUR_BY_FOUR(4, 4),
 }
+
+@Serializable
+data class InfoOsDesktopFolder(
+    val id: String,
+    val name: String,
+    val appIds: List<String> = emptyList(),
+    val coverSize: FolderCoverSize = FolderCoverSize.ONE_BY_ONE,
+    val expandedGrid: FolderGrid = FolderGrid.THREE_BY_THREE,
+)
 
 @Serializable
 enum class DockMaterial { FROSTED_GLASS, LIQUID_GLASS }

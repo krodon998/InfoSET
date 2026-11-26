@@ -1996,6 +1996,8 @@
     <string name="infoos_settings_lock_layout">Lock Layout</string>
     <string name="infoos_settings_desktop_folders">Desktop Folders</string>
     <string name="infoos_settings_no_folders">No desktop folders yet</string>
+    <string name="infoos_settings_new_folder">New Folder</string>
+    <string name="infoos_settings_folder_name">Folder Name</string>
     <string name="infoos_settings_folder_cover_size">Folder Cover Size</string>
     <string name="infoos_settings_folder_expanded_grid">Expanded Folder Grid</string>
     <string name="infoos_settings_large_icons">Use Large App Icons</string>

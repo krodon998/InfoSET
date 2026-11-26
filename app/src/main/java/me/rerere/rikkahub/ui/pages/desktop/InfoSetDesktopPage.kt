@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +23,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,14 +49,15 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.InfoOsSettings
+import me.rerere.rikkahub.data.datastore.InfoOsDesktopFolder
 import coil3.compose.AsyncImage
 
 private val DesktopInk = Color(0xFF327F9E)
 
-private enum class InfoSetSurface {
-    Chat,
-    Mailbox,
-    Settings,
+private enum class InfoSetSurface(val id: String) {
+    Chat("chat"),
+    Mailbox("mailbox"),
+    Settings("settings"),
 }
 
 @Composable
@@ -63,6 +69,16 @@ fun InfoSetDesktopPage(
     modifier: Modifier = Modifier,
 ) {
     val activeWallpaper = infoOsSettings.wallpapers.find { it.id == infoOsSettings.activeWallpaperId }
+    val assignedApps = infoOsSettings.desktopFolders.flatMap { it.appIds }.toSet()
+    var openFolderId by remember { mutableStateOf<String?>(null) }
+    val openFolder = infoOsSettings.desktopFolders.find { it.id == openFolderId }
+
+    fun actionFor(surface: InfoSetSurface): () -> Unit = when (surface) {
+        InfoSetSurface.Chat -> onOpenChat
+        InfoSetSurface.Mailbox -> onOpenMailbox
+        InfoSetSurface.Settings -> onOpenSettings
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -132,7 +148,7 @@ fun InfoSetDesktopPage(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                items(InfoSetSurface.entries, key = { it.name }) { surface ->
+                items(InfoSetSurface.entries.filterNot { it.id in assignedApps }, key = { it.name }) { surface ->
                     val label = when (surface) {
                         InfoSetSurface.Chat -> stringResource(R.string.infoset_desktop_chat)
                         InfoSetSurface.Mailbox -> stringResource(R.string.infoset_desktop_mailbox)
@@ -142,11 +158,14 @@ fun InfoSetDesktopPage(
                         surface = surface,
                         label = label,
                         large = infoOsSettings.largeAppIcons,
-                        onClick = when (surface) {
-                            InfoSetSurface.Chat -> onOpenChat
-                            InfoSetSurface.Mailbox -> onOpenMailbox
-                            InfoSetSurface.Settings -> onOpenSettings
-                        },
+                        onClick = actionFor(surface),
+                    )
+                }
+                items(infoOsSettings.desktopFolders, key = { it.id }) { folder ->
+                    DesktopFolderIcon(
+                        folder = folder,
+                        large = infoOsSettings.largeAppIcons,
+                        onClick = { openFolderId = folder.id },
                     )
                 }
             }
@@ -178,11 +197,7 @@ fun InfoSetDesktopPage(
                         }
                         if (infoOsSettings.dockShowsSuggestions) {
                             InfoSetSurface.entries.forEach { surface ->
-                                val action = when (surface) {
-                                    InfoSetSurface.Chat -> onOpenChat
-                                    InfoSetSurface.Mailbox -> onOpenMailbox
-                                    InfoSetSurface.Settings -> onOpenSettings
-                                }
+                                val action = actionFor(surface)
                                 Box(
                                     modifier = Modifier
                                         .size((54 * infoOsSettings.dockScale).dp)
@@ -203,6 +218,97 @@ fun InfoSetDesktopPage(
                 }
             }
         }
+
+        if (openFolder != null) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                shape = RoundedCornerShape(32.dp),
+                color = Color.White.copy(alpha = 0.92f),
+                tonalElevation = 12.dp,
+                onClick = { },
+            ) {
+                Column(
+                    modifier = Modifier.padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(openFolder.name, color = DesktopInk, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "×",
+                            color = DesktopInk,
+                            fontSize = 24.sp,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { openFolderId = null }
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                    }
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(openFolder.expandedGrid.columns),
+                        modifier = Modifier.height((openFolder.expandedGrid.rows * 98).dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        items(InfoSetSurface.entries.filter { it.id in openFolder.appIds }) { surface ->
+                            DesktopSurfaceIcon(
+                                surface = surface,
+                                label = when (surface) {
+                                    InfoSetSurface.Chat -> stringResource(R.string.infoset_desktop_chat)
+                                    InfoSetSurface.Mailbox -> stringResource(R.string.infoset_desktop_mailbox)
+                                    InfoSetSurface.Settings -> stringResource(R.string.infoset_desktop_settings)
+                                },
+                                large = false,
+                                onClick = actionFor(surface),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopFolderIcon(
+    folder: InfoOsDesktopFolder,
+    large: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(if (large || folder.coverSize.columns == 2) 78.dp else 70.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White.copy(alpha = 0.72f))
+                .clickable(role = Role.Button, onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = folder.appIds.take(4).joinToString(" ") {
+                    when (it) {
+                        "chat" -> "●"
+                        "mailbox" -> "✉"
+                        else -> "⚙"
+                    }
+                }.ifBlank { "□" },
+                color = DesktopInk,
+                fontSize = 18.sp,
+            )
+        }
+        Text(
+            text = folder.name,
+            modifier = Modifier.padding(top = 7.dp),
+            color = DesktopInk.copy(alpha = 0.92f),
+            fontSize = 13.sp,
+            maxLines = 1,
+        )
     }
 }
 @Composable

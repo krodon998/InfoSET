@@ -6,6 +6,7 @@ import me.rerere.rikkahub.data.datastore.FolderCoverSize
 import me.rerere.rikkahub.data.datastore.FolderGrid
 import me.rerere.rikkahub.data.datastore.HomeGrid
 import me.rerere.rikkahub.data.datastore.InfoOsSettings
+import me.rerere.rikkahub.data.datastore.InfoOsDesktopFolder
 import me.rerere.rikkahub.data.datastore.NewAppPlacement
 import me.rerere.rikkahub.ui.theme.isWithinDarkSchedule
 import org.junit.Assert.assertEquals
@@ -21,8 +22,10 @@ class InfoOsSettingsTest {
 
         assertEquals(AutomaticUpdates.WIFI_ONLY, settings.automaticUpdates)
         assertEquals(HomeGrid.FOUR_BY_SEVEN, settings.homeGrid)
-        assertEquals(FolderCoverSize.ONE_BY_ONE, settings.folderCoverSize)
-        assertEquals(FolderGrid.THREE_BY_THREE, settings.folderGrid)
+        assertTrue(settings.desktopFolders.isEmpty())
+        val folder = InfoOsDesktopFolder(id = "folder", name = "衡准")
+        assertEquals(FolderCoverSize.ONE_BY_ONE, folder.coverSize)
+        assertEquals(FolderGrid.THREE_BY_THREE, folder.expandedGrid)
         assertEquals(NewAppPlacement.HOME_AND_DRAWER, settings.newAppPlacement)
         assertFalse(settings.dockVisible)
         assertEquals(DockMaterial.LIQUID_GLASS, settings.dockMaterial)
