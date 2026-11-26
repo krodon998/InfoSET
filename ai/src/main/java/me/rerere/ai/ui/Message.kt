@@ -11,6 +11,8 @@ import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.util.json
+import java.nio.charset.StandardCharsets
+import java.util.UUID
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlin.time.Clock
@@ -153,6 +155,60 @@ data class UIMessage(
         )
     }
 }
+
+/** Stable identity for one top-level part, including legacy messages that predate persisted IDs. */
+fun UIMessage.partIdAt(index: Int): Uuid? = parts.getOrNull(index)?.let { part ->
+    part.partId ?: stablePartId(id, index.toString())
+}
+
+/** Resolve a top-level part by identity without trusting a stale list index. */
+fun UIMessage.partIndexOf(partId: Uuid): Int? = parts.indices.firstOrNull { index ->
+    partIdAt(index) == partId
+}
+
+/**
+ * Persist IDs for every part while preserving identities already written by a newer client.
+ *
+ * Legacy IDs are deterministic from message ID and structural path, so references remain valid even before the
+ * migrated conversation is next saved. Tool outputs are included because they can later become first-class cards.
+ */
+fun UIMessage.withStablePartIds(): UIMessage {
+    val identified = parts.mapIndexed { index, part ->
+        part.withStablePartId(messageId = id, path = index.toString())
+    }
+    return if (identified == parts) this else copy(parts = identified)
+}
+
+/** New message branches must own new part identities instead of copying IDs from the source branch. */
+fun List<UIMessagePart>.withoutPartIds(): List<UIMessagePart> = map { it.withoutPartId() }
+
+private fun UIMessagePart.withStablePartId(messageId: Uuid, path: String): UIMessagePart {
+    val identified = withPartId(partId ?: stablePartId(messageId, path))
+    return if (identified is UIMessagePart.Tool) {
+        identified.copy(
+            output = identified.output.mapIndexed { index, part ->
+                part.withStablePartId(messageId, "$path.output.$index")
+            }
+        )
+    } else {
+        identified
+    }
+}
+
+private fun UIMessagePart.withoutPartId(): UIMessagePart {
+    val cleared = withPartId(null)
+    return if (cleared is UIMessagePart.Tool) {
+        cleared.copy(output = cleared.output.map { it.withoutPartId() })
+    } else {
+        cleared
+    }
+}
+
+private fun stablePartId(messageId: Uuid, path: String): Uuid = Uuid.parse(
+    UUID.nameUUIDFromBytes(
+        "infoset-part:$messageId:$path".toByteArray(StandardCharsets.UTF_8)
+    ).toString()
+)
 
 @Serializable
 data class ContextBlockSnapshot(

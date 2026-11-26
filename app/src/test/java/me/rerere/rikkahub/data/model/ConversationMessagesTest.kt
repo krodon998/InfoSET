@@ -5,6 +5,8 @@ import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.partIdAt
+import me.rerere.ai.ui.withStablePartIds
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
@@ -88,6 +90,35 @@ class ConversationMessagesTest {
         assertEquals(listOf(checkpoint.id), node.messages.map { it.id })
         assertTrue(node.currentMessage.isContextCheckpoint)
         assertEquals("edited", node.currentMessage.toText())
+    }
+
+    @Test
+    fun `conversation save fills legacy part ids without changing message text`() {
+        val message = UIMessage.user("legacy")
+        val conversation = conversationOf(message.toMessageNode())
+
+        val migrated = conversation.fillPartIds().currentMessages.single()
+
+        assertEquals("legacy", migrated.toText())
+        assertEquals(message.id, migrated.id)
+        assertTrue(migrated.parts.single().partId != null)
+        assertEquals(migrated.partIdAt(0), conversation.fillPartIds().currentMessages.single().partIdAt(0))
+    }
+
+    @Test
+    fun `editing creates branch owned part identities`() {
+        val original = UIMessage.user("old").withStablePartIds()
+        val sourcePartId = original.partIdAt(0)
+        val editedParts = listOf((original.parts.single() as UIMessagePart.Text).copy(text = "new"))
+
+        val edited = conversationOf(original.toMessageNode())
+            .editMessage(original.id, editedParts)
+            .fillPartIds()
+            .currentMessages
+            .single()
+
+        assertNotEquals(original.id, edited.id)
+        assertNotEquals(sourcePartId, edited.partIdAt(0))
     }
 
     @Test

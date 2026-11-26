@@ -10,6 +10,7 @@ import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.util.json
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 @Serializable
 sealed class ToolApprovalState {
@@ -75,33 +76,38 @@ enum class ReasoningType {
 @Serializable
 sealed class UIMessagePart {
     abstract val metadata: JsonObject?
+    abstract val partId: Uuid?
 
     @Serializable
     @SerialName("text")
     data class Text(
         val text: String,
-        override var metadata: JsonObject? = null
+        override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
 
     @Serializable
     @SerialName("image")
     data class Image(
         val url: String,
-        override var metadata: JsonObject? = null
+        override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
 
     @Serializable
     @SerialName("video")
     data class Video(
         val url: String,
-        override var metadata: JsonObject? = null
+        override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
 
     @Serializable
     @SerialName("audio")
     data class Audio(
         val url: String,
-        override var metadata: JsonObject? = null
+        override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
 
     @Serializable
@@ -110,7 +116,8 @@ sealed class UIMessagePart {
         val url: String,
         val fileName: String,
         val mime: String = "text/*",
-        override var metadata: JsonObject? = null
+        override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
 
     @Serializable
@@ -121,6 +128,7 @@ sealed class UIMessagePart {
         val finishedAt: Instant? = Clock.System.now(),
         override var metadata: JsonObject? = null,
         val reasoningType: ReasoningType = ReasoningType.REASONING_TEXT,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
 
     @Deprecated("Deprecated")
@@ -128,6 +136,7 @@ sealed class UIMessagePart {
     @SerialName("search")
     data object Search : UIMessagePart() {
         override var metadata: JsonObject? = null
+        override val partId: Uuid? = null
     }
 
     @Deprecated("Use UIMessagePart.Tool instead")
@@ -138,7 +147,8 @@ sealed class UIMessagePart {
         val toolName: String,
         val arguments: String,
         val approvalState: ToolApprovalState = ToolApprovalState.Auto,
-        override var metadata: JsonObject? = null
+        override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart() {
         fun merge(other: ToolCall): ToolCall {
             return ToolCall(
@@ -147,6 +157,7 @@ sealed class UIMessagePart {
                 arguments = arguments + other.arguments,
                 approvalState = approvalState,
                 metadata = if (other.metadata != null) other.metadata else metadata,
+                partId = partId,
             )
         }
     }
@@ -159,7 +170,8 @@ sealed class UIMessagePart {
         val toolName: String,
         val content: JsonElement,
         val arguments: JsonElement,
-        override var metadata: JsonObject? = null
+        override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
 
     /**
@@ -177,6 +189,7 @@ sealed class UIMessagePart {
         val output: JsonElement? = null,
         val status: ServerToolStatus,
         override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart() {
         val isFinished: Boolean
             get() = status == ServerToolStatus.COMPLETED || status == ServerToolStatus.FAILED
@@ -194,6 +207,7 @@ sealed class UIMessagePart {
         // 本地执行的起止时间，只统计真正运行工具的耗时；拒绝、问答和旧消息都为空
         val startedAt: Instant? = null,
         val finishedAt: Instant? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart() {
         /** Whether the tool has been executed (has output) */
         val isExecuted: Boolean get() = output.isNotEmpty()
@@ -219,6 +233,7 @@ sealed class UIMessagePart {
                 metadata = if (other.metadata != null) other.metadata else metadata,
                 startedAt = startedAt,
                 finishedAt = finishedAt,
+                partId = partId,
             )
         }
     }
@@ -237,7 +252,24 @@ sealed class UIMessagePart {
         val title: String,
         val text: String,
         override var metadata: JsonObject? = null,
+        override val partId: Uuid? = null,
     ) : UIMessagePart()
+}
+
+/** Return the same logical part with a persisted identity. */
+fun UIMessagePart.withPartId(id: Uuid?): UIMessagePart = when (this) {
+    is UIMessagePart.Text -> copy(partId = id)
+    is UIMessagePart.Image -> copy(partId = id)
+    is UIMessagePart.Video -> copy(partId = id)
+    is UIMessagePart.Audio -> copy(partId = id)
+    is UIMessagePart.Document -> copy(partId = id)
+    is UIMessagePart.Reasoning -> copy(partId = id)
+    UIMessagePart.Search -> this
+    is UIMessagePart.ToolCall -> copy(partId = id)
+    is UIMessagePart.ToolResult -> copy(partId = id)
+    is UIMessagePart.ServerTool -> copy(partId = id)
+    is UIMessagePart.Tool -> copy(partId = id)
+    is UIMessagePart.Notice -> copy(partId = id)
 }
 
 const val INFOSET_KIND_METADATA = "infoset_kind"

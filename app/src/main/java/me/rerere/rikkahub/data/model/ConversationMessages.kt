@@ -4,6 +4,7 @@ import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.finishPendingTools
+import me.rerere.ai.ui.withoutPartIds
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -36,7 +37,7 @@ internal fun Conversation.editMessage(messageId: Uuid, parts: List<UIMessagePart
     } else {
         UIMessage(
             role = node.role,
-            parts = parts,
+            parts = parts.withoutPartIds(),
             annotations = original.annotations,
             // 编辑的是原消息的内容，来源仍是生成它的模型
             modelId = original.modelId,

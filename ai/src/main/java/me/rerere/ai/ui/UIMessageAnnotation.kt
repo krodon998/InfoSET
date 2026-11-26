@@ -24,6 +24,8 @@ sealed class UIMessageAnnotation {
     @SerialName("reply_reference")
     data class ReplyReference(
         val targetMessageId: Uuid,
+        val targetPartId: Uuid? = null,
+        // Compatibility locator for archives created before stable part IDs.
         val targetPartIndex: Int? = null,
         val targetRole: MessageRole,
         val speakerSnapshot: String,

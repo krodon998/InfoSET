@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.transformers
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.partIndexOf
 
 /** Adds deterministic reply context to the provider projection without changing stored messages. */
 object ReplyReferenceTransformer : InputMessageTransformer {
@@ -18,8 +19,11 @@ internal fun projectReplyReferences(messages: List<UIMessage>): List<UIMessage> 
         val reference = message.annotations.filterIsInstance<UIMessageAnnotation.ReplyReference>().firstOrNull()
             ?: return@map message
         val target = targets[reference.targetMessageId]
+        val targetPartIndex = target?.let { messageTarget ->
+            reference.targetPartId?.let(messageTarget::partIndexOf) ?: reference.targetPartIndex
+        }
         val preview = target
-            ?.replyPreview(reference.targetPartIndex)
+            ?.replyPreview(targetPartIndex)
             ?.takeIf { it.isNotBlank() }
             ?: reference.previewSnapshot
         val stablePreview = preview.replace(Regex("\\s+"), " ").trim().take(120)

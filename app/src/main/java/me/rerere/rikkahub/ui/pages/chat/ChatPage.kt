@@ -70,6 +70,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.partIdAt
 import me.rerere.ai.ui.stickerMetadata
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
@@ -518,6 +519,7 @@ private fun ChatPageContent(
                     }
                     inputState.replyReference = UIMessageAnnotation.ReplyReference(
                         targetMessageId = message.id,
+                        targetPartId = partIndex?.let(message::partIdAt),
                         targetPartIndex = partIndex,
                         targetRole = message.role,
                         speakerSnapshot = speaker,
