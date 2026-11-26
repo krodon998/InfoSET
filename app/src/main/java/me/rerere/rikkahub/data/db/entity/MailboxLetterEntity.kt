@@ -32,7 +32,7 @@ data class MailboxLetterEntity(
     val writtenAt: Long,
     @ColumnInfo("opened_at")
     val openedAt: Long?,
-    /** ai / delayed_box / import；原始来源用于未来追溯。 */
+    /** ai / delayed_box / monthly_life_letters / import；原始来源用于未来追溯。 */
     val source: String,
     @ColumnInfo("source_ref")
     val sourceRef: String?,

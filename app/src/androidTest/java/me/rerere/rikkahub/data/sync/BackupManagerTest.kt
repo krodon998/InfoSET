@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
@@ -12,6 +13,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.AppDatabaseFactory
+import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -23,6 +25,8 @@ import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
 import java.io.File
 import java.nio.file.Files
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -107,6 +111,44 @@ class BackupManagerTest {
         manager.stageRestore(archive, includeDatabase = false, includeFiles = false)
         val staged = File(context.noBackupFilesDir, "backup-restore/pending/settings.json").readText()
         assertEquals(archived, launchCountOf(staged))
+    }
+
+    @Test fun monthlyLifeLetterStaysLockedAndSurvivesBackupRestore() = runBlocking {
+        val unlockAt = LocalDate.parse("2027-03-05")
+            .atStartOfDay(ZoneId.of("Asia/Shanghai"))
+            .toInstant()
+            .toEpochMilli()
+        val letter = MailboxLetterEntity(
+            id = "monthly-life-letter-backup-probe",
+            title = "锁定标题",
+            summary = "锁定摘要",
+            salutation = null,
+            body = "完整且不可覆盖的生活信正文。",
+            signature = null,
+            unlockAt = unlockAt,
+            writtenAt = 1L,
+            openedAt = null,
+            source = "monthly_life_letters",
+            sourceRef = "{\"kind\":\"MONTHLY_LIFE_LETTER\"}",
+        )
+        val dao = liveDatabase.mailboxLetterDao()
+        dao.insert(letter)
+        val upcoming = dao.observeUpcoming(unlockAt - 1).first().single()
+        assertEquals(letter.id, upcoming.id)
+        assertEquals(null, dao.getUnlocked(letter.id, unlockAt - 1))
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        liveDatabase.close()
+        assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
+        liveDatabase = AppDatabaseFactory.create(context)
+
+        val restoredDao = liveDatabase.mailboxLetterDao()
+        assertEquals(null, restoredDao.getUnlocked(letter.id, unlockAt - 1))
+        val restored = restoredDao.getUnlocked(letter.id, unlockAt)!!
+        assertEquals("monthly_life_letters", restored.source)
+        assertEquals("完整且不可覆盖的生活信正文。", restored.body)
+        assertEquals(letter.sourceRef, restored.sourceRef)
     }
 
     @Test fun archiveWithoutLaunchCountRestoresItAsZero() = runBlocking {

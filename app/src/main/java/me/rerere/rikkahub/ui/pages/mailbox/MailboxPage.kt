@@ -60,7 +60,7 @@ import me.rerere.rikkahub.data.db.dao.MailboxLetterDAO
 import me.rerere.rikkahub.data.db.dao.ReadyLetterProjection
 import me.rerere.rikkahub.data.db.dao.UpcomingLetterProjection
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
-import me.rerere.rikkahub.data.gifts.DelayedBoxImporter
+import me.rerere.rikkahub.data.gifts.MailboxArchiveImporter
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import org.koin.compose.koinInject
 import java.time.Instant
@@ -84,7 +84,7 @@ fun MailboxPage(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val importer = remember(dao) { DelayedBoxImporter(dao) }
+    val importer = remember(dao) { MailboxArchiveImporter(dao) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var section by remember { mutableStateOf(MailboxSection.Ready) }
     var isImporting by remember { mutableStateOf(false) }

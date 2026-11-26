@@ -15,6 +15,7 @@ enum class DailyGiftLayer {
 enum class DailyGiftKind {
     MONTH_LETTER,
     DATE_ENTRY,
+    MONTHLY_LIFE_LETTER,
 }
 
 /**
@@ -30,4 +31,20 @@ data class DailyGiftLocator(
     val relativePath: String,
     val layer: DailyGiftLayer,
     val contentHash: String,
+)
+
+/**
+ * Content-addressed identity for the dedicated twelve monthly life letters.
+ * This source stays separate from delayed_box even when both letters unlock in the same month.
+ */
+@Serializable
+data class MonthlyLifeLetterLocator(
+    val year: Int,
+    val month: Int,
+    val day: Int,
+    val kind: DailyGiftKind = DailyGiftKind.MONTHLY_LIFE_LETTER,
+    val relativePath: String,
+    val timezone: String,
+    val contentHash: String,
+    val manifestSchemaVersion: Int,
 )

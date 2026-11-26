@@ -22,11 +22,13 @@ data class DelayedBoxImportReport(
     val imported: Int,
     val duplicates: Int,
     val ignored: Int,
+    val totalEntries: Int,
 )
 
 data class ParsedDelayedBoxArchive(
     val letters: List<MailboxLetterEntity>,
     val ignored: Int,
+    val totalEntries: Int,
 )
 
 class DelayedBoxImporter(private val dao: MailboxLetterDAO) {
@@ -44,6 +46,7 @@ class DelayedBoxImporter(private val dao: MailboxLetterDAO) {
             imported = imported,
             duplicates = duplicates,
             ignored = parsed.ignored,
+            totalEntries = parsed.totalEntries,
         )
     }
 }
@@ -61,6 +64,7 @@ object DelayedBoxArchiveParser {
         val letters = mutableListOf<MailboxLetterEntity>()
         var ignored = 0
         var entryCount = 0
+        var fileCount = 0
         var acceptedBytes = 0L
 
         ZipInputStream(input.buffered()).use { zip ->
@@ -73,6 +77,7 @@ object DelayedBoxArchiveParser {
                     zip.closeEntry()
                     continue
                 }
+                fileCount++
 
                 val relativePath = delayedBoxRelativePath(entry.name)
                 val extension = relativePath?.substringAfterLast('.', "")?.lowercase()
@@ -110,7 +115,11 @@ object DelayedBoxArchiveParser {
             }
         }
 
-        return ParsedDelayedBoxArchive(letters = letters, ignored = ignored)
+        return ParsedDelayedBoxArchive(
+            letters = letters,
+            ignored = ignored,
+            totalEntries = fileCount,
+        )
     }
 
     private fun buildLetter(
