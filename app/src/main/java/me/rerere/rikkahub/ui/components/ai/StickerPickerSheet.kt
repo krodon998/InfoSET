@@ -126,7 +126,7 @@ fun StickerPickerSheet(
 }
 
 @Composable
-private fun StickerLibraryDialog(
+internal fun StickerLibraryDialog(
     stickers: List<ManagedFileEntity>,
     filesManager: FilesManager,
     onImport: () -> Unit,
