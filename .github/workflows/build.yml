@@ -78,6 +78,7 @@ jobs:
             --tests me.rerere.rikkahub.service.ConversationInboxTest \
             --tests me.rerere.rikkahub.service.QueuedAttachmentCleanupTest \
             --tests me.rerere.rikkahub.ui.hooks.ChatInputStateTest \
+            --tests me.rerere.rikkahub.ui.components.ai.ChatInputHoldTargetTest \
             --tests me.rerere.rikkahub.data.ai.account.ChatGPTAuthTest \
             --tests me.rerere.rikkahub.data.ai.account.ProviderAccountManagerTest \
             --tests me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigureConvertToTest \
