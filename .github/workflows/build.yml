@@ -10,6 +10,8 @@ on:
       - "release-assets/**"
       - ".gitignore"
       - "scripts/setup-release-signing.ps1"
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       tests_only:
@@ -87,13 +89,13 @@ jobs:
           ./gradlew assembleGithubDebugAndroidTest
 
       - name: Build APK
-        if: github.event_name != 'workflow_dispatch' || inputs.tests_only != true
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tests_only != true)
         run: |
           chmod +x gradlew
           ./gradlew assembleGithubDebug
 
       - name: Upload APK
-        if: github.event_name != 'workflow_dispatch' || inputs.tests_only != true
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tests_only != true)
         uses: actions/upload-artifact@v4
         with:
           name: InfoSET-0.1.0-debug
