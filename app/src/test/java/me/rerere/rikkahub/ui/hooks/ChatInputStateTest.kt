@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.hooks
 
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.ui.text.TextRange
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import me.rerere.ai.ui.UIMessagePart
@@ -104,6 +105,21 @@ class ChatInputStateTest {
         assertEquals(
             listOf("第一句已改", "第二句", "第三句"),
             state.getContents().filterIsInstance<UIMessagePart.Text>().map { it.text },
+        )
+    }
+
+    @Test
+    fun `inline sticker is emitted at the current cursor`() {
+        val state = ChatInputState()
+        val sticker = UIMessagePart.Image("file:///sticker.webp")
+        state.textContent.setTextAndPlaceCursorAtEnd("前后")
+        state.textContent.edit { selection = TextRange(1) }
+
+        state.insertInlinePart(sticker)
+
+        assertEquals(
+            listOf(UIMessagePart.Text("前"), sticker, UIMessagePart.Text("后")),
+            state.getContents(),
         )
     }
 }

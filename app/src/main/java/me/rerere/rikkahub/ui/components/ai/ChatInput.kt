@@ -1,10 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -13,7 +8,9 @@ import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +30,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -53,7 +49,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,7 +73,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
@@ -86,13 +80,14 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
+import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
-import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -107,14 +102,8 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionItem
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
-import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
-import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
-import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
-import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.utils.SoundEffectPlayer
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
@@ -134,6 +123,7 @@ fun ChatInput(
     onUpdateChatModel: (Model) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
     onMoreClick: () -> Unit,
+    onStickersClick: () -> Unit,
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
@@ -148,7 +138,6 @@ fun ChatInput(
     voiceState: VoiceSessionState = VoiceSessionState(),
     onStopVoiceMode: () -> Unit = {},
 ) {
-    val toaster = LocalToaster.current
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
 
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -166,6 +155,7 @@ fun ChatInput(
         providers = settings.providers,
         type = ModelType.CHAT,
     )
+    var showReasoningPicker by remember { mutableStateOf(false) }
 
     fun sendMessage() {
         focusManager.clearFocus(force = true)
@@ -177,37 +167,6 @@ fun ChatInput(
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
         if (loading && state.isEmpty()) onCancelClick() else onLongSendClick()
-    }
-
-    val asr = LocalASRState.current
-    val asrState by asr.state.collectAsState()
-    val hapticFeedback = LocalHapticFeedback.current
-    val soundEffectPlayer: SoundEffectPlayer = koinInject()
-    LaunchedEffect(Unit) {
-        soundEffectPlayer.preload(R.raw.asr_start, R.raw.asr_stop)
-    }
-    val asrPermission = rememberPermissionState(PermissionRecordAudio)
-    PermissionManager(permissionState = asrPermission)
-    var asrBaseText by remember { mutableStateOf("") }
-    LaunchedEffect(asrState.status) {
-        when (asrState.status) {
-            ASRStatus.Listening -> {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                soundEffectPlayer.play(R.raw.asr_start)
-            }
-
-            ASRStatus.Stopping -> {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                soundEffectPlayer.play(R.raw.asr_stop)
-            }
-
-            else -> {}
-        }
-    }
-    LaunchedEffect(asrState.errorMessage) {
-        asrState.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
-            toaster.show(message = message, type = ToastType.Error)
-        }
     }
 
     // 底部渐变遮罩：从输入区顶部一直过渡到屏幕底部（键盘弹出时到键盘上沿），避免消息透到系统导航栏
@@ -301,107 +260,52 @@ fun ChatInput(
                         MediaFileInputRow(state = state)
                     }
 
-                    TextInputRow(
-                        state = state,
-                        assistant = assistant,
-                        completionProviders = completionProviders,
-                        onSendMessage = { sendMessage() },
-                    )
-
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
+                            .padding(horizontal = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f, fill = false)
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                // Model Picker
-                                ModelSelectorButton(
-                                    state = modelListState,
-                                    onlyIcon = true,
-                                    modifier = Modifier,
-                                )
-
-                                // Reasoning
+                        ModelSelectorButton(
+                            state = modelListState,
+                            onlyIcon = true,
+                            onLongClick = {
                                 if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
-                                    ReasoningButton(
-                                        reasoningLevel = assistant.reasoningLevel,
-                                        onUpdateReasoningLevel = {
-                                            onUpdateAssistant(assistant.copy(reasoningLevel = it))
-                                        },
-                                        onlyIcon = true,
-                                    )
+                                    showReasoningPicker = true
                                 }
-                            }
-
-                            if (runningBackgroundTasks > 0) {
-                                BackgroundTasksButton(
-                                    running = runningBackgroundTasks,
-                                    onClick = onShowBackgroundTasks,
-                                )
-                            }
+                            },
+                        )
+                        TextInputRow(
+                            state = state,
+                            assistant = assistant,
+                            completionProviders = completionProviders,
+                            onSendMessage = { sendMessage() },
+                            onStickersClick = onStickersClick,
+                            onMoreClick = onMoreClick,
+                            modifier = Modifier.weight(1f),
+                        )
+                        ActionIconButton(onClick = onStickersClick) {
+                            Text("☺", style = MaterialTheme.typography.headlineSmall)
                         }
-
-                        ActionIconButton(
-                            onClick = onMoreClick
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Add01,
-                                contentDescription = stringResource(R.string.more_options)
-                            )
-                        }
-
-                        if (!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)) {
-                            AsrButton(
-                                state = asrState,
-                                onClick = {
-                                    when (asrState.status) {
-                                        ASRStatus.Listening -> asr.stop()
-                                        ASRStatus.Idle, ASRStatus.Error -> {
-                                            if (!asrPermission.allRequiredPermissionsGranted) {
-                                                asrPermission.requestPermissions()
-                                            } else {
-                                                asrBaseText = state.textContent.text.toString()
-                                                asr.start { transcript ->
-                                                    val spacer =
-                                                        if (asrBaseText.isBlank() || transcript.isBlank()) "" else " "
-                                                    state.setMessageText(asrBaseText + spacer + transcript)
-                                                }
-                                            }
-                                        }
-
-                                        ASRStatus.Connecting, ASRStatus.Stopping -> {}
-                                    }
-                                }
-                            )
-                        }
-
-                        // 录音中熄屏会截断语音输入；两种情况共用一个，各放一个的话先结束的那个会清掉亮屏标记
-                        if (loading || asrState.isRecording) {
+                        SendButton(
+                            loading = loading,
+                            empty = state.isEmpty(),
+                            onClick = { sendMessage() },
+                            onQueue = { sendMessageWithoutAnswer() },
+                        )
+                        if (loading) {
                             KeepScreenOn()
                         }
-
-                        AnimatedVisibility(
-                            visible = !asrState.isRecording,
-                            enter = fadeIn() + scaleIn(),
-                            exit = fadeOut() + scaleOut(),
+                    }
+                    if (runningBackgroundTasks > 0) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
                         ) {
-                            SendButton(
-                                loading = loading,
-                                empty = state.isEmpty(),
-                                onClick = { sendMessage() },
-                                onLongClick = { sendMessageWithoutAnswer() },
+                            BackgroundTasksButton(
+                                running = runningBackgroundTasks,
+                                onClick = onShowBackgroundTasks,
                             )
                         }
                     }
@@ -415,6 +319,15 @@ fun ChatInput(
         state = modelListState,
         onSelect = onUpdateChatModel,
     )
+    if (showReasoningPicker) {
+        ReasoningPicker(
+            reasoningLevel = assistant.reasoningLevel,
+            onDismissRequest = { showReasoningPicker = false },
+            onUpdateReasoningLevel = {
+                onUpdateAssistant(assistant.copy(reasoningLevel = it))
+            },
+        )
+    }
 }
 
 @Composable
@@ -422,10 +335,14 @@ private fun SendButton(
     loading: Boolean,
     empty: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onQueue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var dragOffset by remember { mutableStateOf(0f) }
+    var thresholdReached by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
     val showStop = loading && empty
+    val queueSelected = dragOffset <= -36f
     val containerColor = when {
         showStop -> MaterialTheme.colorScheme.errorContainer
         empty -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -439,13 +356,30 @@ private fun SendButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .size(30.dp)
+            .size(38.dp)
             .testTag("chat_send_button")
             .clip(CircleShape)
+            .draggable(
+                enabled = !showStop && !empty,
+                orientation = Orientation.Vertical,
+                state = rememberDraggableState { delta ->
+                    dragOffset = (dragOffset + delta).coerceIn(-96f, 0f)
+                    val selected = dragOffset <= -36f
+                    if (selected && !thresholdReached) {
+                        haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                    }
+                    thresholdReached = selected
+                },
+                onDragStopped = {
+                    if (queueSelected) onQueue()
+                    dragOffset = 0f
+                    thresholdReached = false
+                },
+            )
             .combinedClickable(
                 enabled = showStop || !empty,
                 onClick = onClick,
-                onLongClick = onLongClick,
+                onLongClick = onQueue,
             )
     ) {
         Surface(
@@ -455,8 +389,12 @@ private fun SendButton(
             content = {},
         )
         Icon(
-            imageVector = if (showStop) HugeIcons.Cancel01 else HugeIcons.ArrowUp02,
-            contentDescription = stringResource(if (showStop) R.string.stop else R.string.send),
+            imageVector = when {
+                showStop -> HugeIcons.Cancel01
+                queueSelected -> HugeIcons.Clock01
+                else -> HugeIcons.ArrowUp02
+            },
+            contentDescription = if (queueSelected) "暂存气泡，暂不请求模型" else stringResource(if (showStop) R.string.stop else R.string.send),
             tint = contentColor,
             modifier = Modifier.size(18.dp)
         )
@@ -512,6 +450,9 @@ private fun TextInputRow(
     assistant: Assistant,
     completionProviders: List<ChatCompletionProvider>,
     onSendMessage: () -> Unit,
+    onStickersClick: () -> Unit,
+    onMoreClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val settings = LocalSettings.current
     val filesManager: FilesManager = koinInject()
@@ -522,7 +463,7 @@ private fun TextInputRow(
     var isEditingReasoning by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (state.isEditing()) {
@@ -654,7 +595,7 @@ private fun TextInputRow(
             placeholder = {
                 Text(stringResource(R.string.chat_input_placeholder))
             },
-            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
+            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 3),
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Sentences,
                 imeAction = if (settings.displaySetting.sendOnEnter) ImeAction.Send else ImeAction.Default
@@ -675,12 +616,12 @@ private fun TextInputRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (isFocused) {
+                    if (state.textContent.text.count { it == '\n' } >= 2) {
                         IconButton(
                             onClick = {
                                 isFullScreen = !isFullScreen
                             }) {
-                            Icon(HugeIcons.Fullscreen, null)
+                            Icon(HugeIcons.ArrowUp01, "展开详细编辑")
                         }
                     }
                 }
@@ -695,6 +636,14 @@ private fun TextInputRow(
             FullScreenEditor(
                 textState = state.textContent,
                 placeholder = stringResource(R.string.chat_input_placeholder),
+                onStickersClick = {
+                    isFullScreen = false
+                    onStickersClick()
+                },
+                onMoreClick = {
+                    isFullScreen = false
+                    onMoreClick()
+                },
             ) {
                 isFullScreen = false
             }
@@ -851,6 +800,8 @@ private fun QuickMessageButton(
 private fun FullScreenEditor(
     textState: TextFieldState,
     placeholder: String,
+    onStickersClick: (() -> Unit)? = null,
+    onMoreClick: (() -> Unit)? = null,
     onDone: () -> Unit
 ) {
     BasicAlertDialog(
@@ -878,22 +829,18 @@ private fun FullScreenEditor(
                     modifier = Modifier
                         .padding(8.dp)
                         .fillMaxSize(),
-                    horizontalAlignment = Alignment.End,
+                    horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row {
-                        TextButton(
-                            onClick = {
-                                onDone()
-                            }) {
-                            Text(stringResource(R.string.chat_page_save))
-                        }
+                    IconButton(onClick = onDone) {
+                        Icon(HugeIcons.ArrowDown01, contentDescription = "关闭详细编辑")
                     }
                     TextField(
                         state = textState,
                         modifier = Modifier
                             .padding(bottom = 2.dp)
-                            .fillMaxSize(),
+                            .weight(1f)
+                            .fillMaxWidth(),
                         shape = RoundedCornerShape(32.dp),
                         placeholder = {
                             Text(placeholder)
@@ -908,6 +855,24 @@ private fun FullScreenEditor(
                             unfocusedContainerColor = Color.Transparent,
                         ),
                     )
+                    if (onStickersClick != null || onMoreClick != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            onStickersClick?.let { openStickers ->
+                                ActionIconButton(onClick = openStickers) {
+                                    Text("☺", style = MaterialTheme.typography.headlineSmall)
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            onMoreClick?.let { openMore ->
+                                ActionIconButton(onClick = openMore) {
+                                    Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.more_options))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

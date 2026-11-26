@@ -465,6 +465,9 @@ private fun ChatPageContent(
                     },
                     onUpdateChatModel = vm::setChatModel,
                     onUpdateAssistant = vm::updateAssistant,
+                    onStickersClick = {
+                        showStickersSheet = true
+                    },
                     onMoreClick = {
                         showFilesSheet = true
                     },
@@ -591,18 +594,6 @@ private fun ChatPageContent(
                     showFilesSheet = false
                     showStickersSheet = true
                 },
-                onSplitBubbleSend = {
-                    showFilesSheet = false
-                    if (currentChatModel == null) {
-                        toaster.show("请先选择模型", type = ToastType.Error)
-                    } else if (!inputState.isEditing()) {
-                        vm.handleMessageSend(
-                            content = inputState.getSplitContents(),
-                            annotations = listOfNotNull(inputState.replyReference),
-                        )
-                        inputState.clearInput()
-                    }
-                },
                 onDismiss = { showFilesSheet = false },
             )
         }
@@ -611,10 +602,10 @@ private fun ChatPageContent(
                 onStickerSelected = { sticker ->
                     scope.launch {
                         val copy = filesManager.copyManagedFile(sticker, FileFolders.UPLOAD)
-                        inputState.messageContent = inputState.messageContent + UIMessagePart.Image(
+                        inputState.insertInlinePart(UIMessagePart.Image(
                             url = filesManager.getFile(copy).toUri().toString(),
                             metadata = stickerMetadata(sticker.relativePath),
-                        )
+                        ))
                         showStickersSheet = false
                     }
                 },
@@ -635,7 +626,6 @@ private fun ChatFilesPickerSheet(
     attachmentPickerActions: ChatAttachmentPickerActions,
     onStartVoiceMode: () -> Unit,
     onOpenStickers: () -> Unit,
-    onSplitBubbleSend: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
@@ -684,7 +674,6 @@ private fun ChatFilesPickerSheet(
             onPickFile = attachmentPickerActions.onPickFile,
             onSketch = attachmentPickerActions.onSketch,
             onOpenStickers = onOpenStickers,
-            onSplitBubbleSend = onSplitBubbleSend,
             onStartVoiceMode = if (
                 setting.getSelectedASRProvider()?.supportsServerVadVoiceMode == true &&
                 voiceState.phase == VoicePhase.Off
