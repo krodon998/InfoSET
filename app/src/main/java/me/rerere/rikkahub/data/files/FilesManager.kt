@@ -432,6 +432,26 @@ class FilesManager(
         repository.deleteById(id) > 0
     }
 
+    /**
+     * Persists the user-facing sticker order without adding another schema field.
+     * Sticker rows are already ordered by createdAt DESC, so rewriting only that
+     * ordering key keeps old databases and backups fully compatible.
+     */
+    suspend fun reorderStickers(orderedIds: List<Long>) = withContext(Dispatchers.IO) {
+        val stickers = repository.listByFolder(FileFolders.STICKERS).first().associateBy { it.id }
+        val base = System.currentTimeMillis() + orderedIds.size
+        orderedIds.forEachIndexed { index, id ->
+            stickers[id]?.let { sticker ->
+                repository.update(
+                    sticker.copy(
+                        createdAt = base - index,
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                )
+            }
+        }
+    }
+
     suspend fun deleteAll(folder: String = FileFolders.UPLOAD): Boolean = withContext(Dispatchers.IO) {
         val dir = File(context.filesDir, folder)
         val entries = dir.listFiles()

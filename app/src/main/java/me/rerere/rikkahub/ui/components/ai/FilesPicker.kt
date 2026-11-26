@@ -60,7 +60,6 @@ import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Files02
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Image02
-import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Package01
@@ -124,7 +123,6 @@ internal fun FilesPicker(
     onPickFile: () -> Unit,
     onSketch: () -> Unit,
     onOpenStickers: () -> Unit,
-    onSplitBubbleSend: () -> Unit,
     onStartVoiceMode: (() -> Unit)? = null,
 ) {
     val settings = LocalSettings.current
@@ -213,13 +211,6 @@ internal fun FilesPicker(
                             add(AttachmentAction(HugeIcons.MusicNote03, R.string.audio, onPickAudio))
                         }
                         add(AttachmentAction(HugeIcons.Files02, R.string.upload_file, onPickFile))
-                        add(
-                            AttachmentAction(
-                                HugeIcons.LeftToRightListBullet,
-                                R.string.chat_page_split_bubble_send,
-                                onSplitBubbleSend,
-                            )
-                        )
                         onStartVoiceMode?.let { start ->
                             add(AttachmentAction(HugeIcons.Voice, R.string.chat_page_voice_title, start))
                         }

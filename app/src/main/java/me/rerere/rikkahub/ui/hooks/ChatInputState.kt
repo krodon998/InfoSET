@@ -21,6 +21,7 @@ class ChatInputState {
         private set
     private var editingParts: List<UIMessagePart>? = null
     private var editingAttachmentUrls: Set<String> = emptySet()
+    private var inlineParts: List<UIMessagePart> = emptyList()
 
     fun clearInput() {
         textContent.setTextAndPlaceCursorAtEnd("")
@@ -30,6 +31,7 @@ class ChatInputState {
         editingReasoning = null
         editingParts = null
         editingAttachmentUrls = emptySet()
+        inlineParts = emptyList()
     }
 
     fun isEditing() = editingMessage != null
@@ -58,6 +60,7 @@ class ChatInputState {
         messageContent = contents.filter { it !is UIMessagePart.Text && (reasoning == null || it !is UIMessagePart.Reasoning) }
         editingParts = contents
         editingAttachmentUrls = contents.mapNotNull { it.attachmentUrlOrNull() }.toSet()
+        inlineParts = emptyList()
     }
 
     fun getContents(): List<UIMessagePart> {
@@ -108,6 +111,18 @@ class ChatInputState {
             }
             return if (text.isBlank()) messageContent else listOf(UIMessagePart.Text(text)) + messageContent
         }
+        if (inlineParts.isNotEmpty()) {
+            val availableInlineParts = inlineParts.filter { it in messageContent }
+            val remainingAttachments = messageContent.toMutableList().apply { removeAll(availableInlineParts) }
+            val segments = text.split(INLINE_PART_MARKER)
+            return buildList {
+                segments.forEachIndexed { index, segment ->
+                    if (segment.isNotBlank()) add(UIMessagePart.Text(segment))
+                    availableInlineParts.getOrNull(index)?.let(::add)
+                }
+                addAll(remainingAttachments)
+            }
+        }
         return if (text.isBlank()) messageContent else listOf(UIMessagePart.Text(text)) + messageContent
     }
 
@@ -116,7 +131,21 @@ class ChatInputState {
         splitBubbleText(textContent.text.toString()).map { UIMessagePart.Text(it) } + messageContent
 
     fun isEmpty(): Boolean {
-        return textContent.text.isBlank() && messageContent.isEmpty()
+        return textContent.text.toString().replace(INLINE_PART_MARKER, "").isBlank() && messageContent.isEmpty()
+    }
+
+    /** Inserts a rich part at the current text cursor while keeping a plain TextFieldState. */
+    fun insertInlinePart(part: UIMessagePart) {
+        val insertionIndex = textContent.text
+            .take(textContent.selection.min)
+            .count { it == INLINE_PART_MARKER.single() }
+        textContent.edit {
+            replace(selection.min, selection.max, INLINE_PART_MARKER)
+        }
+        inlineParts = inlineParts.toMutableList().apply {
+            add(insertionIndex.coerceIn(0, size), part)
+        }
+        messageContent = messageContent + part
     }
 
     fun addImages(uris: List<Uri>) {
@@ -183,6 +212,7 @@ class ChatInputState {
 }
 
 private const val MULTI_TEXT_EDIT_SEPARATOR = "\n\n"
+private const val INLINE_PART_MARKER = "\u2063"
 private val BLANK_LINE = Regex("\\r?\\n[\\t ]*\\r?\\n+")
 
 internal fun splitBubbleText(text: String): List<String> = text
