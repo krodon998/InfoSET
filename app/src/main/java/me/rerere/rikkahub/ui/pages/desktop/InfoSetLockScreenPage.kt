@@ -6,6 +6,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.hardware.biometrics.BiometricPrompt
+import android.os.Build
+import android.os.CancellationSignal
 import android.provider.MediaStore
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,9 +31,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -49,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -57,6 +65,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -65,24 +75,47 @@ import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.InfoOsSettings
+import me.rerere.rikkahub.data.datastore.RequirePasscode
+import me.rerere.rikkahub.ui.pages.setting.hashPasscode
 import me.rerere.rikkahub.utils.getActivity
+import coil3.compose.AsyncImage
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.Base64
 
 private val LockBlue = Color(0xFF58A9C8)
 private val LockInk = Color(0xFF327F9E)
 
 @Composable
 fun InfoSetLockScreenPage(
+    infoOsSettings: InfoOsSettings,
     onUnlock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val activeWallpaper = infoOsSettings.wallpapers.find { it.id == infoOsSettings.activeWallpaperId }
     val context = LocalContext.current
     val view = LocalView.current
     val density = LocalDensity.current
     val unlockThresholdPx = with(density) { 88.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var showAuthentication by remember { mutableStateOf(false) }
+    var passcode by remember { mutableStateOf("") }
+    var passcodeError by remember { mutableStateOf(false) }
+
+    fun requestUnlock() {
+        if (infoOsSettings.passcodeHash.isBlank()) {
+            onUnlock()
+            return
+        }
+        val canSkip = infoOsSettings.requirePasscode == RequirePasscode.AFTER_MINUTES &&
+            infoOsSettings.lastLeftAtEpochMillis > 0L &&
+            System.currentTimeMillis() - infoOsSettings.lastLeftAtEpochMillis <
+            infoOsSettings.requirePasscodeAfterMinutes * 60_000L
+        if (canSkip) onUnlock() else showAuthentication = true
+    }
+
     val dragState = rememberDraggableState { delta ->
         dragOffsetY = (dragOffsetY + delta).coerceAtMost(0f)
     }
@@ -140,6 +173,32 @@ fun InfoSetLockScreenPage(
     }
 
     val activity = view.context.getActivity()
+    LaunchedEffect(showAuthentication, infoOsSettings.fingerprintEnabled) {
+        if (
+            showAuthentication &&
+            infoOsSettings.fingerprintEnabled &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+            activity != null
+        ) {
+            BiometricPrompt.Builder(activity)
+                .setTitle(context.getString(R.string.infoos_lock_fingerprint_title))
+                .setNegativeButton(
+                    context.getString(R.string.infoos_lock_use_password),
+                    activity.mainExecutor,
+                ) { _, _ -> }
+                .build()
+                .authenticate(
+                    CancellationSignal(),
+                    activity.mainExecutor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                            showAuthentication = false
+                            onUnlock()
+                        }
+                    },
+                )
+        }
+    }
     if (!view.isInEditMode && activity != null) {
         DisposableEffect(view, activity) {
             val controller = WindowCompat.getInsetsController(activity.window, view)
@@ -161,15 +220,6 @@ fun InfoSetLockScreenPage(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0f to Color(0xFFDDF2FC),
-                        0.44f to Color(0xFFF9FDFF),
-                        1f to Color(0xFFBDE9FB),
-                    )
-                )
-            )
             .graphicsLayer { translationY = dragOffsetY }
             .draggable(
                 orientation = Orientation.Vertical,
@@ -177,7 +227,7 @@ fun InfoSetLockScreenPage(
                 onDragStopped = {
                     if (dragOffsetY <= -unlockThresholdPx) {
                         dragOffsetY = 0f
-                        onUnlock()
+                        requestUnlock()
                     } else {
                         animate(
                             initialValue = dragOffsetY,
@@ -187,6 +237,35 @@ fun InfoSetLockScreenPage(
                 }
             )
     ) {
+        if (!activeWallpaper?.lockUri.isNullOrBlank()) {
+            AsyncImage(
+                model = activeWallpaper?.lockUri,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = activeWallpaper?.lockScale ?: 1f
+                        scaleY = scaleX
+                        translationX = activeWallpaper?.lockOffsetX ?: 0f
+                        translationY = activeWallpaper?.lockOffsetY ?: 0f
+                    },
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0f to Color(0xFFDDF2FC),
+                        0.44f to Color(0xFFF9FDFF),
+                        1f to Color(0xFFBDE9FB),
+                    )
+                        )
+                    )
+            )
+        }
         Canvas(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -304,7 +383,7 @@ fun InfoSetLockScreenPage(
                     .semantics(mergeDescendants = true) {
                         contentDescription = unlockLabel
                     }
-                    .clickable(role = Role.Button, onClick = onUnlock)
+                    .clickable(role = Role.Button, onClick = ::requestUnlock)
                     .padding(horizontal = 18.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -321,6 +400,62 @@ fun InfoSetLockScreenPage(
                         .clip(CircleShape)
                         .background(LockInk.copy(alpha = 0.64f))
                 )
+            }
+        }
+
+        if (showAuthentication) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 28.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = Color.White.copy(alpha = 0.94f),
+                tonalElevation = 8.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.infoos_lock_enter_password),
+                        style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                        color = LockInk,
+                    )
+                    OutlinedTextField(
+                        value = passcode,
+                        onValueChange = {
+                            passcode = it.filter(Char::isDigit).take(6)
+                            passcodeError = false
+                        },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        isError = passcodeError,
+                        supportingText = if (passcodeError) {
+                            { Text(stringResource(R.string.infoos_lock_wrong_password)) }
+                        } else null,
+                        singleLine = true,
+                    )
+                    Button(
+                        onClick = {
+                            val salt = runCatching {
+                                Base64.getDecoder().decode(infoOsSettings.passcodeSalt)
+                            }.getOrDefault(ByteArray(0))
+                            if (
+                                salt.isNotEmpty() &&
+                                hashPasscode(passcode, salt) == infoOsSettings.passcodeHash
+                            ) {
+                                showAuthentication = false
+                                passcode = ""
+                                onUnlock()
+                            } else {
+                                passcodeError = true
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(stringResource(R.string.infoos_lock_unlock))
+                    }
+                }
             }
         }
     }

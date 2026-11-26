@@ -9,7 +9,7 @@ class SettingCatalogTest {
     fun everyEntryHasUniqueStableIdentityAndDestination() {
         val entries = SettingCatalog.entries
 
-        assertTrue(entries.size >= 90)
+        assertTrue(entries.size >= 140)
         assertEquals(entries.size, entries.map { it.id }.distinct().size)
         assertTrue(entries.all { it.id.isNotBlank() })
         assertTrue(entries.all { it.breadcrumbRes.isNotEmpty() })

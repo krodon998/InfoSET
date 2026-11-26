@@ -37,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -59,15 +58,12 @@ import me.rerere.hugeicons.stroke.Internet
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
-import me.rerere.hugeicons.stroke.Moon02
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share04
-import me.rerere.hugeicons.stroke.SmartPhone01
-import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.isNotConfigured
@@ -75,15 +71,11 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
-import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.permission.LocalNetworkPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.NotificationPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.rememberLocalNetworkPermissionState
 import me.rerere.rikkahub.ui.components.ui.permission.rememberNotificationPermissionState
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.hooks.rememberColorMode
-import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -220,44 +212,62 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
 
+            item("accountSettings") {
+                val containerColor = MaterialTheme.colorScheme.primaryContainer
+                val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                CardGroup {
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.ACCOUNT.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.LookTop, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text(stringResource(R.string.infoos_settings_local_profile)) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_account)) },
+                    )
+                }
+            }
+
+            item("infoOsSystemSettings") {
+                val containerColor = MaterialTheme.colorScheme.secondaryContainer
+                val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                CardGroup {
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.GENERAL.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_general)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.NOTIFICATIONS.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Megaphone01, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_notifications)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.DISPLAY_BRIGHTNESS.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Image02, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_display_brightness)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.HOME_DOCK.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Package, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_home_dock)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.WALLPAPER.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.ImageUpload, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_wallpaper)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.LOGIN_SECURITY.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Brain02, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_password_fingerprint)) },
+                    )
+                }
+            }
+
             item("appearanceSettings") {
-                var colorMode by rememberColorMode()
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 CardGroup(
-                    title = { Text(stringResource(R.string.setting_group_appearance_and_use)) },
+                    title = { Text(stringResource(R.string.setting_group_chat_and_interface)) },
                 ) {
-                    formItem {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            CardGroupIcon(colorMode.icon(), containerColor = containerColor, contentColor = contentColor)
-                            Text(stringResource(R.string.setting_page_color_mode))
-                        }
-                        ConnectedChoiceButtons(
-                            options = ColorMode.entries,
-                            selected = colorMode,
-                            onSelect = {
-                                colorMode = it
-                                navController.navigate(Screen.Setting) {
-                                    popUpTo(Screen.Setting) {
-                                        inclusive = true
-                                    }
-                                }
-                            },
-                        ) { mode, selected ->
-                            ConnectedChoiceLabel(
-                                text = when (mode) {
-                                    ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
-                                    ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
-                                    ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
-                                },
-                                selected = selected,
-                                icon = mode.icon(),
-                            )
-                        }
-                    }
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferences) },
                         leadingContent = { CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor) },
@@ -433,6 +443,19 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 private val SettingDestination.screen: Screen
     get() = when (this) {
         SettingDestination.ROOT -> Screen.Setting
+        SettingDestination.ACCOUNT -> Screen.InfoOsSetting(InfoOsSettingSection.ACCOUNT.name)
+        SettingDestination.PERSONAL_INFO -> Screen.InfoOsSetting(InfoOsSettingSection.PERSONAL_INFO.name)
+        SettingDestination.LOGIN_SECURITY -> Screen.InfoOsSetting(InfoOsSettingSection.LOGIN_SECURITY.name)
+        SettingDestination.INFOOS_GENERAL -> Screen.InfoOsSetting(InfoOsSettingSection.GENERAL.name)
+        SettingDestination.SOFTWARE_UPDATE -> Screen.InfoOsSetting(InfoOsSettingSection.SOFTWARE_UPDATE.name)
+        SettingDestination.DISPLAY_BRIGHTNESS -> Screen.InfoOsSetting(InfoOsSettingSection.DISPLAY_BRIGHTNESS.name)
+        SettingDestination.HOME_DOCK -> Screen.InfoOsSetting(InfoOsSettingSection.HOME_DOCK.name)
+        SettingDestination.DESKTOP_FOLDERS -> Screen.InfoOsSetting(InfoOsSettingSection.DESKTOP_FOLDERS.name)
+        SettingDestination.WALLPAPER -> Screen.InfoOsSetting(InfoOsSettingSection.WALLPAPER.name)
+        SettingDestination.INFOOS_NOTIFICATIONS -> Screen.InfoOsSetting(InfoOsSettingSection.NOTIFICATIONS.name)
+        SettingDestination.CHAT_NOTIFICATIONS -> Screen.InfoOsSetting(InfoOsSettingSection.APP_NOTIFICATION.name, "chat")
+        SettingDestination.MAILBOX_NOTIFICATIONS -> Screen.InfoOsSetting(InfoOsSettingSection.APP_NOTIFICATION.name, "mailbox")
+        SettingDestination.SETTINGS_NOTIFICATIONS -> Screen.InfoOsSetting(InfoOsSettingSection.APP_NOTIFICATION.name, "settings")
         SettingDestination.PREFERENCES -> Screen.SettingPreferences
         SettingDestination.THEME -> Screen.SettingPreferencesTheme
         SettingDestination.NOTIFICATIONS -> Screen.SettingPreferencesNotification
@@ -454,12 +477,6 @@ private val SettingDestination.screen: Screen
         SettingDestination.QUICK_START -> Screen.QuickStart
         SettingDestination.REQUEST_LOGS -> Screen.Log
     }
-
-private fun ColorMode.icon(): ImageVector = when (this) {
-    ColorMode.SYSTEM -> HugeIcons.SmartPhone01
-    ColorMode.LIGHT -> HugeIcons.Sun01
-    ColorMode.DARK -> HugeIcons.Moon02
-}
 
 @Composable
 private fun ProviderConfigWarningCard(onClick: () -> Unit) {

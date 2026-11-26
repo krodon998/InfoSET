@@ -70,7 +70,9 @@ class ChatNotificationManager(
 
     private fun handleGenerationUpdate(event: AppEvent.ChatGenerationUpdate) {
         if (isForeground.value) return
-        val displaySetting = settingsStore.settingsFlow.value.displaySetting
+        val settings = settingsStore.settingsFlow.value
+        val displaySetting = settings.displaySetting
+        if (settings.infoOsSettings.notifications["chat"]?.enabled == false) return
         if (!displaySetting.enableNotificationOnMessageGeneration) return
         if (!displaySetting.enableLiveUpdateNotification) return
 
@@ -87,7 +89,9 @@ class ChatNotificationManager(
 
         val contentPreview = event.contentPreview ?: return
         if (isForeground.value) return
-        if (!settingsStore.settingsFlow.value.displaySetting.enableNotificationOnMessageGeneration) return
+        val settings = settingsStore.settingsFlow.value
+        if (settings.infoOsSettings.notifications["chat"]?.enabled == false) return
+        if (!settings.displaySetting.enableNotificationOnMessageGeneration) return
         sendGenerationDoneNotification(event.conversationId, event.senderName, contentPreview)
     }
 
@@ -96,12 +100,22 @@ class ChatNotificationManager(
         senderName: String,
         contentPreview: String
     ) {
+        val preference = settingsStore.settingsFlow.value.infoOsSettings.notifications["chat"]
         context.sendNotification(
             channelId = CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID,
             notificationId = 1
         ) {
             title = senderName
-            content = contentPreview
+            content = if (preference?.showDetails == false) {
+                context.getString(R.string.infoos_notification_hidden_content)
+            } else {
+                contentPreview
+            }
+            visibility = when {
+                preference?.lockScreen == false -> NotificationCompat.VISIBILITY_SECRET
+                preference?.showDetails == false -> NotificationCompat.VISIBILITY_PRIVATE
+                else -> NotificationCompat.VISIBILITY_PUBLIC
+            }
             autoCancel = true
             useDefaults = true
             category = NotificationCompat.CATEGORY_MESSAGE
@@ -116,6 +130,7 @@ class ChatNotificationManager(
     ) {
         // 确定当前状态
         val (chipText, statusText, contentText) = determineNotificationContent(lastMessage)
+        val preference = settingsStore.settingsFlow.value.infoOsSettings.notifications["chat"]
 
         context.sendNotification(
             channelId = CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID,
@@ -123,7 +138,16 @@ class ChatNotificationManager(
             notificationId = ChatGenerationForegroundService.NOTIFICATION_ID
         ) {
             title = senderName
-            content = contentText
+            content = if (preference?.showDetails == false) {
+                context.getString(R.string.infoos_notification_hidden_content)
+            } else {
+                contentText
+            }
+            visibility = when {
+                preference?.lockScreen == false -> NotificationCompat.VISIBILITY_SECRET
+                preference?.showDetails == false -> NotificationCompat.VISIBILITY_PRIVATE
+                else -> NotificationCompat.VISIBILITY_PUBLIC
+            }
             subText = statusText
             ongoing = true
             onlyAlertOnce = true

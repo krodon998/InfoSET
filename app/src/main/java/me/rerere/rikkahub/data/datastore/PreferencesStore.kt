@@ -181,6 +181,9 @@ class SettingsStore internal constructor(
         // 备份提醒
         val BACKUP_REMINDER_CONFIG = stringPreferencesKey("backup_reminder_config")
 
+        // InfoOS 系统设置
+        val INFO_OS_SETTINGS = stringPreferencesKey("info_os_settings")
+
         // 统计
         val LAUNCH_COUNT = intPreferencesKey("launch_count")
 

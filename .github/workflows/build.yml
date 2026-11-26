@@ -59,6 +59,7 @@ jobs:
             --tests me.rerere.rikkahub.data.gifts.DelayedBoxImporterTest \
             --tests me.rerere.rikkahub.data.gifts.MonthlyLifeLettersImporterTest \
             --tests me.rerere.rikkahub.ui.pages.setting.SettingCatalogTest \
+            --tests me.rerere.rikkahub.ui.pages.setting.InfoOsSettingsTest \
             --tests me.rerere.rikkahub.ui.components.message.tools.MailboxToolUITest
           ./gradlew assembleGithubDebugAndroidTest
 

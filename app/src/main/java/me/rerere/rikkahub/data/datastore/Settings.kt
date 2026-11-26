@@ -85,6 +85,7 @@ data class Settings(
     val webServerAccessPassword: String = "",
     val webServerLocalhostOnly: Boolean = false,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
+    val infoOsSettings: InfoOsSettings = InfoOsSettings(),
     val sponsorAlertDismissedAt: Int = 0,
 ) {
     companion object {
@@ -92,6 +93,101 @@ data class Settings(
         fun dummy() = Settings(init = true)
     }
 }
+
+@Serializable
+data class InfoOsSettings(
+    val decorativeAvatarUri: String = "",
+    val automaticUpdates: AutomaticUpdates = AutomaticUpdates.WIFI_ONLY,
+    val automaticAppearance: Boolean = false,
+    val lightAppearanceMinutes: Int = 7 * 60,
+    val darkAppearanceMinutes: Int = 22 * 60,
+    val boldText: Boolean = false,
+    val homeGrid: HomeGrid = HomeGrid.FOUR_BY_SEVEN,
+    val layoutLocked: Boolean = false,
+    val folderCoverSize: FolderCoverSize = FolderCoverSize.ONE_BY_ONE,
+    val folderGrid: FolderGrid = FolderGrid.THREE_BY_THREE,
+    val largeAppIcons: Boolean = false,
+    val newAppPlacement: NewAppPlacement = NewAppPlacement.HOME_AND_DRAWER,
+    val dockVisible: Boolean = false,
+    val dockShowsAppDrawer: Boolean = true,
+    val dockShowsSuggestions: Boolean = true,
+    val dockScale: Float = 1f,
+    val homeBadges: Boolean = true,
+    val dockBadges: Boolean = true,
+    val dockMaterial: DockMaterial = DockMaterial.LIQUID_GLASS,
+    val dockTransparencyPercent: Int = 50,
+    val dockEffectStrengthPercent: Int = 50,
+    val wallpapers: List<InfoOsWallpaper> = emptyList(),
+    val activeWallpaperId: String = "",
+    val notifications: Map<String, InfoOsNotificationPreference> = defaultInfoOsNotifications(),
+    val passcodeSalt: String = "",
+    val passcodeHash: String = "",
+    val fingerprintEnabled: Boolean = false,
+    val requirePasscode: RequirePasscode = RequirePasscode.IMMEDIATELY,
+    val requirePasscodeAfterMinutes: Int = 5,
+    val lastLeftAtEpochMillis: Long = 0L,
+    val dismissedUpdateVersion: String = "",
+)
+
+@Serializable
+enum class AutomaticUpdates { WIFI_ONLY, MANUAL }
+
+@Serializable
+enum class HomeGrid(val columns: Int, val dockRows: Int) {
+    FOUR_BY_SIX(4, 6),
+    FOUR_BY_SEVEN(4, 7),
+    FIVE_BY_NINE(5, 9),
+}
+
+@Serializable
+enum class NewAppPlacement { DRAWER_ONLY, HOME_AND_DRAWER }
+
+@Serializable
+enum class FolderCoverSize(val columns: Int, val rows: Int) {
+    ONE_BY_ONE(1, 1),
+    TWO_BY_TWO(2, 2),
+}
+
+@Serializable
+enum class FolderGrid(val columns: Int, val rows: Int) {
+    THREE_BY_THREE(3, 3),
+    THREE_BY_FOUR(3, 4),
+    FOUR_BY_FOUR(4, 4),
+}
+
+@Serializable
+enum class DockMaterial { FROSTED_GLASS, LIQUID_GLASS }
+
+@Serializable
+enum class RequirePasscode { IMMEDIATELY, AFTER_MINUTES }
+
+@Serializable
+data class InfoOsWallpaper(
+    val id: String,
+    val lockUri: String = "",
+    val homeUri: String = "",
+    val lockScale: Float = 1f,
+    val lockOffsetX: Float = 0f,
+    val lockOffsetY: Float = 0f,
+    val homeScale: Float = 1f,
+    val homeOffsetX: Float = 0f,
+    val homeOffsetY: Float = 0f,
+)
+
+@Serializable
+data class InfoOsNotificationPreference(
+    val enabled: Boolean = true,
+    val lockScreen: Boolean = true,
+    val floating: Boolean = true,
+    val badge: Boolean = true,
+    val showDetails: Boolean = true,
+)
+
+private fun defaultInfoOsNotifications() = mapOf(
+    "chat" to InfoOsNotificationPreference(),
+    "mailbox" to InfoOsNotificationPreference(),
+    "settings" to InfoOsNotificationPreference(),
+)
 
 @Serializable
 data class NetworkSetting(

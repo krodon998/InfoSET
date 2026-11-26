@@ -12,10 +12,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -24,6 +28,8 @@ import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
 import me.rerere.rikkahub.utils.getActivity
+import kotlinx.coroutines.delay
+import java.time.LocalTime
 
 private val ExtendLightColors = lightExtendColors()
 private val ExtendDarkColors = darkExtendColors()
@@ -46,11 +52,28 @@ fun RikkahubTheme(
     content: @Composable () -> Unit
 ) {
     val settings by rememberUserSettingsState()
+    val infoOs = settings.infoOsSettings
+    var minuteOfDay by remember { mutableIntStateOf(currentMinuteOfDay()) }
+    LaunchedEffect(infoOs.automaticAppearance) {
+        if (!infoOs.automaticAppearance) return@LaunchedEffect
+        while (true) {
+            minuteOfDay = currentMinuteOfDay()
+            delay(30_000)
+        }
+    }
 
-    val darkTheme = when (colorMode) {
-        ColorMode.SYSTEM -> isSystemInDarkTheme()
-        ColorMode.LIGHT -> false
-        ColorMode.DARK -> true
+    val darkTheme = if (infoOs.automaticAppearance) {
+        isWithinDarkSchedule(
+            minuteOfDay = minuteOfDay,
+            darkStartsAt = infoOs.darkAppearanceMinutes,
+            lightStartsAt = infoOs.lightAppearanceMinutes,
+        )
+    } else {
+        when (colorMode) {
+            ColorMode.SYSTEM -> isSystemInDarkTheme()
+            ColorMode.LIGHT -> false
+            ColorMode.DARK -> true
+        }
     }
     val amoledDarkMode by rememberAmoledDarkMode()
 
@@ -76,6 +99,9 @@ fun RikkahubTheme(
         }
     }
     val extendColors = if (darkTheme) ExtendDarkColors else ExtendLightColors
+    val effectiveTypography = remember(infoOs.boldText) {
+        if (infoOs.boldText) Typography.boldened() else Typography
+    }
 
     // 更新状态栏图标颜色
     val view = LocalView.current
@@ -106,12 +132,42 @@ fun RikkahubTheme(
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
-            typography = Typography,
+            typography = effectiveTypography,
             content = content,
             motionScheme = MotionScheme.expressive()
         )
     }
 }
+
+private fun currentMinuteOfDay(): Int {
+    val time = LocalTime.now()
+    return time.hour * 60 + time.minute
+}
+
+internal fun isWithinDarkSchedule(minuteOfDay: Int, darkStartsAt: Int, lightStartsAt: Int): Boolean =
+    if (darkStartsAt < lightStartsAt) {
+        minuteOfDay in darkStartsAt until lightStartsAt
+    } else {
+        minuteOfDay >= darkStartsAt || minuteOfDay < lightStartsAt
+    }
+
+private fun androidx.compose.material3.Typography.boldened() = copy(
+    displayLarge = displayLarge.copy(fontWeight = FontWeight.Bold),
+    displayMedium = displayMedium.copy(fontWeight = FontWeight.Bold),
+    displaySmall = displaySmall.copy(fontWeight = FontWeight.Bold),
+    headlineLarge = headlineLarge.copy(fontWeight = FontWeight.Bold),
+    headlineMedium = headlineMedium.copy(fontWeight = FontWeight.Bold),
+    headlineSmall = headlineSmall.copy(fontWeight = FontWeight.Bold),
+    titleLarge = titleLarge.copy(fontWeight = FontWeight.Bold),
+    titleMedium = titleMedium.copy(fontWeight = FontWeight.Bold),
+    titleSmall = titleSmall.copy(fontWeight = FontWeight.Bold),
+    bodyLarge = bodyLarge.copy(fontWeight = FontWeight.Bold),
+    bodyMedium = bodyMedium.copy(fontWeight = FontWeight.Bold),
+    bodySmall = bodySmall.copy(fontWeight = FontWeight.Bold),
+    labelLarge = labelLarge.copy(fontWeight = FontWeight.Bold),
+    labelMedium = labelMedium.copy(fontWeight = FontWeight.Bold),
+    labelSmall = labelSmall.copy(fontWeight = FontWeight.Bold),
+)
 
 val MaterialTheme.extendColors
     @Composable

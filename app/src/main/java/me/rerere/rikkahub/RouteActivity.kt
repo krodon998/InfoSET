@@ -117,6 +117,7 @@ import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationPage
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsPage
 import me.rerere.rikkahub.ui.pages.search.SearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
+import me.rerere.rikkahub.ui.pages.setting.InfoOsSettingsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNotificationPage
@@ -235,6 +236,20 @@ class RouteActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIntent(intent)
+    }
+
+    override fun onStop() {
+        if (shellUnlocked) {
+            val leftAt = System.currentTimeMillis()
+            lifecycleScope.launch {
+                settingsStore.update { settings ->
+                    settings.copy(
+                        infoOsSettings = settings.infoOsSettings.copy(lastLeftAtEpochMillis = leftAt)
+                    )
+                }
+            }
+        }
+        super.onStop()
     }
 
     private fun handleIntent(intent: Intent) {
@@ -380,6 +395,7 @@ class RouteActivity : ComponentActivity() {
                                     + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
                             ) {
                                 InfoSetLockScreenPage(
+                                    infoOsSettings = settings.infoOsSettings,
                                     onUnlock = {
                                         if (backStack.lastOrNull() == Screen.LockScreen) {
                                             shellUnlocked = true
@@ -395,6 +411,7 @@ class RouteActivity : ComponentActivity() {
                                     + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
                             ) {
                                 InfoSetDesktopPage(
+                                    infoOsSettings = settings.infoOsSettings,
                                     onOpenChat = {
                                         if (backStack.lastOrNull() == Screen.Desktop) {
                                             backStack.add(initialChatScreen)
@@ -496,6 +513,10 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.Setting> {
                                 SettingPage()
+                            }
+
+                            entry<Screen.InfoOsSetting> { key ->
+                                InfoOsSettingsPage(key.section, key.detail)
                             }
 
                             entry<Screen.Backup> {
@@ -796,6 +817,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Setting : Screen
+
+    @Serializable
+    data class InfoOsSetting(val section: String, val detail: String = "") : Screen
 
     @Serializable
     data object Backup : Screen
