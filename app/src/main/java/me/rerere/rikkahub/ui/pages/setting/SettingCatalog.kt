@@ -54,7 +54,7 @@ object SettingCatalog {
         id = id,
         titleRes = title,
         destination = destination,
-        breadcrumbRes = listOf(R.string.settings, group) + parents,
+        breadcrumbRes = listOf(R.string.settings, group) + parents.toList(),
         aliases = aliases,
     )
 
