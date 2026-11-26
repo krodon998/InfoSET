@@ -40,14 +40,14 @@ data class UsageRecordEntity(
     val completionTokens: Int,
     @ColumnInfo("cached_tokens")
     val cachedTokens: Int,
-    @ColumnInfo(value = "cache_write_tokens", defaultValue = "0")
+    @ColumnInfo(name = "cache_write_tokens", defaultValue = "0")
     val cacheWriteTokens: Int = 0,
-    @ColumnInfo(value = "reasoning_tokens", defaultValue = "0")
+    @ColumnInfo(name = "reasoning_tokens", defaultValue = "0")
     val reasoningTokens: Int = 0,
-    @ColumnInfo(value = "duration_ms", defaultValue = "0")
+    @ColumnInfo(name = "duration_ms", defaultValue = "0")
     val durationMs: Long = 0,
-    @ColumnInfo(value = "estimated_cost_micros", defaultValue = "0")
+    @ColumnInfo(name = "estimated_cost_micros", defaultValue = "0")
     val estimatedCostMicros: Long = 0,
-    @ColumnInfo(value = "reasoning_level", defaultValue = "''")
+    @ColumnInfo(name = "reasoning_level", defaultValue = "''")
     val reasoningLevel: String = "",
 )
