@@ -405,6 +405,11 @@ class RouteActivity : ComponentActivity() {
                                             backStack.add(Screen.Mailbox)
                                         }
                                     },
+                                    onOpenSettings = {
+                                        if (backStack.lastOrNull() == Screen.Desktop) {
+                                            backStack.add(Screen.Setting)
+                                        }
+                                    },
                                 )
                             }
 

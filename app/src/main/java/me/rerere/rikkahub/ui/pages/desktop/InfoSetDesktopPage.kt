@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,6 +35,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
 
 private val DesktopInk = Color(0xFF327F9E)
@@ -41,11 +44,14 @@ private val DesktopInk = Color(0xFF327F9E)
 private enum class InfoSetSurface {
     Chat,
     Mailbox,
+    Settings,
 }
+
 @Composable
 fun InfoSetDesktopPage(
     onOpenChat: () -> Unit,
     onOpenMailbox: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -100,6 +106,7 @@ fun InfoSetDesktopPage(
                     val label = when (surface) {
                         InfoSetSurface.Chat -> stringResource(R.string.infoset_desktop_chat)
                         InfoSetSurface.Mailbox -> stringResource(R.string.infoset_desktop_mailbox)
+                        InfoSetSurface.Settings -> stringResource(R.string.infoset_desktop_settings)
                     }
                     DesktopSurfaceIcon(
                         surface = surface,
@@ -107,6 +114,7 @@ fun InfoSetDesktopPage(
                         onClick = when (surface) {
                             InfoSetSurface.Chat -> onOpenChat
                             InfoSetSurface.Mailbox -> onOpenMailbox
+                            InfoSetSurface.Settings -> onOpenSettings
                         },
                     )
                 }
@@ -141,6 +149,13 @@ private fun DesktopSurfaceIcon(
                 InfoSetSurface.Mailbox -> MailboxGlyph(
                     modifier = Modifier.size(35.dp),
                     color = DesktopInk,
+                )
+
+                InfoSetSurface.Settings -> Icon(
+                    imageVector = HugeIcons.Settings03,
+                    contentDescription = null,
+                    modifier = Modifier.size(38.dp),
+                    tint = DesktopInk,
                 )
             }
         }
