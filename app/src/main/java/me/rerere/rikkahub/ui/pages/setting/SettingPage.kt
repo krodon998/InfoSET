@@ -14,12 +14,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,14 +46,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
-import me.rerere.hugeicons.stroke.Book03
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.ImageUpload
+import me.rerere.hugeicons.stroke.Internet
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
@@ -57,6 +63,7 @@ import me.rerere.hugeicons.stroke.Moon02
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Rocket01
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.SmartPhone01
@@ -78,7 +85,6 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -91,6 +97,17 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val filesManager: FilesManager = koinInject()
     val localNetworkPermission = rememberLocalNetworkPermissionState()
     val notificationPermission = rememberNotificationPermissionState()
+    var searchQuery by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val searchResults = SettingCatalog.search(searchQuery) { context.getString(it) }
+
+    fun open(destination: SettingDestination) {
+        if (destination == SettingDestination.ROOT) {
+            searchQuery = ""
+        } else {
+            navController.navigate(destination.screen)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -113,32 +130,102 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (settings.isNotConfigured()) {
-                item {
-                    ProviderConfigWarningCard(
-                        onClick = { navController.navigate(Screen.QuickStart) }
-                    )
+            item("settingsSearch") {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.setting_search_placeholder)) },
+                    leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    HugeIcons.Cancel01,
+                                    contentDescription = stringResource(R.string.setting_search_clear),
+                                )
+                            }
+                        }
+                    } else {
+                        null
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.extraLarge,
+                )
+            }
+
+            if (searchQuery.isNotBlank()) {
+                if (searchResults.isEmpty()) {
+                    item("settingsSearchEmpty") {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.setting_search_no_results),
+                                modifier = Modifier.padding(24.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                } else {
+                    items(searchResults, key = { "settingSearch:${it.id}" }) { result ->
+                        Surface(
+                            onClick = { open(result.destination) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            ListItem(
+                                headlineContent = { Text(stringResource(result.titleRes)) },
+                                supportingContent = {
+                                    Text(
+                                        result.breadcrumbRes.joinToString(" › ") {
+                                            context.getString(it)
+                                        }
+                                    )
+                                },
+                                leadingContent = { CardGroupIcon(HugeIcons.Search01) },
+                                trailingContent = {
+                                    Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                                },
+                                colors = androidx.compose.material3.ListItemDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                ),
+                            )
+                        }
+                    }
                 }
             }
 
-            if (localNetworkPermission?.allRequiredPermissionsGranted == false) {
-                item("localNetworkPermission") {
-                    LocalNetworkPermissionCard(permissionState = localNetworkPermission)
+            if (searchQuery.isBlank()) {
+                if (settings.isNotConfigured()) {
+                    item {
+                        ProviderConfigWarningCard(
+                            onClick = { navController.navigate(Screen.QuickStart) }
+                        )
+                    }
                 }
-            }
 
-            if (notificationPermission?.allRequiredPermissionsGranted == false) {
-                item("notificationPermission") {
-                    NotificationPermissionCard(permissionState = notificationPermission)
+                if (localNetworkPermission?.allRequiredPermissionsGranted == false) {
+                    item("localNetworkPermission") {
+                        LocalNetworkPermissionCard(permissionState = localNetworkPermission)
+                    }
                 }
-            }
 
-            item("generalSettings") {
+                if (notificationPermission?.allRequiredPermissionsGranted == false) {
+                    item("notificationPermission") {
+                        NotificationPermissionCard(permissionState = notificationPermission)
+                    }
+                }
+
+            item("appearanceSettings") {
                 var colorMode by rememberColorMode()
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_general_settings)) },
+                    title = { Text(stringResource(R.string.setting_group_appearance_and_use)) },
                 ) {
                     formItem {
                         Row(
@@ -177,18 +264,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences)) },
                     )
-                    item(
-                        onClick = { navController.navigate(Screen.Assistant) },
-                        leadingContent = { CardGroupIcon(HugeIcons.LookTop, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.Extensions) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Package, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
-                    )
                 }
             }
 
@@ -196,8 +271,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_model_and_services)) },
+                    title = { Text(stringResource(R.string.setting_group_intelligence_and_models)) },
                 ) {
+                    item(
+                        onClick = { navController.navigate(Screen.Assistant) },
+                        leadingContent = { CardGroupIcon(HugeIcons.LookTop, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
+                    )
                     item(
                         onClick = { navController.navigate(Screen.SettingModels) },
                         leadingContent = { CardGroupIcon(HugeIcons.AiMagic, containerColor = containerColor, contentColor = contentColor) },
@@ -229,6 +310,27 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_media)) },
                     )
                     item(
+                        onClick = { navController.navigate(Screen.Extensions) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Package, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
+                    )
+                }
+            }
+
+            item("connectionsSettings") {
+                val containerColor = MaterialTheme.colorScheme.primaryContainer
+                val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                CardGroup(
+                    title = { Text(stringResource(R.string.setting_group_connections_and_services)) },
+                ) {
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Internet, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_network)) },
+                    )
+                    item(
                         onClick = { navController.navigate(Screen.SettingMcp) },
                         leadingContent = { CardGroupIcon(HugeIcons.McpServer, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
@@ -250,7 +352,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val containerColor = MaterialTheme.colorScheme.secondaryContainer
                 val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_data_settings)) },
+                    title = { Text(stringResource(R.string.setting_group_data_and_storage)) },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.Backup) },
@@ -280,14 +382,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             }
 
             item("aboutSettings") {
-                val context = LocalContext.current
                 val shareText = stringResource(R.string.setting_page_share_text)
                 val share = stringResource(R.string.setting_page_share)
                 val noShareApp = stringResource(R.string.setting_page_no_share_app)
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_about)) },
+                    title = { Text(stringResource(R.string.setting_group_about_and_support)) },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingAbout) },
@@ -324,9 +425,36 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     )
                 }
             }
+            }
         }
     }
 }
+
+private val SettingDestination.screen: Screen
+    get() = when (this) {
+        SettingDestination.ROOT -> Screen.Setting
+        SettingDestination.PREFERENCES -> Screen.SettingPreferences
+        SettingDestination.THEME -> Screen.SettingPreferencesTheme
+        SettingDestination.NOTIFICATIONS -> Screen.SettingPreferencesNotification
+        SettingDestination.GENERAL -> Screen.SettingPreferencesGeneral
+        SettingDestination.INTERFACE -> Screen.SettingPreferencesUI
+        SettingDestination.NETWORK -> Screen.SettingPreferencesNetwork
+        SettingDestination.ASSISTANTS -> Screen.Assistant
+        SettingDestination.EXTENSIONS -> Screen.Extensions
+        SettingDestination.MODELS -> Screen.SettingModels
+        SettingDestination.PROVIDERS -> Screen.SettingProvider
+        SettingDestination.SEARCH_SERVICE -> Screen.SettingSearch
+        SettingDestination.SPEECH -> Screen.SettingSpeech
+        SettingDestination.MEDIA -> Screen.SettingMedia
+        SettingDestination.MCP -> Screen.SettingMcp
+        SettingDestination.WEB_SERVER -> Screen.SettingWeb
+        SettingDestination.BACKUP -> Screen.Backup
+        SettingDestination.STORAGE -> Screen.SettingFiles
+        SettingDestination.ABOUT -> Screen.SettingAbout
+        SettingDestination.QUICK_START -> Screen.QuickStart
+        SettingDestination.REQUEST_LOGS -> Screen.Log
+    }
+
 private fun ColorMode.icon(): ImageVector = when (this) {
     ColorMode.SYSTEM -> HugeIcons.SmartPhone01
     ColorMode.LIGHT -> HugeIcons.Sun01

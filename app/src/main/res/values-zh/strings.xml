@@ -1942,4 +1942,12 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_preferences_notification_battery_optimization">忽略电池优化</string>
   <string name="setting_page_preferences_notification_battery_optimization_on">已允许。后台生成被系统中断的可能性更低</string>
   <string name="setting_page_preferences_notification_battery_optimization_off">未允许。系统可能会为节省电量而停止后台生成</string>
+  <string name="setting_group_appearance_and_use">显示与使用</string>
+  <string name="setting_group_intelligence_and_models">智能与模型</string>
+  <string name="setting_group_connections_and_services">连接与服务</string>
+  <string name="setting_group_data_and_storage">数据与存储</string>
+  <string name="setting_group_about_and_support">关于与支持</string>
+  <string name="setting_search_placeholder">搜索设置</string>
+  <string name="setting_search_clear">清除设置搜索</string>
+  <string name="setting_search_no_results">没有找到相关设置</string>
 </resources>

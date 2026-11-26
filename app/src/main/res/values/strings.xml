@@ -1940,4 +1940,12 @@
   <string name="quick_start_card_desc">InfoSET needs a model provider to chat. Follow the quick start to set up a provider and default model, or migrate your chat history from DeepSeek.</string>
   <string name="setting_page_quick_start">Quick Start</string>
   <string name="setting_page_quick_start_desc">Set up providers and models step by step, or migrate from DeepSeek</string>
+    <string name="setting_group_appearance_and_use">Appearance &amp; use</string>
+    <string name="setting_group_intelligence_and_models">Intelligence &amp; models</string>
+    <string name="setting_group_connections_and_services">Connections &amp; services</string>
+    <string name="setting_group_data_and_storage">Data &amp; storage</string>
+    <string name="setting_group_about_and_support">About &amp; support</string>
+    <string name="setting_search_placeholder">Search settings</string>
+    <string name="setting_search_clear">Clear settings search</string>
+    <string name="setting_search_no_results">No matching settings</string>
 </resources>
