@@ -55,6 +55,7 @@ jobs:
           ./gradlew testGithubDebugUnitTest \
             --tests me.rerere.rikkahub.ui.context.NavigatorTest \
             --tests me.rerere.rikkahub.data.ai.tools.local.MailboxToolTest \
+            --tests me.rerere.rikkahub.data.gifts.DelayedBoxImporterTest \
             --tests me.rerere.rikkahub.ui.components.message.tools.MailboxToolUITest
 
       - name: Build APK

@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.mailbox
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,15 +15,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -30,12 +35,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -43,13 +50,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.dao.ArchivedLetterProjection
 import me.rerere.rikkahub.data.db.dao.MailboxLetterDAO
 import me.rerere.rikkahub.data.db.dao.ReadyLetterProjection
 import me.rerere.rikkahub.data.db.dao.UpcomingLetterProjection
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
+import me.rerere.rikkahub.data.gifts.DelayedBoxImporter
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import org.koin.compose.koinInject
 import java.time.Instant
@@ -71,14 +82,50 @@ fun MailboxPage(
     onOpenLetter: (String) -> Unit,
     dao: MailboxLetterDAO = koinInject(),
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val importer = remember(dao) { DelayedBoxImporter(dao) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var section by remember { mutableStateOf(MailboxSection.Ready) }
+    var isImporting by remember { mutableStateOf(false) }
+    var importDialogTitle by remember { mutableStateOf<String?>(null) }
+    var importDialogMessage by remember { mutableStateOf<String?>(null) }
     val readyFlow = remember(now) { dao.observeReady(now) }
     val upcomingFlow = remember(now) { dao.observeUpcoming(now) }
     val archiveFlow = remember(dao) { dao.observeArchived() }
     val ready by readyFlow.collectAsStateWithLifecycle(emptyList())
     val upcoming by upcomingFlow.collectAsStateWithLifecycle(emptyList())
     val archive by archiveFlow.collectAsStateWithLifecycle(emptyList())
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val readError = context.getString(R.string.mailbox_import_read_error)
+        isImporting = true
+        scope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    val input = context.contentResolver.openInputStream(uri) ?: error(readError)
+                    input.use { importer.importZip(it) }
+                }
+            }
+            result.onSuccess { report ->
+                importDialogTitle = context.getString(R.string.mailbox_import_complete_title)
+                importDialogMessage = context.getString(
+                    R.string.mailbox_import_complete_message,
+                    report.imported,
+                    report.duplicates,
+                    report.ignored,
+                )
+            }.onFailure { error ->
+                importDialogTitle = context.getString(R.string.mailbox_import_failed_title)
+                importDialogMessage = context.getString(
+                    R.string.mailbox_import_failed_message,
+                    error.message ?: readError,
+                )
+            }
+            isImporting = false
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -99,6 +146,30 @@ fun MailboxPage(
                     )
                 },
                 navigationIcon = { BackButton() },
+                actions = {
+                    TextButton(
+                        enabled = !isImporting,
+                        onClick = {
+                            importLauncher.launch(
+                                arrayOf(
+                                    "application/zip",
+                                    "application/x-zip-compressed",
+                                    "application/octet-stream",
+                                )
+                            )
+                        },
+                    ) {
+                        if (isImporting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = PaperAccent,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text(stringResource(R.string.mailbox_import_delayed_box), color = PaperInk)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Paper),
             )
         },
@@ -148,6 +219,27 @@ fun MailboxPage(
                 }
             }
         }
+    }
+
+    if (importDialogMessage != null) {
+        AlertDialog(
+            onDismissRequest = {
+                importDialogTitle = null
+                importDialogMessage = null
+            },
+            title = { Text(importDialogTitle.orEmpty()) },
+            text = { Text(importDialogMessage.orEmpty()) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        importDialogTitle = null
+                        importDialogMessage = null
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+        )
     }
 }
 

@@ -37,6 +37,13 @@ interface MailboxLetterDAO {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(letter: MailboxLetterEntity)
 
+    /**
+     * Append-only imports use IGNORE so importing the same archive again is idempotent.
+     * A changed source file receives a different content-addressed id and is appended.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(letter: MailboxLetterEntity): Long
+
     @Query(
         "SELECT id, unlock_at FROM mailbox_letters " +
             "WHERE opened_at IS NULL AND unlock_at > :now ORDER BY unlock_at, id"

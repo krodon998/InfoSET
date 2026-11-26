@@ -7,6 +7,12 @@
   <string name="mailbox_empty_archive">Opened letters will be kept here.</string>
   <string name="mailbox_empty_ready">No letter is waiting to be opened.</string>
   <string name="mailbox_empty_upcoming">No letter is on its way yet.</string>
+  <string name="mailbox_import_complete_message">Imported %1$d letters, skipped %2$d duplicates, and ignored %3$d non-letter files.</string>
+  <string name="mailbox_import_complete_title">Import complete</string>
+  <string name="mailbox_import_delayed_box">Import</string>
+  <string name="mailbox_import_failed_message">The delayed box could not be imported: %1$s</string>
+  <string name="mailbox_import_failed_title">Import failed</string>
+  <string name="mailbox_import_read_error">The selected ZIP could not be read.</string>
   <string name="mailbox_letter_title">Letter</string>
   <string name="mailbox_letter_unavailable">This letter has not arrived yet.</string>
   <string name="mailbox_locked_letter">A letter is on its way</string>
