@@ -202,7 +202,15 @@ class BackupManager(
         private const val TAG = "BackupManager"
 
         private val ATTACHMENT_FOLDERS =
-            listOf(FileFolders.UPLOAD, FileFolders.SKILLS, FileFolders.FONTS, FileFolders.MEDIA_CREATION)
+            listOf(
+                FileFolders.UPLOAD,
+                FileFolders.AVATARS,
+                FileFolders.WALLPAPERS,
+                FileFolders.STICKERS,
+                FileFolders.SKILLS,
+                FileFolders.FONTS,
+                FileFolders.MEDIA_CREATION,
+            )
 
         /** Backed up with their subdirectories; the other folders only contain top-level files. */
         private val NESTED_ATTACHMENT_FOLDERS = setOf(FileFolders.SKILLS, FileFolders.MEDIA_CREATION)

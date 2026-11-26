@@ -54,6 +54,14 @@ class SettingCatalogTest {
             SettingDestination.APPS_SERVICES,
             SettingCatalog.search("App 与服务", emptyResolver).first().destination,
         )
+        assertEquals(
+            SettingDestination.FONT,
+            SettingCatalog.search("TTF", emptyResolver).first().destination,
+        )
+        assertEquals(
+            SettingDestination.PROVIDERS,
+            SettingCatalog.search("Codex 订阅额度", emptyResolver).first().destination,
+        )
     }
 
     @Test

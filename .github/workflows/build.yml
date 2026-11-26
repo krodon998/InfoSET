@@ -63,6 +63,9 @@ jobs:
             --tests me.rerere.rikkahub.data.ai.ContextComposerTest \
             --tests me.rerere.rikkahub.data.ai.UsageRecorderTest \
             --tests me.rerere.rikkahub.data.model.ConversationConfigTest \
+            --tests me.rerere.rikkahub.data.ai.account.ChatGPTAuthTest \
+            --tests me.rerere.rikkahub.data.ai.account.ProviderAccountManagerTest \
+            --tests me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigureConvertToTest \
             --tests me.rerere.rikkahub.ui.components.message.tools.MailboxToolUITest
           ./gradlew :ai:testDebugUnitTest \
             --tests me.rerere.ai.core.UsageCostTest \

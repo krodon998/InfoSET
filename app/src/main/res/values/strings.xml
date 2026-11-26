@@ -743,6 +743,11 @@
   <string name="setting_files_page_delete_file_title">Delete File</string>
   <string name="setting_files_page_deleted_toast">Deleted</string>
   <string name="setting_files_page_folder_upload">Upload</string>
+  <string name="setting_files_page_source_avatars">Avatars</string>
+  <string name="setting_files_page_source_wallpapers">Wallpapers</string>
+  <string name="setting_files_page_source_uploads">Uploaded Files</string>
+  <string name="setting_files_page_source_machine_outputs">AI Outputs</string>
+  <string name="setting_files_page_source_stickers">Sticker Library</string>
   <string name="setting_files_page_no_files">No Files</string>
   <string name="setting_files_page_title">File Management</string>
   <string name="setting_mcp_page_add_header">Add Header</string>
@@ -1995,6 +2000,12 @@
     <string name="infoos_settings_text_size">Text Size</string>
     <string name="infoos_settings_bold_text">Bold Text</string>
     <string name="infoos_settings_custom_font">Custom Font (TTF)</string>
+    <string name="infoos_settings_font">Font</string>
+    <string name="infoos_settings_font_desc">Text size, weight, typeface, and custom fonts</string>
+    <string name="infoos_settings_used_avatars">Previously Used Avatars</string>
+    <string name="infoos_settings_use_this_avatar">Use This Avatar</string>
+    <string name="infoos_settings_chatgpt_subscription">ChatGPT / Codex Subscription</string>
+    <string name="infoos_settings_grok_subscription">Grok Subscription</string>
     <string name="infoos_settings_desktop_layout">Desktop Layout</string>
     <string name="infoos_settings_lock_layout">Lock Layout</string>
     <string name="infoos_settings_desktop_folders">Desktop Folders</string>

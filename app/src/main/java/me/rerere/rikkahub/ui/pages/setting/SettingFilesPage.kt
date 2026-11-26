@@ -48,6 +48,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -99,7 +100,7 @@ fun SettingFilesPage(
     val gridState = rememberLazyStaggeredGridState()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
-    val folders = remember { listOf(FileFolders.UPLOAD) }
+    val sources = remember { FileSource.entries }
 
     // 预先获取字符串资源
     val deletedToast = stringResource(R.string.setting_files_page_deleted_toast)
@@ -107,11 +108,18 @@ fun SettingFilesPage(
     val cleanedToast = stringResource(R.string.setting_files_page_cleaned_toast)
     val cleanFailedToast = stringResource(R.string.setting_files_page_clean_failed_toast)
 
-    var selectedFolder by remember { mutableStateOf(FileFolders.UPLOAD) }
+    var selectedSource by remember { mutableStateOf(FileSource.AVATARS) }
     var pendingDelete by remember { mutableStateOf<ManagedFileEntity?>(null) }
     var showCleanSheet by remember { mutableStateOf(false) }
     var selectedCleanRange by remember { mutableStateOf(CleanRange.DAYS_7) }
-    val files by filesManager.observe(selectedFolder).collectAsState(initial = emptyList())
+    val files by filesManager.observe(selectedSource.folder).collectAsState(initial = emptyList())
+
+    LaunchedEffect(selectedSource) {
+        filesManager.syncFolder(
+            folder = selectedSource.folder,
+            recursive = selectedSource == FileSource.MACHINE_OUTPUTS,
+        )
+    }
 
     if (pendingDelete != null) {
         val target = pendingDelete!!
@@ -161,10 +169,10 @@ fun SettingFilesPage(
                     scope.launch {
                         val ok = selectedCleanRange.days?.let { days ->
                             filesManager.deleteOlderThan(
-                                folder = selectedFolder,
+                                folder = selectedSource.folder,
                                 cutoffMillis = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong()),
                             )
-                        } ?: filesManager.deleteAll(selectedFolder)
+                        } ?: filesManager.deleteAll(selectedSource.folder)
                         toaster.show(if (ok) cleanedToast else cleanFailedToast)
                     }
                 },
@@ -205,10 +213,10 @@ fun SettingFilesPage(
                     end = innerPadding.calculateEndPadding(layoutDirection),
                 )
         ) {
-            FolderRow(
-                folders = folders,
-                selectedFolder = selectedFolder,
-                onFolderSelected = { selectedFolder = it }
+            SourceRow(
+                sources = sources,
+                selectedSource = selectedSource,
+                onSourceSelected = { selectedSource = it }
             )
 
             if (files.isEmpty()) {
@@ -323,10 +331,10 @@ private fun CleanFilesSheet(
 }
 
 @Composable
-private fun FolderRow(
-    folders: List<String>,
-    selectedFolder: String,
-    onFolderSelected: (String) -> Unit,
+private fun SourceRow(
+    sources: List<FileSource>,
+    selectedSource: FileSource,
+    onSourceSelected: (FileSource) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -336,18 +344,18 @@ private fun FolderRow(
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        folders.forEach { folder ->
-            val selected = selectedFolder == folder
+        sources.forEach { source ->
+            val selected = selectedSource == source
             ToggleButton(
                 checked = selected,
-                onCheckedChange = { if (!selected) onFolderSelected(folder) },
+                onCheckedChange = { if (!selected) onSourceSelected(source) },
                 modifier = Modifier.semantics { role = Role.Tab },
                 colors = ToggleButtonDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ),
             ) {
                 Text(
-                    text = folderDisplayName(folder),
+                    text = stringResource(source.titleRes),
                     maxLines = 1,
                     softWrap = false,
                 )
@@ -356,10 +364,15 @@ private fun FolderRow(
     }
 }
 
-@Composable
-private fun folderDisplayName(folder: String): String = when (folder) {
-    FileFolders.UPLOAD -> stringResource(R.string.setting_files_page_folder_upload)
-    else -> folder
+private enum class FileSource(
+    val folder: String,
+    @androidx.annotation.StringRes val titleRes: Int,
+) {
+    AVATARS(FileFolders.AVATARS, R.string.setting_files_page_source_avatars),
+    WALLPAPERS(FileFolders.WALLPAPERS, R.string.setting_files_page_source_wallpapers),
+    UPLOADS(FileFolders.UPLOAD, R.string.setting_files_page_source_uploads),
+    MACHINE_OUTPUTS(FileFolders.MEDIA_CREATION, R.string.setting_files_page_source_machine_outputs),
+    STICKERS(FileFolders.STICKERS, R.string.setting_files_page_source_stickers),
 }
 
 private val FileItemCorner = 20.dp

@@ -70,40 +70,9 @@ import org.koin.androidx.compose.koinViewModel
 fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
-    val context = LocalContext.current
-    val toaster = LocalToaster.current
-    val scope = rememberCoroutineScope()
-    val chatFontFamily = rememberChatFontFamily(displaySetting)
-
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
         vm.updateSettings { it.copy(displaySetting = setting) }
-    }
-
-    val importSuccessMsg = stringResource(R.string.setting_display_page_custom_font_import_success)
-    val importFailedMsg = stringResource(R.string.setting_display_page_custom_font_import_failed)
-    val fontPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    importCustomChatFontInternal(context, uri)
-                }
-            }.onSuccess { importedFont ->
-                updateDisplaySetting(
-                    displaySetting.copy(
-                        chatFontFamily = ChatFontFamily.CUSTOM,
-                        chatCustomFontPath = importedFont.relativePath,
-                        chatCustomFontName = importedFont.displayName,
-                    )
-                )
-                toaster.show(importSuccessMsg, type = ToastType.Success)
-            }.onFailure { error ->
-                toaster.show(importFailedMsg.format(error.message.orEmpty()), type = ToastType.Error)
-            }
-        }
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -227,122 +196,6 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_display_page_enable_quote_highlight_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_enable_quote_highlight_title)) },
                     )
-                }
-            }
-
-            item {
-                CardGroup {
-                    formItem(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_chat_font_family_title)) },
-                    ) {
-                        ConnectedChoiceButtons(
-                            options = ChatFontFamily.entries,
-                            selected = displaySetting.chatFontFamily,
-                            onSelect = { family ->
-                                if (family == ChatFontFamily.CUSTOM && displaySetting.chatCustomFontPath.isBlank()) {
-                                    fontPickerLauncher.launch(CustomFontMimeTypesUI)
-                                } else {
-                                    updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
-                                }
-                            },
-                            minHeight = 64.dp,
-                        ) { family, _ ->
-                            // 每个按钮用对应的字体写一个样字
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "Aa",
-                                    fontFamily = family.toFontFamilyUI(chatFontFamily),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    text = family.labelUI(),
-                                    autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.sp),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            }
-                        }
-                    }
-                    item(
-                        onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) },
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_custom_font_title)) },
-                        supportingContent = {
-                            Text(
-                                if (displaySetting.chatCustomFontName.isNotBlank()) {
-                                    displaySetting.chatCustomFontName
-                                } else {
-                                    stringResource(R.string.setting_display_page_custom_font_not_imported)
-                                }
-                            )
-                        },
-                        trailingContent = {
-                            Row {
-                                IconButton(
-                                    onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) }
-                                ) {
-                                    Icon(
-                                        HugeIcons.FileImport,
-                                        contentDescription = stringResource(
-                                            R.string.setting_display_page_custom_font_import
-                                        )
-                                    )
-                                }
-                                if (displaySetting.chatCustomFontPath.isNotBlank()) {
-                                    IconButton(
-                                        onClick = {
-                                            deleteCustomChatFontInternal(context, displaySetting.chatCustomFontPath)
-                                            updateDisplaySetting(
-                                                displaySetting.copy(
-                                                    chatFontFamily = ChatFontFamily.DEFAULT,
-                                                    chatCustomFontPath = "",
-                                                    chatCustomFontName = "",
-                                                )
-                                            )
-                                        }
-                                    ) {
-                                        Icon(
-                                            HugeIcons.Delete02,
-                                            contentDescription = stringResource(
-                                                R.string.setting_display_page_custom_font_remove
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    )
-                    formItem(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
-                        trailingContent = { CardGroupValue("${(displaySetting.fontSizeRatio * 100).toInt()}%") },
-                    ) {
-                        Slider(
-                            value = displaySetting.fontSizeRatio,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
-                            },
-                            valueRange = 0.5f..2f,
-                            steps = 11,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        // 预览放在凹下去的底色里，和设置项本身区分开
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                        ) {
-                            MarkdownBlock(
-                                content = stringResource(R.string.setting_display_page_font_size_preview),
-                                modifier = Modifier.padding(12.dp),
-                                style = LocalTextStyle.current.copy(
-                                    fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
-                                    lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
-                                    fontFamily = chatFontFamily
-                                )
-                            )
-                        }
-                    }
                 }
             }
 

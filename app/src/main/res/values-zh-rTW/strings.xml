@@ -687,6 +687,17 @@
   <string name="setting_files_page_delete_file_title">刪除檔案</string>
   <string name="setting_files_page_deleted_toast">已刪除</string>
   <string name="setting_files_page_folder_upload">上傳</string>
+  <string name="setting_files_page_source_avatars">頭像</string>
+  <string name="setting_files_page_source_wallpapers">桌布</string>
+  <string name="setting_files_page_source_uploads">上傳檔案</string>
+  <string name="setting_files_page_source_machine_outputs">AI 產出</string>
+  <string name="setting_files_page_source_stickers">表情包庫</string>
+  <string name="infoos_settings_font">字體</string>
+  <string name="infoos_settings_font_desc">文字大小、粗細、字族與自訂字體</string>
+  <string name="infoos_settings_used_avatars">曾用頭像</string>
+  <string name="infoos_settings_use_this_avatar">使用此頭像</string>
+  <string name="infoos_settings_chatgpt_subscription">ChatGPT / Codex 訂閱</string>
+  <string name="infoos_settings_grok_subscription">Grok 訂閱</string>
   <string name="setting_files_page_no_files">無檔案</string>
   <string name="setting_files_page_title">檔案管理</string>
   <string name="setting_mcp_page_add_header">添加請求頭</string>

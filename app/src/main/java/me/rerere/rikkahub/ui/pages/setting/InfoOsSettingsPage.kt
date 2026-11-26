@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,6 +25,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,11 +35,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +57,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -66,6 +74,9 @@ import me.rerere.rikkahub.data.datastore.InfoOsDesktopFolder
 import me.rerere.rikkahub.data.datastore.InfoOsWallpaper
 import me.rerere.rikkahub.data.datastore.NewAppPlacement
 import me.rerere.rikkahub.data.datastore.RequirePasscode
+import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
+import me.rerere.rikkahub.data.files.FileFolders
+import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -87,6 +98,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
 import java.util.UUID
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 enum class InfoOsSettingSection {
@@ -98,6 +110,7 @@ enum class InfoOsSettingSection {
     AIRE_INTELLIGENCE,
     APPS_SERVICES,
     DISPLAY_BRIGHTNESS,
+    FONT,
     HOME_DOCK,
     DESKTOP_FOLDERS,
     WALLPAPER,
@@ -107,6 +120,7 @@ enum class InfoOsSettingSection {
 
 private enum class WallpaperTarget { LOCK, HOME, BOTH }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InfoOsSettingsPage(
     sectionName: String,
@@ -121,6 +135,10 @@ fun InfoOsSettingsPage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val updateChecker: UpdateChecker = koinInject()
+    val filesManager: FilesManager = koinInject()
+    val scope = rememberCoroutineScope()
+    val usedAvatarFiles by filesManager.observe(FileFolders.AVATARS)
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val fingerprintAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT) &&
@@ -140,18 +158,18 @@ fun InfoOsSettingsPage(
         val target = wallpaperTarget
         wallpaperTarget = null
         if (uri != null && target != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            scope.launch {
+                val saved = filesManager.saveManagedFromUri(FileFolders.WALLPAPERS, uri)
+                val current = info.wallpapers.find { it.id == info.activeWallpaperId }
+                val id = UUID.randomUUID().toString()
+                val value = filesManager.getFile(saved).toUri().toString()
+                val wallpaper = when (target) {
+                    WallpaperTarget.LOCK -> InfoOsWallpaper(id = id, lockUri = value, homeUri = current?.homeUri.orEmpty())
+                    WallpaperTarget.HOME -> InfoOsWallpaper(id = id, lockUri = current?.lockUri.orEmpty(), homeUri = value)
+                    WallpaperTarget.BOTH -> InfoOsWallpaper(id = id, lockUri = value, homeUri = value)
+                }
+                updateInfo { it.copy(wallpapers = it.wallpapers + wallpaper) }
             }
-            val current = info.wallpapers.find { it.id == info.activeWallpaperId }
-            val id = UUID.randomUUID().toString()
-            val value = uri.toString()
-            val wallpaper = when (target) {
-                WallpaperTarget.LOCK -> InfoOsWallpaper(id = id, lockUri = value, homeUri = current?.homeUri.orEmpty())
-                WallpaperTarget.HOME -> InfoOsWallpaper(id = id, lockUri = current?.lockUri.orEmpty(), homeUri = value)
-                WallpaperTarget.BOTH -> InfoOsWallpaper(id = id, lockUri = value, homeUri = value)
-            }
-            updateInfo { it.copy(wallpapers = it.wallpapers + wallpaper) }
         }
     }
 
@@ -169,6 +187,11 @@ fun InfoOsSettingsPage(
     var folderName by remember { mutableStateOf("") }
     var editingFolderId by remember { mutableStateOf<String?>(null) }
     var showAppearanceScheduleDialog by remember { mutableStateOf(false) }
+    var showDisplayNameDialog by remember { mutableStateOf(false) }
+    var displayNameDraft by remember(settings.displaySetting.userNickname) {
+        mutableStateOf(settings.displaySetting.userNickname)
+    }
+    var selectedUsedAvatar by remember { mutableStateOf<ManagedFileEntity?>(null) }
     var customMinutes by remember(info.requirePasscodeAfterMinutes) {
         mutableStateOf(info.requirePasscodeAfterMinutes.toString())
     }
@@ -225,12 +248,41 @@ fun InfoOsSettingsPage(
                 InfoOsSettingSection.PERSONAL_INFO -> item {
                     val displayName = settings.displaySetting.userNickname.takeIf(String::isNotBlank)
                         ?: stringResource(R.string.infoos_settings_local_profile)
+                    LaunchedEffect(settings.displaySetting.userAvatar) {
+                        filesManager.reclassifyLegacyAvatars(
+                            (settings.displaySetting.userAvatar as? Avatar.Image)?.url
+                        )
+                    }
                     CardGroup {
                         item(
+                            onClick = {
+                                displayNameDraft = settings.displaySetting.userNickname
+                                showDisplayNameDialog = true
+                            },
                             headlineContent = { Text(stringResource(R.string.infoos_settings_display_name)) },
-                            trailingContent = { CardGroupValue(displayName) },
+                            trailingContent = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CardGroupValue(displayName)
+                                    Icon(HugeIcons.ArrowRight01, null)
+                                }
+                            },
                         )
-                        formItem(headlineContent = { Text(stringResource(R.string.infoos_settings_decorative_avatar)) }) {
+                        formItem(
+                            headlineContent = { Text(stringResource(R.string.infoos_settings_decorative_avatar)) },
+                            trailingContent = if (settings.displaySetting.userAvatar !is Avatar.Dummy) {
+                                {
+                                    TextButton(onClick = {
+                                        vm.updateSettings { latest ->
+                                            latest.copy(
+                                                displaySetting = latest.displaySetting.copy(userAvatar = Avatar.Dummy)
+                                            )
+                                        }
+                                    }) {
+                                        Text(stringResource(R.string.infoos_settings_restore_initial))
+                                    }
+                                }
+                            } else null,
+                        ) {
                             UIAvatar(
                                 name = displayName,
                                 value = settings.displaySetting.userAvatar,
@@ -243,15 +295,33 @@ fun InfoOsSettingsPage(
                                     }
                                 },
                             )
-                            if (settings.displaySetting.userAvatar !is Avatar.Dummy) {
-                                OutlinedButton(onClick = {
-                                    vm.updateSettings { latest ->
-                                        latest.copy(
-                                            displaySetting = latest.displaySetting.copy(userAvatar = Avatar.Dummy)
-                                        )
+                            if (usedAvatarFiles.isNotEmpty()) {
+                                Text(
+                                    stringResource(R.string.infoos_settings_used_avatars),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    modifier = Modifier.padding(top = 12.dp),
+                                )
+                                usedAvatarFiles.chunked(2).forEach { rowFiles ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        rowFiles.forEach { file ->
+                                            androidx.compose.material3.Surface(
+                                                onClick = { selectedUsedAvatar = file },
+                                                modifier = Modifier.weight(1f).aspectRatio(1f),
+                                                shape = MaterialTheme.shapes.large,
+                                            ) {
+                                                AsyncImage(
+                                                    model = filesManager.getFile(file),
+                                                    contentDescription = file.displayName,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop,
+                                                )
+                                            }
+                                        }
+                                        if (rowFiles.size == 1) Spacer(Modifier.weight(1f))
                                     }
-                                }) {
-                                    Text(stringResource(R.string.infoos_settings_restore_initial))
                                 }
                             }
                         }
@@ -501,7 +571,14 @@ fun InfoOsSettingsPage(
                         formItem(headlineContent = { Text(stringResource(R.string.infoos_settings_appearance)) }) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 ColorMode.entries.forEach { mode ->
-                                    OutlinedButton(onClick = { colorMode = mode }) {
+                                    ToggleButton(
+                                        checked = colorMode == mode,
+                                        onCheckedChange = { selected -> if (selected) colorMode = mode },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ToggleButtonDefaults.colors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        ),
+                                    ) {
                                         Text(
                                             stringResource(
                                                 when (mode) {
@@ -530,28 +607,10 @@ fun InfoOsSettingsPage(
                                 trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                             )
                         }
-                        formItem(
-                            headlineContent = { Text(stringResource(R.string.infoos_settings_text_size)) },
-                            trailingContent = { CardGroupValue("${(settings.displaySetting.fontSizeRatio * 100).roundToInt()}%") },
-                        ) {
-                            Slider(
-                                value = settings.displaySetting.fontSizeRatio,
-                                onValueChange = { value ->
-                                    vm.updateSettings { latest ->
-                                        latest.copy(displaySetting = latest.displaySetting.copy(fontSizeRatio = value))
-                                    }
-                                },
-                                valueRange = 0.8f..1.4f,
-                            )
-                        }
-                        switchItem(
-                            checked = info.boldText,
-                            onCheckedChange = { value -> updateInfo { it.copy(boldText = value) } },
-                            headlineContent = { Text(stringResource(R.string.infoos_settings_bold_text)) },
-                        )
                         item(
-                            onClick = { navController.navigate(Screen.SettingPreferencesUI) },
-                            headlineContent = { Text(stringResource(R.string.infoos_settings_custom_font)) },
+                            onClick = { navigate(InfoOsSettingSection.FONT) },
+                            headlineContent = { Text(stringResource(R.string.infoos_settings_font)) },
+                            supportingContent = { Text(stringResource(R.string.infoos_settings_font_desc)) },
                             trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                         )
                         item(
@@ -569,6 +628,17 @@ fun InfoOsSettingsPage(
                     }
                 }
 
+                InfoOsSettingSection.FONT -> item {
+                    FontSettingsContent(
+                        displaySetting = settings.displaySetting,
+                        boldText = info.boldText,
+                        onDisplaySettingChange = { setting ->
+                            vm.updateSettings { latest -> latest.copy(displaySetting = setting) }
+                        },
+                        onBoldTextChange = { value -> updateInfo { it.copy(boldText = value) } },
+                    )
+                }
+
                 InfoOsSettingSection.HOME_DOCK -> item {
                     CardGroup {
                         item(
@@ -576,11 +646,7 @@ fun InfoOsSettingsPage(
                             headlineContent = { Text(stringResource(R.string.infoos_settings_desktop_layout)) },
                             supportingContent = {
                                 Text(
-                                    if (info.dockVisible) {
-                                        "${info.homeGrid.columns} × ${info.homeGrid.dockRows}"
-                                    } else {
-                                        "${info.homeGrid.columns} × ${info.homeGrid.dockRows + 1}"
-                                    }
+                                    desktopLayoutSummary(info.homeGrid, info.dockVisible)
                                 )
                             },
                             trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
@@ -987,6 +1053,70 @@ fun InfoOsSettingsPage(
             onDismiss = { showGridDialog = false },
         )
     }
+    if (showDisplayNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showDisplayNameDialog = false },
+            title = { Text(stringResource(R.string.infoos_settings_display_name)) },
+            text = {
+                OutlinedTextField(
+                    value = displayNameDraft,
+                    onValueChange = { displayNameDraft = it },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = displayNameDraft.isNotBlank(),
+                    onClick = {
+                        vm.updateSettings { latest ->
+                            latest.copy(
+                                displaySetting = latest.displaySetting.copy(
+                                    userNickname = displayNameDraft.trim()
+                                )
+                            )
+                        }
+                        showDisplayNameDialog = false
+                    },
+                ) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisplayNameDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+    selectedUsedAvatar?.let { file ->
+        val value = filesManager.getFile(file).toUri().toString()
+        val isCurrent = (settings.displaySetting.userAvatar as? Avatar.Image)?.url == value
+        AlertDialog(
+            onDismissRequest = { selectedUsedAvatar = null },
+            title = { Text(stringResource(R.string.infoos_settings_used_avatars)) },
+            text = {
+                AsyncImage(
+                    model = filesManager.getFile(file),
+                    contentDescription = file.displayName,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(MaterialTheme.shapes.extraLarge),
+                    contentScale = ContentScale.Crop,
+                )
+            },
+            confirmButton = {
+                if (!isCurrent) {
+                    TextButton(onClick = {
+                        vm.updateSettings { latest ->
+                            latest.copy(displaySetting = latest.displaySetting.copy(userAvatar = Avatar.Image(value)))
+                        }
+                        selectedUsedAvatar = null
+                    }) { Text(stringResource(R.string.infoos_settings_use_this_avatar)) }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedUsedAvatar = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
     if (showPlacementDialog) {
         ChoiceDialog(
             title = stringResource(R.string.infoos_settings_new_apps),
@@ -1263,6 +1393,7 @@ private fun InfoOsSettingSection.titleRes(detail: String): Int = when (this) {
     InfoOsSettingSection.AIRE_INTELLIGENCE -> R.string.infoos_settings_aire_intelligence
     InfoOsSettingSection.APPS_SERVICES -> R.string.infoos_settings_apps_services
     InfoOsSettingSection.DISPLAY_BRIGHTNESS -> R.string.infoos_settings_display_brightness
+    InfoOsSettingSection.FONT -> R.string.infoos_settings_font
     InfoOsSettingSection.HOME_DOCK -> R.string.infoos_settings_home_dock
     InfoOsSettingSection.DESKTOP_FOLDERS -> R.string.infoos_settings_desktop_folders
     InfoOsSettingSection.WALLPAPER -> R.string.infoos_settings_wallpaper
@@ -1283,6 +1414,13 @@ internal fun hashPasscode(passcode: String, salt: ByteArray): String {
 }
 
 internal fun formatMinutes(value: Int): String = "%02d:%02d".format(value / 60, value % 60)
+
+internal fun desktopLayoutSummary(grid: HomeGrid, dockVisible: Boolean): String =
+    if (dockVisible) {
+        "${grid.columns} × (${grid.dockRows} + 1)"
+    } else {
+        "${grid.columns} × (${grid.dockRows + 1} - 1)"
+    }
 
 internal fun parseMinutes(value: String): Int? {
     val parts = value.split(':')

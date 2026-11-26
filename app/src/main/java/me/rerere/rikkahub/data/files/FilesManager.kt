@@ -102,9 +102,9 @@ class FilesManager(
     fun getFile(entity: ManagedFileEntity): File =
         File(context.filesDir, entity.relativePath)
 
-    fun createChatFilesByContents(uris: List<Uri>): List<Uri> {
+    fun createManagedFilesByContents(folder: String, uris: List<Uri>): List<Uri> {
         val newUris = mutableListOf<Uri>()
-        val dir = context.filesDir.resolve(FileFolders.UPLOAD)
+        val dir = context.filesDir.resolve(folder)
         if (!dir.exists()) {
             dir.mkdirs()
         }
@@ -126,7 +126,7 @@ class FilesManager(
                 }
                 val guessedMime = sourceMime ?: guessMimeType(file, sourceName)
                 trackManagedFile(
-                    folder = FileFolders.UPLOAD,
+                    folder = folder,
                     file = file,
                     displayName = sourceName,
                     mimeType = guessedMime
@@ -134,14 +134,33 @@ class FilesManager(
                 newUris.add(file.toUri())
             }.onFailure {
                 it.printStackTrace()
-                Log.e(TAG, "createChatFilesByContents: Failed to save file from $uri", it)
+                Log.e(TAG, "createManagedFilesByContents: Failed to save file from $uri", it)
                 Logging.log(
                     TAG,
-                    "createChatFilesByContents: Failed to save file from $uri ${it.message} | ${it.stackTraceToString()}"
+                    "createManagedFilesByContents: Failed to save file from $uri ${it.message} | ${it.stackTraceToString()}"
                 )
             }
         }
         return newUris
+    }
+
+    fun createChatFilesByContents(uris: List<Uri>): List<Uri> =
+        createManagedFilesByContents(FileFolders.UPLOAD, uris)
+
+    fun createAvatarFilesByContents(uris: List<Uri>): List<Uri> =
+        createManagedFilesByContents(FileFolders.AVATARS, uris)
+
+    suspend fun reclassifyLegacyAvatars(activeAvatarUrl: String?) = withContext(Dispatchers.IO) {
+        val activePath = activeAvatarUrl
+            ?.takeIf { it.startsWith("file:") }
+            ?.let { runCatching { Uri.parse(it).toFile() }.getOrNull() }
+            ?.let { FileUtils.getRelativePathInFilesDir(context.filesDir, it) }
+        repository.listByFolder(FileFolders.UPLOAD).first()
+            .filter { entity ->
+                entity.mimeType.startsWith("image/") &&
+                    (entity.displayName.startsWith("crop_output_") || entity.relativePath == activePath)
+            }
+            .forEach { entity -> repository.update(entity.copy(folder = FileFolders.AVATARS)) }
     }
 
     fun createChatFilesByByteArrays(
@@ -327,10 +346,14 @@ class FilesManager(
         }
     }
 
-    suspend fun syncFolder(folder: String = FileFolders.UPLOAD): SyncResult = withContext(Dispatchers.IO) {
+    suspend fun syncFolder(
+        folder: String = FileFolders.UPLOAD,
+        recursive: Boolean = false,
+    ): SyncResult = withContext(Dispatchers.IO) {
         val dir = File(context.filesDir, folder)
         val diskFiles = if (dir.exists()) {
-            dir.listFiles()?.filter { it.isFile }
+            (if (recursive) dir.walkTopDown().toList() else dir.listFiles()?.toList())
+                ?.filter { it.isFile }
                 ?: return@withContext SyncResult(inserted = 0, removed = 0)
         } else {
             emptyList()
@@ -340,7 +363,8 @@ class FilesManager(
         var inserted = 0
         val diskRelativePaths = HashSet<String>()
         diskFiles.forEach { file ->
-            val relativePath = "${folder}/${file.name}"
+            val relativePath = FileUtils.getRelativePathInFilesDir(context.filesDir, file)
+                ?: return@forEach
             diskRelativePaths.add(relativePath)
             val existing = repository.getByPath(relativePath)
             if (existing == null) {
@@ -516,6 +540,9 @@ data class SyncResult(
 
 object FileFolders {
     const val UPLOAD = "upload"
+    const val AVATARS = "avatars"
+    const val WALLPAPERS = "wallpapers"
+    const val STICKERS = "stickers"
     const val SKILLS = "skills"
     const val BUILTIN_SKILLS = "builtin_skills"
     const val FONTS = "fonts"

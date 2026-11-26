@@ -465,6 +465,7 @@ private val SettingDestination.screen: Screen
         SettingDestination.AIRE_INTELLIGENCE -> Screen.InfoOsSetting(InfoOsSettingSection.AIRE_INTELLIGENCE.name)
         SettingDestination.APPS_SERVICES -> Screen.InfoOsSetting(InfoOsSettingSection.APPS_SERVICES.name)
         SettingDestination.DISPLAY_BRIGHTNESS -> Screen.InfoOsSetting(InfoOsSettingSection.DISPLAY_BRIGHTNESS.name)
+        SettingDestination.FONT -> Screen.InfoOsSetting(InfoOsSettingSection.FONT.name)
         SettingDestination.HOME_DOCK -> Screen.InfoOsSetting(InfoOsSettingSection.HOME_DOCK.name)
         SettingDestination.DESKTOP_FOLDERS -> Screen.InfoOsSetting(InfoOsSettingSection.DESKTOP_FOLDERS.name)
         SettingDestination.WALLPAPER -> Screen.InfoOsSetting(InfoOsSettingSection.WALLPAPER.name)

@@ -736,6 +736,11 @@
   <string name="setting_files_page_delete_file_title">删除文件</string>
   <string name="setting_files_page_deleted_toast">已删除</string>
   <string name="setting_files_page_folder_upload">上传</string>
+  <string name="setting_files_page_source_avatars">头像</string>
+  <string name="setting_files_page_source_wallpapers">壁纸</string>
+  <string name="setting_files_page_source_uploads">上传文件</string>
+  <string name="setting_files_page_source_machine_outputs">机的产出</string>
+  <string name="setting_files_page_source_stickers">表情包库</string>
   <string name="setting_files_page_no_files">无文件</string>
   <string name="setting_files_page_title">文件管理</string>
   <string name="setting_mcp_page_add_header">添加请求头</string>
@@ -1997,6 +2002,12 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="infoos_settings_text_size">文字大小</string>
   <string name="infoos_settings_bold_text">粗体文本</string>
   <string name="infoos_settings_custom_font">自定义字体（TTF）</string>
+  <string name="infoos_settings_font">字体</string>
+  <string name="infoos_settings_font_desc">文字大小、粗细、字族与自定义字体</string>
+  <string name="infoos_settings_used_avatars">曾用头像</string>
+  <string name="infoos_settings_use_this_avatar">使用此头像</string>
+  <string name="infoos_settings_chatgpt_subscription">ChatGPT / Codex 订阅</string>
+  <string name="infoos_settings_grok_subscription">Grok 订阅</string>
   <string name="infoos_settings_desktop_layout">桌面布局</string>
   <string name="infoos_settings_lock_layout">锁定布局</string>
   <string name="infoos_settings_desktop_folders">桌面文件夹</string>

@@ -64,4 +64,10 @@ class InfoOsSettingsTest {
         assertFalse(shouldAttemptBiometric(true, 35, true, false, true))
         assertFalse(shouldAttemptBiometric(true, 35, true, true, false))
     }
+
+    @Test
+    fun desktopLayoutSummaryExplainsDockRow() {
+        assertEquals("4 × (6 + 1)", desktopLayoutSummary(HomeGrid.FOUR_BY_SIX, true))
+        assertEquals("4 × (8 - 1)", desktopLayoutSummary(HomeGrid.FOUR_BY_SEVEN, false))
+    }
 }

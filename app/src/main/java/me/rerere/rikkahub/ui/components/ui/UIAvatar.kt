@@ -107,7 +107,7 @@ fun UIAvatar(
     var urlInput by remember { mutableStateOf("") }
 
     fun saveAvatarImage(uri: Uri) {
-        val localUris = filesManager.createChatFilesByContents(listOf(uri))
+        val localUris = filesManager.createAvatarFilesByContents(listOf(uri))
         localUris.firstOrNull()?.let { localUri ->
             onUpdate?.invoke(Avatar.Image(localUri.toString()))
         }
