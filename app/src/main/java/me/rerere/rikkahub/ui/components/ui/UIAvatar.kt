@@ -98,7 +98,10 @@ fun UIAvatar(
     loading: Boolean = false,
     shape: Shape = rememberAvatarShape(loading),
     onUpdate: ((Avatar) -> Unit)? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    additionalActionLabel: String? = null,
+    onAdditionalAction: (() -> Unit)? = null,
+    showEditBadge: Boolean = onUpdate != null,
 ) {
     val filesManager: FilesManager = koinInject()
     var showPickOption by remember { mutableStateOf(false) }
@@ -176,7 +179,7 @@ fun UIAvatar(
         }
 
         // Show edit icon when editable
-        if (onUpdate != null) {
+        if (showEditBadge) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -245,6 +248,17 @@ fun UIAvatar(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(text = stringResource(id = R.string.avatar_reset))
+                    }
+                    if (additionalActionLabel != null && onAdditionalAction != null) {
+                        Button(
+                            onClick = {
+                                showPickOption = false
+                                onAdditionalAction()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(additionalActionLabel)
+                        }
                     }
                 }
             },

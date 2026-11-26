@@ -163,6 +163,11 @@ class FilesManager(
             .forEach { entity -> repository.update(entity.copy(folder = FileFolders.AVATARS)) }
     }
 
+    suspend fun markAvatarUsed(id: Long) = withContext(Dispatchers.IO) {
+        val avatar = repository.getById(id) ?: return@withContext
+        repository.update(avatar.copy(updatedAt = System.currentTimeMillis()))
+    }
+
     fun createChatFilesByByteArrays(
         byteArrays: List<ByteArray>,
         displayName: String = "image.png",
