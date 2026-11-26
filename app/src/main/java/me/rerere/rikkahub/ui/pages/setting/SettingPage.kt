@@ -235,6 +235,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.infoos_settings_general)) },
                     )
                     item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.AIRE_INTELLIGENCE.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.AiMagic, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_aire_intelligence)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.APPS_SERVICES.name)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Package, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.infoos_settings_apps_services)) },
+                    )
+                    item(
                         onClick = { navController.navigate(Screen.InfoOsSetting(InfoOsSettingSection.NOTIFICATIONS.name)) },
                         leadingContent = { CardGroupIcon(HugeIcons.Megaphone01, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.infoos_settings_notifications)) },
@@ -262,6 +272,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
             }
 
+            if (SHOW_LEGACY_SETTINGS_GROUPS) {
             item("appearanceSettings") {
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -436,9 +447,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
             }
             }
+            }
         }
     }
 }
+
+private const val SHOW_LEGACY_SETTINGS_GROUPS = false
 
 private val SettingDestination.screen: Screen
     get() = when (this) {
@@ -448,6 +462,8 @@ private val SettingDestination.screen: Screen
         SettingDestination.LOGIN_SECURITY -> Screen.InfoOsSetting(InfoOsSettingSection.LOGIN_SECURITY.name)
         SettingDestination.INFOOS_GENERAL -> Screen.InfoOsSetting(InfoOsSettingSection.GENERAL.name)
         SettingDestination.SOFTWARE_UPDATE -> Screen.InfoOsSetting(InfoOsSettingSection.SOFTWARE_UPDATE.name)
+        SettingDestination.AIRE_INTELLIGENCE -> Screen.InfoOsSetting(InfoOsSettingSection.AIRE_INTELLIGENCE.name)
+        SettingDestination.APPS_SERVICES -> Screen.InfoOsSetting(InfoOsSettingSection.APPS_SERVICES.name)
         SettingDestination.DISPLAY_BRIGHTNESS -> Screen.InfoOsSetting(InfoOsSettingSection.DISPLAY_BRIGHTNESS.name)
         SettingDestination.HOME_DOCK -> Screen.InfoOsSetting(InfoOsSettingSection.HOME_DOCK.name)
         SettingDestination.DESKTOP_FOLDERS -> Screen.InfoOsSetting(InfoOsSettingSection.DESKTOP_FOLDERS.name)
@@ -456,7 +472,7 @@ private val SettingDestination.screen: Screen
         SettingDestination.CHAT_NOTIFICATIONS -> Screen.InfoOsSetting(InfoOsSettingSection.APP_NOTIFICATION.name, "chat")
         SettingDestination.MAILBOX_NOTIFICATIONS -> Screen.InfoOsSetting(InfoOsSettingSection.APP_NOTIFICATION.name, "mailbox")
         SettingDestination.SETTINGS_NOTIFICATIONS -> Screen.InfoOsSetting(InfoOsSettingSection.APP_NOTIFICATION.name, "settings")
-        SettingDestination.PREFERENCES -> Screen.SettingPreferences
+        SettingDestination.PREFERENCES -> Screen.InfoOsSetting(InfoOsSettingSection.DISPLAY_BRIGHTNESS.name)
         SettingDestination.THEME -> Screen.SettingPreferencesTheme
         SettingDestination.NOTIFICATIONS -> Screen.SettingPreferencesNotification
         SettingDestination.GENERAL -> Screen.SettingPreferencesGeneral

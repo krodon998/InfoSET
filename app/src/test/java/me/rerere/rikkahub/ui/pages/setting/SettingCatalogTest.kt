@@ -46,6 +46,14 @@ class SettingCatalogTest {
             SettingDestination.EXTENSIONS,
             SettingCatalog.search("工作区", emptyResolver).first().destination,
         )
+        assertEquals(
+            SettingDestination.AIRE_INTELLIGENCE,
+            SettingCatalog.search("Aire 与智能", emptyResolver).first().destination,
+        )
+        assertEquals(
+            SettingDestination.APPS_SERVICES,
+            SettingCatalog.search("App 与服务", emptyResolver).first().destination,
+        )
     }
 
     @Test

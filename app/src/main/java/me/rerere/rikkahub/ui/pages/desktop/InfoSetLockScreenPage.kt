@@ -173,30 +173,39 @@ fun InfoSetLockScreenPage(
     }
 
     val activity = view.context.getActivity()
+    val hasBiometricPermission = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.USE_BIOMETRIC,
+    ) == PackageManager.PERMISSION_GRANTED
+    val hasFingerprintFeature = context.packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)
     LaunchedEffect(showAuthentication, infoOsSettings.fingerprintEnabled) {
-        if (
-            showAuthentication &&
-            infoOsSettings.fingerprintEnabled &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
-            activity != null
+        if (showAuthentication && shouldAttemptBiometric(
+                enabled = infoOsSettings.fingerprintEnabled,
+                sdkInt = Build.VERSION.SDK_INT,
+                permissionGranted = hasBiometricPermission,
+                fingerprintFeaturePresent = hasFingerprintFeature,
+                activityAvailable = activity != null,
+            )
         ) {
-            BiometricPrompt.Builder(activity)
-                .setTitle(context.getString(R.string.infoos_lock_fingerprint_title))
-                .setNegativeButton(
-                    context.getString(R.string.infoos_lock_use_password),
-                    activity.mainExecutor,
-                ) { _, _ -> }
-                .build()
-                .authenticate(
-                    CancellationSignal(),
-                    activity.mainExecutor,
-                    object : BiometricPrompt.AuthenticationCallback() {
-                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
-                            showAuthentication = false
-                            onUnlock()
-                        }
-                    },
-                )
+            runCatching {
+                BiometricPrompt.Builder(activity!!)
+                    .setTitle(context.getString(R.string.infoos_lock_fingerprint_title))
+                    .setNegativeButton(
+                        context.getString(R.string.infoos_lock_use_password),
+                        activity.mainExecutor,
+                    ) { _, _ -> }
+                    .build()
+                    .authenticate(
+                        CancellationSignal(),
+                        activity.mainExecutor,
+                        object : BiometricPrompt.AuthenticationCallback() {
+                            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                                showAuthentication = false
+                                onUnlock()
+                            }
+                        },
+                    )
+            }
         }
     }
     if (!view.isInEditMode && activity != null) {
@@ -460,6 +469,18 @@ fun InfoSetLockScreenPage(
         }
     }
 }
+
+internal fun shouldAttemptBiometric(
+    enabled: Boolean,
+    sdkInt: Int,
+    permissionGranted: Boolean,
+    fingerprintFeaturePresent: Boolean,
+    activityAvailable: Boolean,
+): Boolean = enabled &&
+    sdkInt >= Build.VERSION_CODES.P &&
+    permissionGranted &&
+    fingerprintFeaturePresent &&
+    activityAvailable
 
 @Composable
 private fun LockShortcutButton(

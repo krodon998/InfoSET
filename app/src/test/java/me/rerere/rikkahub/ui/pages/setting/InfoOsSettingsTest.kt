@@ -9,6 +9,7 @@ import me.rerere.rikkahub.data.datastore.InfoOsSettings
 import me.rerere.rikkahub.data.datastore.InfoOsDesktopFolder
 import me.rerere.rikkahub.data.datastore.NewAppPlacement
 import me.rerere.rikkahub.ui.theme.isWithinDarkSchedule
+import me.rerere.rikkahub.ui.pages.desktop.shouldAttemptBiometric
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -52,5 +53,15 @@ class InfoOsSettingsTest {
         assertTrue(isWithinDarkSchedule(23 * 60, 22 * 60, 7 * 60))
         assertTrue(isWithinDarkSchedule(6 * 60, 22 * 60, 7 * 60))
         assertFalse(isWithinDarkSchedule(12 * 60, 22 * 60, 7 * 60))
+    }
+
+    @Test
+    fun biometricRequiresEveryRuntimePrecondition() {
+        assertTrue(shouldAttemptBiometric(true, 35, true, true, true))
+        assertFalse(shouldAttemptBiometric(false, 35, true, true, true))
+        assertFalse(shouldAttemptBiometric(true, 27, true, true, true))
+        assertFalse(shouldAttemptBiometric(true, 35, false, true, true))
+        assertFalse(shouldAttemptBiometric(true, 35, true, false, true))
+        assertFalse(shouldAttemptBiometric(true, 35, true, true, false))
     }
 }

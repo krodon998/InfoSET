@@ -11,6 +11,8 @@ enum class SettingDestination {
     LOGIN_SECURITY,
     INFOOS_GENERAL,
     SOFTWARE_UPDATE,
+    AIRE_INTELLIGENCE,
+    APPS_SERVICES,
     DISPLAY_BRIGHTNESS,
     HOME_DOCK,
     DESKTOP_FOLDERS,
@@ -110,6 +112,13 @@ object SettingCatalog {
         entry("infoos.update_now", R.string.infoos_settings_update_now, SettingDestination.SOFTWARE_UPDATE,
             R.string.infoos_settings_general, R.string.infoos_settings_software_update),
 
+        entry("infoos.aire_intelligence", R.string.infoos_settings_aire_intelligence,
+            SettingDestination.AIRE_INTELLIGENCE, R.string.infoos_settings_aire_intelligence,
+            aliases = setOf("Aire 与智能", "助手", "模型", "Provider", "智能")),
+        entry("infoos.apps_services", R.string.infoos_settings_apps_services,
+            SettingDestination.APPS_SERVICES, R.string.infoos_settings_apps_services,
+            aliases = setOf("App 与服务", "扩展", "MCP", "网页服务", "apps")),
+
         entry("infoos.display", R.string.infoos_settings_display_brightness, SettingDestination.DISPLAY_BRIGHTNESS,
             R.string.infoos_settings_display_brightness, aliases = setOf("显示", "亮度", "display")),
         entry("infoos.appearance", R.string.infoos_settings_appearance, SettingDestination.DISPLAY_BRIGHTNESS,
@@ -195,7 +204,7 @@ object SettingCatalog {
         entry("infoos.notification_details", R.string.infoos_settings_show_details, SettingDestination.CHAT_NOTIFICATIONS,
             R.string.infoos_settings_notifications),
 
-        entry("appearance.color_mode", R.string.setting_page_color_mode, SettingDestination.ROOT, appearance,
+        entry("appearance.color_mode", R.string.setting_page_color_mode, SettingDestination.DISPLAY_BRIGHTNESS, appearance,
             aliases = setOf("浅色", "深色", "跟随系统", "light", "dark", "system theme")),
         entry("appearance.preferences", R.string.setting_page_preferences, SettingDestination.PREFERENCES, appearance,
             aliases = setOf("外观", "显示", "使用偏好", "appearance", "preferences")),

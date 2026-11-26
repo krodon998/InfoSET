@@ -1955,6 +1955,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="infoos_settings_personal_info">个人信息</string>
   <string name="infoos_settings_login_security">登录与安全</string>
   <string name="infoos_settings_general">通用</string>
+  <string name="infoos_settings_aire_intelligence">Aire 与智能</string>
+  <string name="infoos_settings_apps_services">App 与服务</string>
   <string name="infoos_settings_software_update">软件更新</string>
   <string name="infoos_settings_automatic_updates">自动更新</string>
   <string name="infoos_settings_display_brightness">显示与亮度</string>
@@ -1974,6 +1976,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="infoos_settings_change_password">更改密码</string>
   <string name="infoos_settings_remove_password">移除密码</string>
   <string name="infoos_settings_fingerprint">使用指纹</string>
+  <string name="infoos_settings_fingerprint_unavailable">此设备当前无法使用指纹验证</string>
   <string name="infoos_settings_require_password">要求密码</string>
   <string name="infoos_settings_immediately">立即</string>
   <string name="infoos_settings_after_minutes">%1$d 分钟后</string>

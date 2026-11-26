@@ -1953,6 +1953,8 @@
     <string name="infoos_settings_personal_info">Personal Information</string>
     <string name="infoos_settings_login_security">Login &amp; Security</string>
     <string name="infoos_settings_general">General</string>
+    <string name="infoos_settings_aire_intelligence">Aire &amp; Intelligence</string>
+    <string name="infoos_settings_apps_services">Apps &amp; Services</string>
     <string name="infoos_settings_software_update">Software Update</string>
     <string name="infoos_settings_automatic_updates">Automatic Updates</string>
     <string name="infoos_settings_display_brightness">Display &amp; Brightness</string>
@@ -1972,6 +1974,7 @@
     <string name="infoos_settings_change_password">Change Password</string>
     <string name="infoos_settings_remove_password">Remove Password</string>
     <string name="infoos_settings_fingerprint">Use Fingerprint</string>
+    <string name="infoos_settings_fingerprint_unavailable">Fingerprint authentication is unavailable on this device</string>
     <string name="infoos_settings_require_password">Require Password</string>
     <string name="infoos_settings_immediately">Immediately</string>
     <string name="infoos_settings_after_minutes">After %1$d minutes</string>

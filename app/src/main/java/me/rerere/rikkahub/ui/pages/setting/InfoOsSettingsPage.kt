@@ -1,6 +1,10 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +49,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.content.ContextCompat
 import coil3.compose.AsyncImage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -90,6 +95,8 @@ enum class InfoOsSettingSection {
     LOGIN_SECURITY,
     GENERAL,
     SOFTWARE_UPDATE,
+    AIRE_INTELLIGENCE,
+    APPS_SERVICES,
     DISPLAY_BRIGHTNESS,
     HOME_DOCK,
     DESKTOP_FOLDERS,
@@ -115,6 +122,10 @@ fun InfoOsSettingsPage(
     val context = LocalContext.current
     val updateChecker: UpdateChecker = koinInject()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val fingerprintAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT) &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.USE_BIOMETRIC) ==
+        PackageManager.PERMISSION_GRANTED
 
     fun navigate(target: InfoOsSettingSection, targetDetail: String = "") {
         navController.navigate(Screen.InfoOsSetting(target.name, targetDetail))
@@ -264,8 +275,12 @@ fun InfoOsSettingsPage(
                         if (info.passcodeHash.isNotBlank()) {
                             switchItem(
                                 checked = info.fingerprintEnabled,
+                                enabled = fingerprintAvailable,
                                 onCheckedChange = { enabled -> updateInfo { it.copy(fingerprintEnabled = enabled) } },
                                 headlineContent = { Text(stringResource(R.string.infoos_settings_fingerprint)) },
+                                supportingContent = if (!fingerprintAvailable) {
+                                    { Text(stringResource(R.string.infoos_settings_fingerprint_unavailable)) }
+                                } else null,
                             )
                             item(
                                 onClick = { showRequireDialog = true },
@@ -297,6 +312,127 @@ fun InfoOsSettingsPage(
                         item(
                             onClick = { navigate(InfoOsSettingSection.SOFTWARE_UPDATE) },
                             headlineContent = { Text(stringResource(R.string.infoos_settings_software_update)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingPreferencesGeneral) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_preferences_general)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_preferences_general_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_preferences_network)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.Backup) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_data_backup)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingFiles) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_chat_storage)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.QuickStart) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_quick_start)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.Log) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_request_logs)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingAbout) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_about)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_about_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.setting_page_share_text))
+                                }
+                                runCatching {
+                                    context.startActivity(
+                                        Intent.createChooser(shareIntent, context.getString(R.string.setting_page_share))
+                                    )
+                                }.onFailure {
+                                    Toast.makeText(context, R.string.setting_page_no_share_app, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            headlineContent = { Text(stringResource(R.string.setting_page_share)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_share_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                    }
+                }
+
+                InfoOsSettingSection.AIRE_INTELLIGENCE -> item {
+                    CardGroup {
+                        item(
+                            onClick = { navController.navigate(Screen.Assistant) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingModels) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_default_model)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingProvider) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_providers)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_providers_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingSearch) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_search_service)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_search_service_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingSpeech) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingMedia) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_media)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_media_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                    }
+                }
+
+                InfoOsSettingSection.APPS_SERVICES -> item {
+                    CardGroup {
+                        item(
+                            onClick = { navController.navigate(Screen.Extensions) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingMcp) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingWeb) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
                             trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                         )
                     }
@@ -416,6 +552,18 @@ fun InfoOsSettingsPage(
                         item(
                             onClick = { navController.navigate(Screen.SettingPreferencesUI) },
                             headlineContent = { Text(stringResource(R.string.infoos_settings_custom_font)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingPreferencesTheme) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_preferences_theme)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_preferences_theme_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingPreferencesUI) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_preferences_ui)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_preferences_ui_desc)) },
                             trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                         )
                     }
@@ -708,6 +856,12 @@ fun InfoOsSettingsPage(
 
                 InfoOsSettingSection.NOTIFICATIONS -> item {
                     CardGroup {
+                        item(
+                            onClick = { navController.navigate(Screen.SettingPreferencesNotification) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification)) },
+                            supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_desc)) },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                        )
                         listOf("chat", "mailbox", "settings").forEach { appId ->
                             item(
                                 onClick = { navigate(InfoOsSettingSection.APP_NOTIFICATION, appId) },
@@ -1106,6 +1260,8 @@ private fun InfoOsSettingSection.titleRes(detail: String): Int = when (this) {
     InfoOsSettingSection.LOGIN_SECURITY -> R.string.infoos_settings_login_security
     InfoOsSettingSection.GENERAL -> R.string.infoos_settings_general
     InfoOsSettingSection.SOFTWARE_UPDATE -> R.string.infoos_settings_software_update
+    InfoOsSettingSection.AIRE_INTELLIGENCE -> R.string.infoos_settings_aire_intelligence
+    InfoOsSettingSection.APPS_SERVICES -> R.string.infoos_settings_apps_services
     InfoOsSettingSection.DISPLAY_BRIGHTNESS -> R.string.infoos_settings_display_brightness
     InfoOsSettingSection.HOME_DOCK -> R.string.infoos_settings_home_dock
     InfoOsSettingSection.DESKTOP_FOLDERS -> R.string.infoos_settings_desktop_folders
