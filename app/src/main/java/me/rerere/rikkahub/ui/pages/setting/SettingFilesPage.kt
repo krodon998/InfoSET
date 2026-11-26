@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -82,6 +84,7 @@ import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
+import me.rerere.rikkahub.ui.components.ai.StickerLibraryDialog
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -112,7 +115,20 @@ fun SettingFilesPage(
     var pendingDelete by remember { mutableStateOf<ManagedFileEntity?>(null) }
     var showCleanSheet by remember { mutableStateOf(false) }
     var selectedCleanRange by remember { mutableStateOf(CleanRange.DAYS_7) }
+    var showStickerLibrary by remember { mutableStateOf(false) }
     val files by filesManager.observe(selectedSource.folder).collectAsState(initial = emptyList())
+    val stickerImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        scope.launch {
+            uris.forEach { uri ->
+                filesManager.saveManagedFromUri(
+                    folder = FileFolders.STICKERS,
+                    uri = uri,
+                    displayName = filesManager.getFileNameFromUri(uri),
+                    mimeType = filesManager.getFileMimeType(uri),
+                )
+            }
+        }
+    }
 
     LaunchedEffect(selectedSource) {
         filesManager.syncFolder(
@@ -180,12 +196,26 @@ fun SettingFilesPage(
         }
     }
 
+    if (showStickerLibrary) {
+        StickerLibraryDialog(
+            stickers = files.filter { it.mimeType.startsWith("image/") },
+            filesManager = filesManager,
+            onImport = { stickerImporter.launch(arrayOf("image/*")) },
+            onDismiss = { showStickerLibrary = false },
+        )
+    }
+
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.setting_files_page_title)) },
                 navigationIcon = { BackButton() },
                 actions = {
+                    if (selectedSource == FileSource.STICKERS) {
+                        TextButton(onClick = { showStickerLibrary = true }) {
+                            Text("表情库")
+                        }
+                    }
                     IconButton(
                         onClick = { showCleanSheet = true },
                         enabled = files.isNotEmpty(),
