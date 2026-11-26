@@ -201,7 +201,7 @@ class BackupManager(
     companion object {
         private const val TAG = "BackupManager"
 
-        private val ATTACHMENT_FOLDERS =
+        internal val ATTACHMENT_FOLDERS =
             listOf(
                 FileFolders.UPLOAD,
                 FileFolders.AVATARS,

@@ -4,6 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.localFileUrls
@@ -18,6 +19,7 @@ sealed interface InboxItem {
 data class QueuedMessage(
     override val id: Uuid = Uuid.random(),
     val parts: List<UIMessagePart>,
+    val annotations: List<UIMessageAnnotation> = emptyList(),
     val answer: Boolean = true,
     val isEditing: Boolean = false,
     // Optional in-memory observer; null result means the queued message was withdrawn.
@@ -75,7 +77,12 @@ class ConversationInbox {
     val state = mutableState.asStateFlow()
 
     @Synchronized
-    fun enqueue(parts: List<UIMessagePart>, answer: Boolean = true, reply: CompletableDeferred<String?>? = null) {
+    fun enqueue(
+        parts: List<UIMessagePart>,
+        annotations: List<UIMessageAnnotation> = emptyList(),
+        answer: Boolean = true,
+        reply: CompletableDeferred<String?>? = null,
+    ) {
         if (parts.isEmptyInputMessage()) {
             reply?.complete(null)
             return
@@ -83,6 +90,7 @@ class ConversationInbox {
         mutableState.value = state.value.copy(
             items = state.value.items + QueuedMessage(
                 parts = parts.toList(),
+                annotations = annotations.toList(),
                 answer = answer,
                 reply = reply,
             ),

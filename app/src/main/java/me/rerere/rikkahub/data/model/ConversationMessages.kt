@@ -37,6 +37,7 @@ internal fun Conversation.editMessage(messageId: Uuid, parts: List<UIMessagePart
         UIMessage(
             role = node.role,
             parts = parts,
+            annotations = original.annotations,
             // 编辑的是原消息的内容，来源仍是生成它的模型
             modelId = original.modelId,
             modelSnapshot = original.modelSnapshot,

@@ -2057,4 +2057,10 @@
     <string name="infoos_lock_unlock">Unlock</string>
     <string name="infoos_lock_fingerprint_title">Unlock InfoSET</string>
     <string name="infoos_lock_use_password">Use Password</string>
+    <string name="chat_page_stickers">Stickers</string>
+    <string name="chat_page_split_bubble_send">Send as split bubbles</string>
+    <string name="chat_page_reply">Reply</string>
+    <string name="chat_page_reply_whole">Reply to message</string>
+    <string name="chat_page_reply_part">Reply to bubble %1$d</string>
+    <string name="chat_page_reply_to">Replying to %1$s</string>
 </resources>

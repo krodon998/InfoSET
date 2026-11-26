@@ -36,6 +36,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.common.android.Logging
@@ -433,13 +434,18 @@ class ChatService(
         dispatchInbox(conversationId)
     }
 
-    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean = true) {
+    fun sendMessage(
+        conversationId: Uuid,
+        content: List<UIMessagePart>,
+        annotations: List<UIMessageAnnotation> = emptyList(),
+        answer: Boolean = true,
+    ) {
         if (content.isEmptyInputMessage()) return
         val session = sessionManager.getOrCreate(conversationId)
         synchronized(session) {
             // 没有排队的用户输入时，新消息就是用户要继续的意思；等待中的通知跟着这一轮发出
             if (session.inbox.state.value.messages.isEmpty()) session.inbox.resume()
-            session.inbox.enqueue(content, answer)
+            session.inbox.enqueue(content, annotations = annotations, answer = answer)
             dispatchInbox(conversationId)
         }
     }
@@ -515,6 +521,7 @@ class ChatService(
                             UIMessage(
                                 role = MessageRole.USER,
                                 parts = processedContent,
+                                annotations = queued.annotations,
                             ).toMessageNode(),
                     )
                 }

@@ -7,12 +7,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UIMessageAnnotation
 import kotlin.uuid.Uuid
 
 class ChatInputState {
     val textContent = TextFieldState()
     var messageContent by mutableStateOf(listOf<UIMessagePart>())
     var editingMessage by mutableStateOf<Uuid?>(null)
+    var replyReference by mutableStateOf<UIMessageAnnotation.ReplyReference?>(null)
 
     /** 编辑中的消息允许改思考内容时不为 null，见 [setContents] */
     var editingReasoning by mutableStateOf<TextFieldState?>(null)
@@ -24,6 +26,7 @@ class ChatInputState {
         textContent.setTextAndPlaceCursorAtEnd("")
         messageContent = emptyList()
         editingMessage = null
+        replyReference = null
         editingReasoning = null
         editingParts = null
         editingAttachmentUrls = emptySet()
@@ -47,12 +50,8 @@ class ChatInputState {
     }
 
     fun setContents(contents: List<UIMessagePart>) {
-        val lastTextIndex = contents.indexOfLast { it is UIMessagePart.Text }
-        val text = if (lastTextIndex >= 0) {
-            (contents[lastTextIndex] as UIMessagePart.Text).text
-        } else {
-            ""
-        }
+        val texts = contents.filterIsInstance<UIMessagePart.Text>()
+        val text = texts.joinToString(MULTI_TEXT_EDIT_SEPARATOR) { it.text }
         textContent.setTextAndPlaceCursorAtEnd(text)
         val reasoning = contents.editableReasoningOrNull()
         editingReasoning = reasoning?.let { TextFieldState(it.reasoning) }
@@ -66,21 +65,22 @@ class ChatInputState {
         if (isEditing()) {
             val originalParts = editingParts
             if (originalParts != null) {
-                val editedTextIndex = originalParts.indexOfLast { it is UIMessagePart.Text }
+                val editedTextIndices = originalParts.indices.filter { originalParts[it] is UIMessagePart.Text }
+                val editedTexts = if (editedTextIndices.size > 1) {
+                    splitBubbleText(text).map { UIMessagePart.Text(it) }
+                } else {
+                    listOfNotNull(text.takeIf(String::isNotBlank)?.let(::UIMessagePart.Text))
+                }
                 val remainingAttachments = messageContent.toMutableList()
                 val merged = mutableListOf<UIMessagePart>()
+                var insertedTexts = false
 
                 originalParts.forEachIndexed { index, part ->
                     when {
-                        index == editedTextIndex -> {
-                            if (text.isNotBlank()) {
-                                merged.add(UIMessagePart.Text(text))
-                            }
-                        }
-
                         part is UIMessagePart.Text -> {
-                            if (part.text.isNotBlank()) {
-                                merged.add(part)
+                            if (!insertedTexts) {
+                                merged.addAll(editedTexts)
+                                insertedTexts = true
                             }
                         }
 
@@ -99,7 +99,7 @@ class ChatInputState {
                         }
                     }
                 }
-                if (editedTextIndex < 0 && text.isNotBlank()) {
+                if (editedTextIndices.isEmpty() && text.isNotBlank()) {
                     merged.add(0, UIMessagePart.Text(text))
                 }
                 // Newly added attachments are appended in insertion order.
@@ -110,6 +110,10 @@ class ChatInputState {
         }
         return if (text.isBlank()) messageContent else listOf(UIMessagePart.Text(text)) + messageContent
     }
+
+    /** Builds one user turn containing one text part per non-empty blank-line-delimited segment. */
+    fun getSplitContents(): List<UIMessagePart> =
+        splitBubbleText(textContent.text.toString()).map { UIMessagePart.Text(it) } + messageContent
 
     fun isEmpty(): Boolean {
         return textContent.text.isBlank() && messageContent.isEmpty()
@@ -177,3 +181,11 @@ class ChatInputState {
         }
     }
 }
+
+private const val MULTI_TEXT_EDIT_SEPARATOR = "\n\n"
+private val BLANK_LINE = Regex("\\r?\\n[\\t ]*\\r?\\n+")
+
+internal fun splitBubbleText(text: String): List<String> = text
+    .split(BLANK_LINE)
+    .map(String::trim)
+    .filter(String::isNotEmpty)

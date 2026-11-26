@@ -3,6 +3,8 @@ package me.rerere.rikkahub.service
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -173,6 +175,27 @@ class ConversationInboxTest {
         parts.clear()
 
         assertEquals(text("original"), queue.nextMessage()!!.parts)
+    }
+
+    @Test
+    fun `split bubbles and reply annotation remain one model turn`() {
+        val queue = ConversationInbox()
+        val target = Uuid.random()
+        val parts = listOf("one", "two", "three").map { UIMessagePart.Text(it) }
+        val reply = UIMessageAnnotation.ReplyReference(
+            targetMessageId = target,
+            targetPartIndex = 1,
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "target",
+        )
+
+        queue.enqueue(parts, annotations = listOf(reply))
+
+        val turn = queue.nextMessage()!!
+        assertEquals(parts, turn.parts)
+        assertEquals(listOf(reply), turn.annotations)
+        assertNull(queue.nextMessage())
     }
 
     @Test

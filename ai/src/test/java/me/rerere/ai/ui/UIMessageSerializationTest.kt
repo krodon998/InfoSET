@@ -1,6 +1,7 @@
 package me.rerere.ai.ui
 
 import kotlinx.serialization.json.Json
+import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -58,5 +59,30 @@ class UIMessageSerializationTest {
         val legacy = """{"role":"assistant","parts":[],"modelId":"00000000-0000-0000-0000-000000000001"}"""
 
         assertNull(Json.decodeFromString<UIMessage>(legacy).snapshotModel())
+    }
+
+    @Test
+    fun `reply reference and split parts survive serialization`() {
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = Uuid.random(),
+            targetPartIndex = 1,
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "第二个气泡",
+        )
+        val message = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(
+                UIMessagePart.Text("第一句"),
+                UIMessagePart.Text("第二句"),
+                UIMessagePart.Text("第三句"),
+            ),
+            annotations = listOf(reference),
+        )
+
+        val restored = Json.decodeFromString<UIMessage>(Json.encodeToString(message))
+
+        assertEquals(message.parts, restored.parts)
+        assertEquals(listOf(reference), restored.annotations)
     }
 }

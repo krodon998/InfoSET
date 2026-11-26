@@ -77,6 +77,22 @@ data class UIMessage(
 
     fun getTools() = parts.filterIsInstance<UIMessagePart.Tool>()
 
+    /** A short, deterministic description suitable for a persisted reply reference. */
+    fun replyPreview(partIndex: Int? = null, maxLength: Int = 120): String {
+        val selected = partIndex?.let(parts::getOrNull)?.let(::listOf) ?: parts
+        val preview = selected.firstNotNullOfOrNull { part ->
+            when (part) {
+                is UIMessagePart.Text -> part.text.trim().takeIf { it.isNotEmpty() }
+                is UIMessagePart.Image -> if (part.isSticker()) "表情包" else "图片"
+                is UIMessagePart.Document -> part.fileName.ifBlank { "文件" }
+                is UIMessagePart.Video -> "视频"
+                is UIMessagePart.Audio -> "音频"
+                else -> null
+            }
+        }.orEmpty().replace(Regex("\\s+"), " ").trim()
+        return if (preview.length <= maxLength) preview else preview.take(maxLength - 1).trimEnd() + "…"
+    }
+
     fun isValidToUpload() = parts.any { part ->
         when (part) {
             is UIMessagePart.Text -> part.text.isNotBlank()

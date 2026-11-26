@@ -4,6 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.util.json
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -236,3 +239,15 @@ sealed class UIMessagePart {
         override var metadata: JsonObject? = null,
     ) : UIMessagePart()
 }
+
+const val INFOSET_KIND_METADATA = "infoset_kind"
+const val INFOSET_STICKER_KIND = "sticker"
+const val INFOSET_STICKER_ASSET_METADATA = "infoset_sticker_asset"
+
+fun stickerMetadata(assetRelativePath: String): JsonObject = buildJsonObject {
+    put(INFOSET_KIND_METADATA, JsonPrimitive(INFOSET_STICKER_KIND))
+    put(INFOSET_STICKER_ASSET_METADATA, JsonPrimitive(assetRelativePath))
+}
+
+fun UIMessagePart.Image.isSticker(): Boolean =
+    (metadata?.get(INFOSET_KIND_METADATA) as? JsonPrimitive)?.contentOrNull == INFOSET_STICKER_KIND

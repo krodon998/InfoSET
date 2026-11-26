@@ -102,6 +102,28 @@ class FilesManager(
     fun getFile(entity: ManagedFileEntity): File =
         File(context.filesDir, entity.relativePath)
 
+    /**
+     * Copies a managed asset into another ownership folder.
+     * Sticker messages use this to own an upload copy while the reusable source remains in STICKERS.
+     */
+    suspend fun copyManagedFile(
+        source: ManagedFileEntity,
+        targetFolder: String,
+    ): ManagedFileEntity = withContext(Dispatchers.IO) {
+        val sourceFile = getFile(source)
+        require(sourceFile.isFile) { "Managed source file is missing: ${source.relativePath}" }
+        val target = createTargetFile(targetFolder, source.displayName, source.mimeType)
+        sourceFile.inputStream().use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        }
+        createManagedFileEntity(
+            folder = targetFolder,
+            file = target,
+            displayName = source.displayName,
+            mimeType = source.mimeType,
+        )
+    }
+
     fun createManagedFilesByContents(folder: String, uris: List<Uri>): List<Uri> {
         val newUris = mutableListOf<Uri>()
         val dir = context.filesDir.resolve(folder)

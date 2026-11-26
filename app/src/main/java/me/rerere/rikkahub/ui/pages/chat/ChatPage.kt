@@ -56,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
@@ -68,6 +69,9 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.replyPreview
+import me.rerere.ai.ui.stickerMetadata
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
@@ -80,6 +84,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
 import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
@@ -92,6 +97,7 @@ import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatTopBarCapsule
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.SearchMode
+import me.rerere.rikkahub.ui.components.ai.StickerPickerSheet
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -305,6 +311,7 @@ private fun ChatPageContent(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val workspaceRepository: WorkspaceRepository = koinInject()
+    val filesManager: FilesManager = koinInject()
     val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
@@ -312,6 +319,7 @@ private fun ChatPageContent(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
+    var showStickersSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
         setting = setting,
@@ -427,7 +435,10 @@ private fun ChatPageContent(
                                 messageId = inputState.editingMessage!!,
                             )
                         } else {
-                            vm.handleMessageSend(inputState.getContents())
+                            vm.handleMessageSend(
+                                content = inputState.getContents(),
+                                annotations = listOfNotNull(inputState.replyReference),
+                            )
                             scope.launch {
                                 delay(100.milliseconds)
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
@@ -442,7 +453,11 @@ private fun ChatPageContent(
                                 messageId = inputState.editingMessage!!,
                             )
                         } else {
-                            vm.handleMessageSend(content = inputState.getContents(), answer = false)
+                            vm.handleMessageSend(
+                                content = inputState.getContents(),
+                                annotations = listOfNotNull(inputState.replyReference),
+                                answer = false,
+                            )
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
@@ -493,6 +508,25 @@ private fun ChatPageContent(
                     } else {
                         vm.deleteMessage(it)
                     }
+                },
+                onReply = { message, partIndex ->
+                    val speaker = when (message.role) {
+                        me.rerere.ai.core.MessageRole.USER -> setting.displaySetting.userNickname.ifBlank { "自己" }
+                        else -> assistant.name.ifBlank { currentChatModel?.displayName ?: "助手" }
+                    }
+                    inputState.replyReference = UIMessageAnnotation.ReplyReference(
+                        targetMessageId = message.id,
+                        targetPartIndex = partIndex,
+                        targetRole = message.role,
+                        speakerSnapshot = speaker,
+                        previewSnapshot = message.replyPreview(partIndex),
+                    )
+                },
+                onOpenReplyReference = { targetMessageId ->
+                    val index = conversation.messageNodes.indexOfFirst { node ->
+                        node.messages.any { it.id == targetMessageId }
+                    }
+                    if (index >= 0) scope.launch { chatListState.animateScrollToItem(index) }
                 },
                 onUpdateMessage = { newNode ->
                     vm.selectMessageNode(newNode.id, newNode.selectIndex)
@@ -554,7 +588,38 @@ private fun ChatPageContent(
                 vm = vm,
                 attachmentPickerActions = attachmentPickerActions,
                 onStartVoiceMode = onStartVoiceMode,
+                onOpenStickers = {
+                    showFilesSheet = false
+                    showStickersSheet = true
+                },
+                onSplitBubbleSend = {
+                    showFilesSheet = false
+                    if (currentChatModel == null) {
+                        toaster.show("请先选择模型", type = ToastType.Error)
+                    } else if (!inputState.isEditing()) {
+                        vm.handleMessageSend(
+                            content = inputState.getSplitContents(),
+                            annotations = listOfNotNull(inputState.replyReference),
+                        )
+                        inputState.clearInput()
+                    }
+                },
                 onDismiss = { showFilesSheet = false },
+            )
+        }
+        if (showStickersSheet) {
+            StickerPickerSheet(
+                onStickerSelected = { sticker ->
+                    scope.launch {
+                        val copy = filesManager.copyManagedFile(sticker, FileFolders.UPLOAD)
+                        inputState.messageContent = inputState.messageContent + UIMessagePart.Image(
+                            url = filesManager.getFile(copy).toUri().toString(),
+                            metadata = stickerMetadata(sticker.relativePath),
+                        )
+                        showStickersSheet = false
+                    }
+                },
+                onDismiss = { showStickersSheet = false },
             )
         }
     }
@@ -570,6 +635,8 @@ private fun ChatFilesPickerSheet(
     vm: ChatVM,
     attachmentPickerActions: ChatAttachmentPickerActions,
     onStartVoiceMode: () -> Unit,
+    onOpenStickers: () -> Unit,
+    onSplitBubbleSend: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
@@ -617,6 +684,8 @@ private fun ChatFilesPickerSheet(
             onPickAudio = attachmentPickerActions.onPickAudio,
             onPickFile = attachmentPickerActions.onPickFile,
             onSketch = attachmentPickerActions.onSketch,
+            onOpenStickers = onOpenStickers,
+            onSplitBubbleSend = onSplitBubbleSend,
             onStartVoiceMode = if (
                 setting.getSelectedASRProvider()?.supportsServerVadVoiceMode == true &&
                 voiceState.phase == VoicePhase.Off

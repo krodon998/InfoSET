@@ -4,6 +4,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UIMessageAnnotation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
@@ -53,6 +54,28 @@ class ConversationMessagesTest {
         assertEquals("new", node.currentMessage.toText())
         assertEquals(MessageRole.ASSISTANT, node.currentMessage.role)
         assertEquals(modelId, node.currentMessage.modelId)
+    }
+
+    @Test
+    fun `editing split reply preserves every part and its reference`() {
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = Uuid.random(),
+            targetPartIndex = 1,
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "target",
+        )
+        val original = UIMessage.user("old").copy(annotations = listOf(reference))
+        val parts = listOf(
+            UIMessagePart.Text("one"),
+            UIMessagePart.Text("two"),
+            UIMessagePart.Text("three"),
+        )
+
+        val edited = conversationOf(original.toMessageNode()).editMessage(original.id, parts).currentMessages.single()
+
+        assertEquals(parts, edited.parts)
+        assertEquals(listOf(reference), edited.annotations)
     }
 
     @Test

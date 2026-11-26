@@ -4,6 +4,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UIMessageAnnotation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -98,5 +99,28 @@ class ConversationForkTest {
         val source = Conversation.ofId(Uuid.random(), messages = listOf(UIMessage.user("hi").toMessageNode()))
 
         assertNull(source.fork(Uuid.random(), emptySet()) { error("Must not copy files") })
+    }
+
+    @Test
+    fun `fork preserves message ids so reply references stay resolvable`() {
+        val target = UIMessage.assistant("target")
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = target.id,
+            targetPartIndex = 0,
+            targetRole = target.role,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "target",
+        )
+        val reply = UIMessage.user("reply").copy(annotations = listOf(reference))
+        val source = Conversation.ofId(
+            Uuid.random(),
+            messages = listOf(target.toMessageNode(), reply.toMessageNode()),
+        )
+
+        val fork = source.fork(reply.id, emptySet()) { it }!!
+
+        assertEquals(target.id, fork.currentMessages.first().id)
+        assertEquals(reference, fork.currentMessages.last().annotations.single())
+        assertEquals(target.id, (fork.currentMessages.last().annotations.single() as UIMessageAnnotation.ReplyReference).targetMessageId)
     }
 }
