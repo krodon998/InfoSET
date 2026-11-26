@@ -497,6 +497,14 @@ class StreamTraceReplayTest {
                         put("title", annotation.title)
                         put("url", annotation.url)
                     })
+                    is UIMessageAnnotation.ReplyReference -> add(buildJsonObject {
+                        put("type", "reply_reference")
+                        put("targetMessageId", annotation.targetMessageId.toString())
+                        annotation.targetPartIndex?.let { put("targetPartIndex", it) }
+                        put("targetRole", annotation.targetRole.name)
+                        put("speakerSnapshot", annotation.speakerSnapshot)
+                        put("previewSnapshot", annotation.previewSnapshot)
+                    })
                 }
             }
         }
