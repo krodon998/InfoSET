@@ -339,6 +339,31 @@ internal fun AssistantBasicContent(
                 }
             }
             formItem(
+                headlineContent = { Text("上下文 token 预算") },
+                supportingContent = { Text("Context Composer 按完整对话轮次装填；默认 48K，至少保留最近 6 轮。") },
+            ) {
+                var tokenBudgetInput by remember(assistant.id, assistant.contextTokenBudget) {
+                    mutableStateOf(assistant.contextTokenBudget.toString())
+                }
+                OutlinedTextField(
+                    value = tokenBudgetInput,
+                    onValueChange = { input ->
+                        if (input.all(Char::isDigit)) {
+                            tokenBudgetInput = input
+                            input.toIntOrNull()?.takeIf { it >= 8_000 }?.let { value ->
+                                if (value != assistant.contextTokenBudget) {
+                                    onUpdate(assistant.copy(contextTokenBudget = value))
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    supportingText = { Text("Core、当前状态、召回与最近原文共享此预算") },
+                    singleLine = true,
+                )
+            }
+            formItem(
                 headlineContent = { Text(stringResource(R.string.assistant_page_context_message_limit)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_context_message_limit_desc)) },
             ) {

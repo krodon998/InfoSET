@@ -87,6 +87,7 @@ import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
@@ -704,6 +705,11 @@ private fun ModelSettingsForm(
                             )
                         }
 
+                        ModelPricingEditor(
+                            pricing = model.pricing,
+                            onUpdate = { onModelChange(model.copy(pricing = it)) },
+                        )
+
                         CustomHeaders(
                             headers = model.customHeaders,
                             onUpdate = { headers ->
@@ -732,6 +738,42 @@ private fun ModelSettingsForm(
             }
         }
     }
+}
+
+@Composable
+private fun ModelPricingEditor(
+    pricing: ModelPricing,
+    onUpdate: (ModelPricing) -> Unit,
+) {
+    Text("API 价格（USD / 1M tokens）", style = MaterialTheme.typography.titleSmall)
+    PriceField("输入", pricing.inputPerMillion) { onUpdate(pricing.copy(inputPerMillion = it)) }
+    PriceField("缓存读取", pricing.cachedInputPerMillion) { onUpdate(pricing.copy(cachedInputPerMillion = it)) }
+    PriceField("缓存写入", pricing.cacheWritePerMillion) { onUpdate(pricing.copy(cacheWritePerMillion = it)) }
+    PriceField("输出", pricing.outputPerMillion) { onUpdate(pricing.copy(outputPerMillion = it)) }
+    PriceField("推理", pricing.reasoningPerMillion) { onUpdate(pricing.copy(reasoningPerMillion = it)) }
+}
+
+@Composable
+private fun PriceField(
+    label: String,
+    value: Double?,
+    onUpdate: (Double?) -> Unit,
+) {
+    var text by remember(value) { mutableStateOf(value?.toString().orEmpty()) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { input ->
+            if (input.isEmpty() || input.matches(Regex("\\d*(\\.\\d*)?"))) {
+                text = input
+                if (input.isEmpty()) onUpdate(null) else input.toDoubleOrNull()?.let(onUpdate)
+            }
+        },
+        label = { Text(label) },
+        placeholder = { Text("留空则不估算") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 /** 提供商远端的可用模型列表，[error] 不为空时 [models] 是上次成功拿到的结果 */

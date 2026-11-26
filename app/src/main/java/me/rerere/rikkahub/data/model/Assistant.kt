@@ -22,10 +22,16 @@ data class Assistant(
     val useAssistantAvatar: Boolean = false, // 使用助手头像替代模型头像
     val tags: List<Uuid> = emptyList(),
     val systemPrompt: String = "",
+    // 低频变化的当前共同状态，与稳定 system prompt 和长期记忆召回分开
+    val currentSharedState: String = "",
     val temperature: Float? = null,
     val topP: Float? = null,
     // 上下文消息条数上限, 超出后阶梯式截断; 0 表示不限制
     val contextMessageLimit: Int = 0,
+    // Context Composer v1 总预算；消息条数上限仅作为旧配置的二级安全阀
+    val contextTokenBudget: Int = 48_000,
+    val contextRecallTokenBudget: Int = 4_000,
+    val contextMinimumRecentTurns: Int = 6,
     val streamOutput: Boolean = true,
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆

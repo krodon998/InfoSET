@@ -8,6 +8,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.ui.ImageGenSize
 import me.rerere.ai.ui.ImageGenerationItem
+import me.rerere.ai.ui.ContextBlockSnapshot
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import kotlin.uuid.Uuid
@@ -74,6 +75,11 @@ data class TextGenerationParams(
     val customHeaders: List<CustomHeader> = emptyList(),
     val customBody: List<CustomBody> = emptyList(),
     val sessionId: String? = Uuid.random().toString(),
+    // 请求归属快照，只用于本地遥测，不会写进 Provider 请求体
+    val providerId: Uuid? = null,
+    val providerName: String? = null,
+    val contextSegmentId: String? = null,
+    val contextBlocks: List<ContextBlockSnapshot> = emptyList(),
 )
 
 @Serializable

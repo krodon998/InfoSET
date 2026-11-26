@@ -13,7 +13,10 @@ interface UsageRecordDAO {
     @Query(
         "SELECT COALESCE(SUM(prompt_tokens), 0) AS promptTokens, " +
             "COALESCE(SUM(completion_tokens), 0) AS completionTokens, " +
-            "COALESCE(SUM(cached_tokens), 0) AS cachedTokens " +
+            "COALESCE(SUM(cached_tokens), 0) AS cachedTokens, " +
+            "COALESCE(SUM(cache_write_tokens), 0) AS cacheWriteTokens, " +
+            "COALESCE(SUM(reasoning_tokens), 0) AS reasoningTokens, " +
+            "COALESCE(SUM(estimated_cost_micros), 0) AS estimatedCostMicros " +
             "FROM usage_record WHERE created_at >= :since"
     )
     suspend fun getTotals(since: Long = 0): UsageTotals
@@ -22,7 +25,8 @@ interface UsageRecordDAO {
     @Query(
         "SELECT strftime(:format, created_at / 1000, 'unixepoch', 'localtime') AS bucket, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens " +
+            "SUM(cached_tokens) AS cachedTokens, SUM(cache_write_tokens) AS cacheWriteTokens, " +
+            "SUM(reasoning_tokens) AS reasoningTokens, SUM(estimated_cost_micros) AS estimatedCostMicros " +
             "FROM usage_record WHERE created_at >= :since GROUP BY bucket ORDER BY bucket"
     )
     suspend fun getTotalsByBucket(format: String, since: Long): List<UsageBucket>
@@ -38,7 +42,8 @@ interface UsageRecordDAO {
     @Query(
         "SELECT model_id AS modelId, MAX(model_name) AS modelName, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens " +
+            "SUM(cached_tokens) AS cachedTokens, SUM(cache_write_tokens) AS cacheWriteTokens, " +
+            "SUM(reasoning_tokens) AS reasoningTokens, SUM(estimated_cost_micros) AS estimatedCostMicros " +
             "FROM usage_record WHERE created_at >= :since " +
             "GROUP BY COALESCE(model_id, model_name) " +
             "ORDER BY SUM(prompt_tokens + completion_tokens) DESC"
@@ -47,7 +52,8 @@ interface UsageRecordDAO {
 
     @Query(
         "SELECT source, SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens " +
+            "SUM(cached_tokens) AS cachedTokens, SUM(cache_write_tokens) AS cacheWriteTokens, " +
+            "SUM(reasoning_tokens) AS reasoningTokens, SUM(estimated_cost_micros) AS estimatedCostMicros " +
             "FROM usage_record WHERE created_at >= :since " +
             "GROUP BY source ORDER BY SUM(prompt_tokens + completion_tokens) DESC"
     )
@@ -58,6 +64,9 @@ data class UsageTotals(
     val promptTokens: Long = 0,
     val completionTokens: Long = 0,
     val cachedTokens: Long = 0,
+    val cacheWriteTokens: Long = 0,
+    val reasoningTokens: Long = 0,
+    val estimatedCostMicros: Long = 0,
 )
 
 data class DayCount(
@@ -70,6 +79,9 @@ data class UsageBucket(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
+    val cacheWriteTokens: Long = 0,
+    val reasoningTokens: Long = 0,
+    val estimatedCostMicros: Long = 0,
 )
 
 data class ModelUsage(
@@ -78,6 +90,9 @@ data class ModelUsage(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
+    val cacheWriteTokens: Long = 0,
+    val reasoningTokens: Long = 0,
+    val estimatedCostMicros: Long = 0,
 )
 
 data class SourceUsage(
@@ -85,4 +100,7 @@ data class SourceUsage(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
+    val cacheWriteTokens: Long = 0,
+    val reasoningTokens: Long = 0,
+    val estimatedCostMicros: Long = 0,
 )

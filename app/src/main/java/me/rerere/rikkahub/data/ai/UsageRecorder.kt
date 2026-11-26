@@ -11,11 +11,14 @@ import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.provider.effectivePricing
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.estimatedCostMicros
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
 import kotlin.uuid.Uuid
+import kotlin.time.TimeSource
 
 private const val TAG = "UsageRecorder"
 
@@ -50,7 +53,13 @@ class UsageRecorder(
     fun <T : ProviderSetting> wrap(provider: Provider<T>, tag: UsageTag): Provider<T> =
         UsageRecordingProvider(provider, tag)
 
-    private fun record(tag: UsageTag, providerSetting: ProviderSetting, params: TextGenerationParams, usage: TokenUsage) {
+    private fun record(
+        tag: UsageTag,
+        providerSetting: ProviderSetting,
+        params: TextGenerationParams,
+        usage: TokenUsage,
+        durationMs: Long,
+    ) {
         if (usage.promptTokens <= 0 && usage.completionTokens <= 0) return
         val record = UsageRecordEntity(
             createdAt = System.currentTimeMillis(),
@@ -63,6 +72,11 @@ class UsageRecorder(
             promptTokens = usage.promptTokens,
             completionTokens = usage.completionTokens,
             cachedTokens = usage.cachedTokens,
+            cacheWriteTokens = usage.cacheWriteTokens,
+            reasoningTokens = usage.reasoningTokens,
+            durationMs = durationMs,
+            estimatedCostMicros = usage.estimatedCostMicros(params.model.effectivePricing()) ?: 0,
+            reasoningLevel = params.reasoningLevel.name,
         )
         // Room 的 suspend 写入自己会切到后台线程
         scope.launch {
@@ -79,8 +93,13 @@ class UsageRecorder(
             providerSetting: T,
             messages: List<UIMessage>,
             params: TextGenerationParams,
-        ): TextGenerationResult = delegate.generateText(providerSetting, messages, params).also { result ->
-            result.usage?.let { record(tag, providerSetting, params, it) }
+        ): TextGenerationResult {
+            val started = TimeSource.Monotonic.markNow()
+            return delegate.generateText(providerSetting, messages, params).also { result ->
+                result.usage?.let {
+                    record(tag, providerSetting, params, it, started.elapsedNow().inWholeMilliseconds)
+                }
+            }
         }
 
         override suspend fun streamText(
@@ -92,13 +111,14 @@ class UsageRecorder(
             return flow {
                 // 同一次请求里的 usage 是逐步更新的快照，按 merge 合并；中途取消或出错时已经产生的用量也要记下
                 var usage: TokenUsage? = null
+                val started = TimeSource.Monotonic.markNow()
                 try {
                     upstream.collect { chunk ->
                         if (chunk is StreamChunk.Usage) usage = usage.merge(chunk.usage)
                         emit(chunk)
                     }
                 } finally {
-                    usage?.let { record(tag, providerSetting, params, it) }
+                    usage?.let { record(tag, providerSetting, params, it, started.elapsedNow().inWholeMilliseconds) }
                 }
             }
         }

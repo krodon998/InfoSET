@@ -54,6 +54,7 @@ import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
 import java.text.NumberFormat
 import java.time.Duration
+import java.util.Locale
 
 /**
  * 显示消息的技术统计信息（如 token 使用量），点击查看详情
@@ -71,7 +72,10 @@ fun ChatMessageNerdLine(
     val usage = message.usage
     if (!settings.displaySetting.showTokenUsage || usage == null) return
 
-    val stats = remember(message) { message.nerdStats(usage) }
+    val model = remember(settings.providers, message.modelId) {
+        settings.findModelById(message.modelId) ?: message.snapshotModel()
+    }
+    val stats = remember(message, model) { message.nerdStats(usage, model?.displayName ?: model?.modelId) }
     // 消息里的模型快照不带上下文窗口，只能从设置里按 ID 找；模型被删了就不显示窗口大小
     val contextLength = remember(settings.providers, message.modelId) {
         settings.findModelById(message.modelId)?.contextLength?.takeIf { it > 0 }
@@ -142,14 +146,36 @@ private fun UsageDetails(stats: NerdStats, contextLength: Int?) {
             contextLength = contextLength,
             modifier = Modifier.padding(bottom = 8.dp),
         )
+        stats.providerName?.let { UsageDetailRow("Provider", it) }
+        stats.modelName?.let { UsageDetailRow("模型", it) }
+        stats.reasoningLevel?.let { UsageDetailRow("Reasoning effort", it) }
+        stats.contextSegmentId?.let { UsageDetailRow("Context segment", it) }
+        stats.contextBlocks.forEach { block ->
+            UsageDetailRow("Context · ${block.kind.contextBlockLabel()}", block.estimatedTokens.exact())
+        }
+        UsageDetailRow("本次输入", stats.lastUsage.promptTokens.exact())
+        if (stats.lastUsage.cachedTokens > 0) {
+            UsageDetailRow("本次缓存读取", stats.lastUsage.cachedTokens.exact())
+        }
+        if (stats.lastUsage.cacheWriteTokens > 0) {
+            UsageDetailRow("本次缓存写入", stats.lastUsage.cacheWriteTokens.exact())
+        }
+        val visibleOutput = (stats.lastUsage.completionTokens - stats.lastUsage.reasoningTokens).coerceAtLeast(0)
+        UsageDetailRow("本次输出", visibleOutput.exact())
+        if (stats.lastUsage.reasoningTokens > 0) {
+            UsageDetailRow("本次推理", stats.lastUsage.reasoningTokens.exact())
+        }
         if (stats.steps > 1) {
             UsageDetailRow(stringResource(R.string.chat_message_usage_step_count), stats.steps.toString())
             UsageDetailRow(stringResource(R.string.chat_message_usage_total_input), total.promptTokens.exact())
             if (total.cachedTokens > 0) UsageDetailRow(stringResource(R.string.chat_message_usage_total_cached), total.cachedTokens.exact())
             UsageDetailRow(stringResource(R.string.chat_message_usage_total_output), total.completionTokens.exact())
+            if (total.cacheWriteTokens > 0) UsageDetailRow("累计缓存写入", total.cacheWriteTokens.exact())
+            if (total.reasoningTokens > 0) UsageDetailRow("累计推理", total.reasoningTokens.exact())
         }
         if (stats.tps != null) UsageDetailRow(stringResource(R.string.chat_message_usage_speed), "${stats.tps.toFixed(1)} tok/s")
         if (stats.durationMillis != null) UsageDetailRow(stringResource(R.string.chat_message_usage_duration), "${(stats.durationMillis / 1000f).toFixed(1)}s")
+        stats.estimatedCostMicros?.let { UsageDetailRow("估算费用", it.asUsd()) }
     }
 }
 
@@ -167,6 +193,7 @@ private fun ContextUsageBar(
     val colorScheme = MaterialTheme.colorScheme
     val segments = listOf(
         UsageSegment(stringResource(R.string.chat_message_usage_cached), lastUsage.cachedTokens, colorScheme.primary),
+        UsageSegment("缓存写入", lastUsage.cacheWriteTokens, colorScheme.secondary),
         UsageSegment(
             stringResource(R.string.chat_message_usage_input),
             (lastUsage.promptTokens - lastUsage.cachedTokens).coerceAtLeast(0),
@@ -298,9 +325,15 @@ private data class NerdStats(
     val contextTokens: Int,
     val durationMillis: Long?,
     val tps: Float?,
+    val providerName: String?,
+    val modelName: String?,
+    val reasoningLevel: String?,
+    val contextSegmentId: String?,
+    val estimatedCostMicros: Long?,
+    val contextBlocks: List<me.rerere.ai.ui.ContextBlockSnapshot>,
 )
 
-private fun UIMessage.nerdStats(usage: TokenUsage): NerdStats {
+private fun UIMessage.nerdStats(usage: TokenUsage, modelName: String?): NerdStats {
     val last = lastRequestUsage() ?: usage
     // 旧消息没有记录生成耗时，退回用创建到完成的总时长估算
     val durationMillis = finishedAt?.let { finishedAt ->
@@ -316,7 +349,28 @@ private fun UIMessage.nerdStats(usage: TokenUsage): NerdStats {
         contextTokens = last.promptTokens + last.completionTokens,
         durationMillis = durationMillis,
         tps = durationMillis?.let { usage.completionTokens.toFloat() / it * 1000 },
+        providerName = providerSnapshot ?: providerId?.toString(),
+        modelName = modelName,
+        reasoningLevel = reasoningLevel?.name,
+        contextSegmentId = contextSegmentId,
+        estimatedCostMicros = estimatedCostMicros,
+        contextBlocks = contextBlocks,
     )
 }
 
 private fun Int.exact(): String = NumberFormat.getIntegerInstance().format(this)
+
+private fun Long.asUsd(): String = if (this <= 0L) {
+    "\$0"
+} else {
+    "\$" + String.format(Locale.US, "%.6f", this / 1_000_000.0).trimEnd('0').trimEnd('.')
+}
+
+private fun String.contextBlockLabel(): String = when (this) {
+    "CORE_BOND" -> "Core Bond"
+    "CURRENT_SHARED_STATE" -> "Current State"
+    "OPTIONAL_RECALL" -> "Recall"
+    "TOOL_CONTRACT" -> "Tools"
+    "RECENT_RAW" -> "Recent Raw"
+    else -> this
+}

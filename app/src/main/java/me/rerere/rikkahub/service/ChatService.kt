@@ -43,6 +43,7 @@ import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.ChatRequestFactory
 import me.rerere.rikkahub.data.ai.ChatTurnContext
+import me.rerere.rikkahub.data.ai.ContextComposer
 import me.rerere.rikkahub.data.ai.ConversationMetaGenerator
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.TranslationHandler
@@ -740,7 +741,11 @@ class ChatService(
                             if (!canCompress || compressionUseless) return@pause false
                             // 同一条回复只试一次，压缩失败后接着它写时不再重试
                             if (message.id == session.autoCompressedReplyId) return@pause false
-                            if (!reachesAutoCompressThreshold(turn.model, message.contextTokens())) return@pause false
+                            if (!reachesAutoCompressThreshold(
+                                    model = turn.model,
+                                    contextTokens = message.contextTokens(),
+                                    rawMessages = target.history + message,
+                                )) return@pause false
                             if (freshReply && (message.stepCount ?: 0) <= 1) {
                                 compressionUseless = true
                                 return@pause false
@@ -1002,7 +1007,11 @@ class ChatService(
             if (reply.id == session.autoCompressedReplyId) return null
             // 已经压缩过的话检查点在回复之后，这里取到的是 null
             val model = settings.getChatModelOf(conversation) ?: return null
-            if (!reachesAutoCompressThreshold(model, conversation.lastContextTokens())) return null
+            if (!reachesAutoCompressThreshold(
+                    model = model,
+                    contextTokens = conversation.lastContextTokens(),
+                    rawMessages = conversation.currentMessages,
+                )) return null
 
             session.autoCompressedReplyId = reply.id
             return launchCompressionJob(
@@ -1056,10 +1065,19 @@ class ChatService(
         return job
     }
 
-    private fun reachesAutoCompressThreshold(model: Model, contextTokens: Int?): Boolean {
+    private fun reachesAutoCompressThreshold(
+        model: Model,
+        contextTokens: Int?,
+        rawMessages: List<UIMessage>,
+    ): Boolean {
         val settings = settingsStore.settingsFlow.value
-        if (!settings.enableAutoCompress || contextTokens == null || model.contextLength <= 0) return false
-        return contextTokens >= model.contextLength * settings.autoCompressThreshold
+        if (!settings.enableAutoCompress) return false
+        val windowThreshold = model.contextLength
+            .takeIf { it > 0 }
+            ?.let { (it * settings.autoCompressThreshold).toInt() }
+        val economicThreshold = settings.autoCompressTokenThreshold.takeIf { it > 0 }
+        val threshold = listOfNotNull(windowThreshold, economicThreshold).minOrNull() ?: return false
+        return (contextTokens ?: 0) >= threshold || ContextComposer.estimateTokens(rawMessages) >= threshold
     }
 
     /**

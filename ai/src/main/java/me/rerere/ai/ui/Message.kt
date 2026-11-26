@@ -6,10 +6,13 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.util.json
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -33,6 +36,14 @@ data class UIMessage(
     val lastUsage: TokenUsage? = null,
     // 这条消息累计请求了多少次模型（多轮工具调用共用同一条消息）
     val stepCount: Int? = null,
+    // 生成时的请求归属快照；Provider、模型配置之后被改动也不影响历史详情
+    val providerId: Uuid? = null,
+    val providerSnapshot: String? = null,
+    val reasoningLevel: ReasoningLevel? = null,
+    val contextSegmentId: String? = null,
+    val contextBlocks: List<ContextBlockSnapshot> = emptyList(),
+    // 以生成当时的模型价格计算，单位为百万分之一美元（micro USD）
+    val estimatedCostMicros: Long? = null,
     val translation: String? = null,
     // 压缩检查点：此消息是它之前全部历史的摘要，组装请求时从最后一个检查点开始取
     val isContextCheckpoint: Boolean = false,
@@ -125,6 +136,31 @@ data class UIMessage(
             parts = listOf(UIMessagePart.Text(prompt))
         )
     }
+}
+
+@Serializable
+data class ContextBlockSnapshot(
+    val kind: String,
+    val estimatedTokens: Int,
+    val messageCount: Int,
+)
+
+/** 按模型价格估算一次或多步请求的费用，单位为 micro USD。 */
+fun TokenUsage.estimatedCostMicros(pricing: ModelPricing): Long? {
+    val inputPrice = pricing.inputPerMillion ?: return null
+    val cachedPrice = pricing.cachedInputPerMillion ?: inputPrice
+    val cacheWritePrice = pricing.cacheWritePerMillion ?: inputPrice
+    val outputPrice = pricing.outputPerMillion ?: return null
+    val reasoningPrice = pricing.reasoningPerMillion ?: outputPrice
+    val uncachedInput = (promptTokens - cachedTokens - cacheWriteTokens).coerceAtLeast(0)
+    val visibleOutput = (completionTokens - reasoningTokens).coerceAtLeast(0)
+    val longContext = pricing.longContextThreshold?.let { promptTokens > it } == true
+    val inputMultiplier = if (longContext) pricing.longContextInputMultiplier else 1.0
+    val outputMultiplier = if (longContext) pricing.longContextOutputMultiplier else 1.0
+    val usd = (uncachedInput * inputPrice + cachedTokens * cachedPrice + cacheWriteTokens * cacheWritePrice) *
+        inputMultiplier / 1_000_000.0 +
+        (visibleOutput * outputPrice + reasoningTokens * reasoningPrice) * outputMultiplier / 1_000_000.0
+    return (usd * 1_000_000.0).roundToLong()
 }
 
 /**

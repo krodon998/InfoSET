@@ -38,7 +38,15 @@ class UsageRecorderTest {
 
     @Test
     fun `generateText records the usage with its tag`() = runTest {
-        val provider = FakeProvider(result = TokenUsage(promptTokens = 10, completionTokens = 2, cachedTokens = 4))
+        val provider = FakeProvider(
+            result = TokenUsage(
+                promptTokens = 10,
+                completionTokens = 2,
+                cachedTokens = 4,
+                cacheWriteTokens = 3,
+                reasoningTokens = 1,
+            )
+        )
 
         recorder().wrap(provider, tag).generateText(setting, emptyList(), params)
         testScheduler.advanceUntilIdle()
@@ -51,6 +59,9 @@ class UsageRecorderTest {
         assertEquals(tag.assistantId.toString(), record.assistantId)
         assertEquals(tag.conversationId.toString(), record.conversationId)
         assertEquals(listOf(10, 2, 4), listOf(record.promptTokens, record.completionTokens, record.cachedTokens))
+        assertEquals(3, record.cacheWriteTokens)
+        assertEquals(1, record.reasoningTokens)
+        assertEquals(params.reasoningLevel.name, record.reasoningLevel)
     }
 
     @Test

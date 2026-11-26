@@ -119,6 +119,9 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         // 自动压缩
         plain(ENABLE_AUTO_COMPRESS, Settings::enableAutoCompress) { copy(enableAutoCompress = it) },
         plain(AUTO_COMPRESS_THRESHOLD, Settings::autoCompressThreshold) { copy(autoCompressThreshold = it) },
+        plain(AUTO_COMPRESS_TOKEN_THRESHOLD, Settings::autoCompressTokenThreshold) {
+            copy(autoCompressTokenThreshold = it)
+        },
 
         // 提供商
         json(PROVIDERS, Settings::providers) { copy(providers = it) },

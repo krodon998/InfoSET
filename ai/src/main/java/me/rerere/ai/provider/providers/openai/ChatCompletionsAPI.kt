@@ -840,7 +840,15 @@ class ChatCompletionsAPI(
             jsonObject["prompt_tokens_details"]?.jsonObjectOrNull?.get("cached_tokens")?.jsonPrimitive?.intOrNull
                 ?: jsonObject["cached_tokens"]?.jsonPrimitive?.intOrNull
                 ?: jsonObject["prompt_cache_hit_tokens"]?.jsonPrimitive?.intOrNull
-                ?: 0
+                ?: 0,
+            cacheWriteTokens =
+            jsonObject["prompt_tokens_details"]?.jsonObjectOrNull?.get("cache_write_tokens")?.jsonPrimitive?.intOrNull
+                ?: jsonObject["cache_creation_input_tokens"]?.jsonPrimitive?.intOrNull
+                ?: 0,
+            reasoningTokens =
+            jsonObject["completion_tokens_details"]?.jsonObjectOrNull?.get("reasoning_tokens")?.jsonPrimitive?.intOrNull
+                ?: jsonObject["reasoning_tokens"]?.jsonPrimitive?.intOrNull
+                ?: 0,
         )
     }
 

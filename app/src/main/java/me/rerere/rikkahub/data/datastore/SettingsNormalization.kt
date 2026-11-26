@@ -81,7 +81,10 @@ internal fun Settings.withoutInvalidReferences(): Settings {
                 // 过滤掉不存在的快捷消息 ID
                 quickMessageIds = assistant.quickMessageIds.filter { id ->
                     id in validQuickMessageIds
-                }.toSet()
+                }.toSet(),
+                contextTokenBudget = assistant.contextTokenBudget.coerceIn(8_000, 1_000_000),
+                contextRecallTokenBudget = assistant.contextRecallTokenBudget.coerceIn(0, 50_000),
+                contextMinimumRecentTurns = assistant.contextMinimumRecentTurns.coerceIn(1, 50),
             )
         },
         ttsProviders = settings.ttsProviders.distinctBy { it.id },
@@ -101,6 +104,7 @@ private fun Settings.withValuesInRange(): Settings = copy(
     searchServiceSelected = searchServiceSelected.coerceIn(0, (searchServices.size - 1).coerceAtLeast(0)),
     defaultTTSPlaybackSpeed = defaultTTSPlaybackSpeed.coerceIn(0.5f, 2.0f),
     autoCompressThreshold = autoCompressThreshold.coerceIn(AUTO_COMPRESS_THRESHOLD_RANGE),
+    autoCompressTokenThreshold = autoCompressTokenThreshold.coerceIn(8_000, 1_000_000),
 )
 
 /** 自动压缩触发比例的可选范围，设置页的滑块也用它 */

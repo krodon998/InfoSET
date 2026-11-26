@@ -709,7 +709,14 @@ class ResponseAPI(
             totalTokens = jsonObject["total_tokens"]?.jsonPrimitive?.intOrNull ?: 0,
             cachedTokens =
             jsonObject["input_tokens_details"]?.jsonObjectOrNull?.get("cached_tokens")?.jsonPrimitive?.intOrNull
-                ?: 0
+                ?: 0,
+            cacheWriteTokens =
+            jsonObject["input_tokens_details"]?.jsonObjectOrNull?.get("cache_write_tokens")?.jsonPrimitive?.intOrNull
+                ?: jsonObject["cache_creation_input_tokens"]?.jsonPrimitive?.intOrNull
+                ?: 0,
+            reasoningTokens =
+            jsonObject["output_tokens_details"]?.jsonObjectOrNull?.get("reasoning_tokens")?.jsonPrimitive?.intOrNull
+                ?: 0,
         )
     }
 }

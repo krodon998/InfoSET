@@ -60,7 +60,13 @@ jobs:
             --tests me.rerere.rikkahub.data.gifts.MonthlyLifeLettersImporterTest \
             --tests me.rerere.rikkahub.ui.pages.setting.SettingCatalogTest \
             --tests me.rerere.rikkahub.ui.pages.setting.InfoOsSettingsTest \
+            --tests me.rerere.rikkahub.data.ai.ContextComposerTest \
+            --tests me.rerere.rikkahub.data.ai.UsageRecorderTest \
+            --tests me.rerere.rikkahub.data.model.ConversationConfigTest \
             --tests me.rerere.rikkahub.ui.components.message.tools.MailboxToolUITest
+          ./gradlew :ai:testDebugUnitTest \
+            --tests me.rerere.ai.core.UsageCostTest \
+            --tests me.rerere.ai.provider.providers.openai.ChatCompletionsUsageParsingTest
           ./gradlew assembleGithubDebugAndroidTest
 
       - name: Build APK

@@ -2,6 +2,7 @@ package me.rerere.ai.provider
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 @Serializable
@@ -19,7 +20,41 @@ data class Model(
     val providerOverwrite: ProviderSetting? = null,
     // 上下文窗口大小(token)
     val contextLength: Int = 1_000_000,
+    // 每百万 token 的美元价格；留空表示不估算费用
+    val pricing: ModelPricing = ModelPricing(),
 )
+
+@Serializable
+data class ModelPricing(
+    val inputPerMillion: Double? = null,
+    val cachedInputPerMillion: Double? = null,
+    val cacheWritePerMillion: Double? = null,
+    val outputPerMillion: Double? = null,
+    val reasoningPerMillion: Double? = null,
+    val longContextThreshold: Int? = null,
+    val longContextInputMultiplier: Double = 1.0,
+    val longContextOutputMultiplier: Double = 1.0,
+)
+
+/** 用户配置优先；GPT-5.6 Sol 仅在官方促销有效期内使用内置短上下文价格。 */
+fun Model.effectivePricing(nowEpochMillis: Long = Clock.System.now().toEpochMilliseconds()): ModelPricing {
+    if (pricing.inputPerMillion != null || pricing.outputPerMillion != null) return pricing
+    val normalized = modelId.substringAfterLast('/').lowercase()
+    return if (normalized == "gpt-5.6-sol" && nowEpochMillis < 1_796_112_000_000L) {
+        ModelPricing(
+            inputPerMillion = 4.0,
+            cachedInputPerMillion = 0.4,
+            cacheWritePerMillion = 5.0,
+            outputPerMillion = 20.0,
+            reasoningPerMillion = 20.0,
+            longContextThreshold = 272_000,
+            longContextInputMultiplier = 2.0,
+            longContextOutputMultiplier = 1.5,
+        )
+    } else {
+        pricing
+    }
+}
 
 /**
  * 按空格分隔的关键词筛选模型：忽略大小写，每个关键词都要命中模型 ID 或显示名称的一部分，

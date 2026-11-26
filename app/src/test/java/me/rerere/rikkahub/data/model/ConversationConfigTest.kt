@@ -69,6 +69,8 @@ class ConversationConfigTest {
                 mcpServers = setOf(mcpServer),
                 workspaceId = workspace,
                 enabledSkills = setOf("skill"),
+                timelineId = bound.id.toString(),
+                activeSegmentId = bound.id.toString(),
             ),
             bound.config,
         )
@@ -184,6 +186,28 @@ class ConversationConfigTest {
         assertEquals(setOf(newInjection), conversation.modeInjectionIds)
         // 不随会话固定的字段仍然写回助手
         assertEquals(assistant.copy(quickMessageIds = updated.quickMessageIds), stored)
+    }
+
+    @Test
+    fun `chat page updates preserve future context cursor fields`() {
+        val cursor = ModelContextCursor("provider", "model", lastSeenMessageId = "message")
+        val original = conversation().bindConfig(settings())
+        val bound = original.copy(
+            config = original.config?.copy(
+                currentSharedState = "state",
+                activeSegmentId = "segment",
+                modelContextCursors = listOf(cursor),
+            )
+        )
+
+        val updated = bound.withAssistantUpdate(
+            settings().getAssistantOf(bound).copy(reasoningLevel = ReasoningLevel.LOW),
+            settings(),
+        )
+
+        assertEquals("state", updated.config?.currentSharedState)
+        assertEquals("segment", updated.config?.activeSegmentId)
+        assertEquals(listOf(cursor), updated.config?.modelContextCursors)
     }
 
     @Test

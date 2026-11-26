@@ -130,6 +130,7 @@ class SettingsStore internal constructor(
         // 自动压缩
         val ENABLE_AUTO_COMPRESS = booleanPreferencesKey("enable_auto_compress")
         val AUTO_COMPRESS_THRESHOLD = floatPreferencesKey("auto_compress_threshold")
+        val AUTO_COMPRESS_TOKEN_THRESHOLD = intPreferencesKey("auto_compress_token_threshold")
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")

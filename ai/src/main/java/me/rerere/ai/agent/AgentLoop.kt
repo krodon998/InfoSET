@@ -8,11 +8,14 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.sum
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.effectivePricing
 import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.estimatedCostMicros
 import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.util.json
 import kotlin.time.Clock
@@ -91,10 +94,24 @@ internal class AgentLoop(
         val step = hooks.prepareStep(if (current == null) history else history + current)
         val params = step.params.copy(tools = request.tools)
         // 只带着追加内容创建的消息还没有模型 id
-        val base = current?.let { it.copy(modelId = it.modelId ?: params.model.id) } ?: UIMessage(
+        val base = current?.let {
+            it.copy(
+                modelId = it.modelId ?: params.model.id,
+                providerId = it.providerId ?: params.providerId,
+                providerSnapshot = it.providerSnapshot ?: params.providerName,
+                reasoningLevel = it.reasoningLevel ?: params.reasoningLevel,
+                contextSegmentId = it.contextSegmentId ?: params.contextSegmentId,
+                contextBlocks = it.contextBlocks.ifEmpty { params.contextBlocks },
+            )
+        } ?: UIMessage(
             role = MessageRole.ASSISTANT,
             parts = emptyList(),
             modelId = params.model.id,
+            providerId = params.providerId,
+            providerSnapshot = params.providerName,
+            reasoningLevel = params.reasoningLevel,
+            contextSegmentId = params.contextSegmentId,
+            contextBlocks = params.contextBlocks,
         )
         val generated = if (request.stream) {
             stream(step.messages, params, base)
@@ -133,7 +150,10 @@ internal class AgentLoop(
                     try {
                         val mark = firstChunk ?: TimeSource.Monotonic.markNow().also { firstChunk = it }
                         attempt = handler.handle(listOf(attempt), chunk).single()
-                        preview(attempt.withStepStats(base, mark.elapsedNow()), newPartsFrom = base.parts.size)
+                        preview(
+                            attempt.withStepStats(base, mark.elapsedNow(), params.model.effectivePricing()),
+                            newPartsFrom = base.parts.size,
+                        )
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Throwable) {
@@ -141,7 +161,7 @@ internal class AgentLoop(
                         throw StreamChunkHandlingException(e)
                     }
                 }
-                attempt.withStepStats(base, firstChunk?.elapsedNow() ?: Duration.ZERO)
+                attempt.withStepStats(base, firstChunk?.elapsedNow() ?: Duration.ZERO, params.model.effectivePricing())
             }
         } catch (e: StreamChunkHandlingException) {
             throw e.cause
@@ -167,7 +187,7 @@ internal class AgentLoop(
             annotations = result.message.annotations.ifEmpty { base.annotations },
             modelId = params.model.id,
             usage = result.usage,
-        ).finishReasoning().withStepStats(base, requestTime)
+        ).finishReasoning().withStepStats(base, requestTime, params.model.effectivePricing())
         preview(generated, newPartsFrom = base.parts.size)
         return generated
     }
@@ -244,12 +264,20 @@ private fun errorOutput(error: String): List<UIMessagePart> =
     listOf(UIMessagePart.Text(buildJsonObject { put("error", error) }.toString()))
 
 // 把本步的 usage 和生成耗时累加到之前步骤的统计上；接收者只带本步的 usage
-private fun UIMessage.withStepStats(stepBase: UIMessage, stepTime: Duration): UIMessage = copy(
-    usage = stepBase.usage.sum(usage),
-    generationTimeMs = (stepBase.generationTimeMs ?: 0L) + stepTime.inWholeMilliseconds,
-    // 上下文占用只看最后一次请求，usage 是多步累计值；本步没返回 usage 时沿用之前步骤的
-    lastUsage = usage ?: stepBase.lastUsage,
-    stepCount = (stepBase.stepCount ?: 0) + 1,
-)
+private fun UIMessage.withStepStats(
+    stepBase: UIMessage,
+    stepTime: Duration,
+    pricing: ModelPricing,
+): UIMessage {
+    val totalUsage = stepBase.usage.sum(usage)
+    return copy(
+        usage = totalUsage,
+        generationTimeMs = (stepBase.generationTimeMs ?: 0L) + stepTime.inWholeMilliseconds,
+        // 上下文占用只看最后一次请求，usage 是多步累计值；本步没返回 usage 时沿用之前步骤的
+        lastUsage = usage ?: stepBase.lastUsage,
+        stepCount = (stepBase.stepCount ?: 0) + 1,
+        estimatedCostMicros = totalUsage?.estimatedCostMicros(pricing) ?: stepBase.estimatedCostMicros,
+    )
+}
 
 private fun now() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())

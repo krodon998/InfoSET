@@ -587,5 +587,6 @@ internal fun parseInteractionsUsage(usage: JsonObject?): TokenUsage? {
         completionTokens = count("total_output_tokens") + count("total_thought_tokens"),
         totalTokens = count("total_tokens"),
         cachedTokens = count("total_cached_tokens"),
+        reasoningTokens = count("total_thought_tokens"),
     )
 }

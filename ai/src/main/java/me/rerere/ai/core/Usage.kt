@@ -8,6 +8,8 @@ data class TokenUsage(
     val completionTokens: Int = 0,
     val cachedTokens: Int = 0,
     val totalTokens: Int = 0,
+    val cacheWriteTokens: Int = 0,
+    val reasoningTokens: Int = 0,
 )
 
 /**
@@ -31,11 +33,23 @@ fun TokenUsage?.merge(other: TokenUsage): TokenUsage {
     } else {
         this?.cachedTokens ?: 0
     }
+    val cacheWriteTokens = if (other.cacheWriteTokens > 0) {
+        other.cacheWriteTokens
+    } else {
+        this?.cacheWriteTokens ?: 0
+    }
+    val reasoningTokens = if (other.reasoningTokens > 0) {
+        other.reasoningTokens
+    } else {
+        this?.reasoningTokens ?: 0
+    }
     return TokenUsage(
         promptTokens = promptTokens,
         completionTokens = completionTokens,
         totalTokens = totalTokens,
-        cachedTokens = cachedTokens
+        cachedTokens = cachedTokens,
+        cacheWriteTokens = cacheWriteTokens,
+        reasoningTokens = reasoningTokens,
     )
 }
 
@@ -49,6 +63,8 @@ fun TokenUsage?.sum(other: TokenUsage?): TokenUsage? {
         promptTokens = promptTokens + other.promptTokens,
         completionTokens = completionTokens + other.completionTokens,
         cachedTokens = cachedTokens + other.cachedTokens,
+        cacheWriteTokens = cacheWriteTokens + other.cacheWriteTokens,
+        reasoningTokens = reasoningTokens + other.reasoningTokens,
         totalTokens = totalTokens + other.totalTokens,
     )
 }

@@ -207,6 +207,23 @@ private fun AssistantPromptContent(
                     }
                 }
             }
+            formItem(
+                headlineContent = { Text("Current Shared State") },
+                supportingContent = { Text("近期项目、关系状态与未完事项；作为独立动态区块进入上下文。") },
+            ) {
+                val sharedState = rememberTextFieldState(initialText = assistant.currentSharedState)
+                LaunchedEffect(Unit) {
+                    snapshotFlow { sharedState.text }.collect {
+                        onUpdate(assistant.copy(currentSharedState = it.toString()))
+                    }
+                }
+                TextArea(
+                    state = sharedState,
+                    label = "当前共同状态",
+                    minLines = 3,
+                    maxLines = 8,
+                )
+            }
             switchItem(
                 checked = assistant.allowConversationSystemPrompt,
                 onCheckedChange = {

@@ -21,7 +21,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.limitContext
+import me.rerere.ai.ui.ContextBlockSnapshot
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
@@ -72,6 +72,8 @@ class ChatTurnContext(
     val workspaceCwd: String?,
     val memories: List<MemoryFile>,
     val tools: List<Tool>,
+    val currentSharedState: String,
+    val contextSegmentId: String,
 )
 
 /** 把会话变成发给模型的请求：系统提示词、上下文裁剪、输入输出转换都在这里 */
@@ -123,6 +125,10 @@ class ChatRequestFactory(
                 conversationId = conversation.id,
                 workspaceCwd = conversation.workspaceCwd,
             ),
+            currentSharedState = conversation.config?.currentSharedState
+                ?.takeIf { it.isNotBlank() }
+                ?: assistant.currentSharedState,
+            contextSegmentId = conversation.config?.activeSegmentId ?: conversation.id.toString(),
         )
     }
 
@@ -202,7 +208,11 @@ class ChatRequestFactory(
         messages: List<UIMessage>,
         compressPrompt: String,
     ): String {
-        val (requestMessages, params) = buildStep(turn, messages)
+        val (requestMessages, params) = buildStep(
+            turn = turn,
+            messages = messages,
+            contextTokenBudgetOverride = turn.model.contextLength.takeIf { it > 0 },
+        )
         // 压缩指令不经过输入转换器，模板转换器会把其中的花括号当成模板语法
         val result = withRetry(
             policy = turn.settings.retryPolicy(),
@@ -228,36 +238,50 @@ class ChatRequestFactory(
         turn: ChatTurnContext,
         messages: List<UIMessage>,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        contextTokenBudgetOverride: Int? = null,
     ): StepRequest {
         val assistant = turn.assistant
-        val requestMessages = buildList {
-            val system = buildString {
-                val effectiveSystemPrompt =
-                    if (assistant.allowConversationSystemPrompt && !turn.conversationSystemPrompt.isNullOrBlank()) {
-                        turn.conversationSystemPrompt
-                    } else {
-                        assistant.systemPrompt
-                    }
-                if (effectiveSystemPrompt.isNotBlank()) {
-                    append(effectiveSystemPrompt)
-                }
-
-                // 记忆
-                if (assistant.enableMemory) {
-                    appendLine()
-                    append(buildMemoryPrompt(turn.memories))
-                }
-                // 工具prompt
-                turn.tools.forEach { tool ->
-                    appendLine()
-                    append(tool.systemPrompt(turn.model, messages))
-                }
+        val effectiveSystemPrompt =
+            if (assistant.allowConversationSystemPrompt && !turn.conversationSystemPrompt.isNullOrBlank()) {
+                turn.conversationSystemPrompt
+            } else {
+                assistant.systemPrompt
             }
-            if (system.isNotBlank()) {
-                add(UIMessage.system(prompt = system).copy(isSynthetic = true))
+        val coreBond = effectiveSystemPrompt
+            .takeIf { it.isNotBlank() }
+            ?.let { UIMessage.system(it).copy(isSynthetic = true) }
+        val currentState = turn.currentSharedState
+            .takeIf { it.isNotBlank() }
+            ?.let {
+                UIMessage.system("[Current Shared State]\n$it").copy(isSynthetic = true)
             }
-            addAll(messages.limitContext(assistant.contextMessageLimit).withContinuationHint())
-        }.transforms(
+        val optionalRecall = if (assistant.enableMemory) {
+            buildMemoryPrompt(turn.memories)
+                .takeIf { it.isNotBlank() }
+                ?.let { UIMessage.system("[Optional Recall]\n$it").copy(isSynthetic = true) }
+        } else {
+            null
+        }
+        val toolPrompt = buildString {
+            turn.tools.forEach { tool ->
+                if (isNotEmpty()) appendLine()
+                append(tool.systemPrompt(turn.model, messages))
+            }
+        }.takeIf { it.isNotBlank() }
+            ?.let { UIMessage.system(it).copy(isSynthetic = true) }
+        val composed = ContextComposer.compose(
+            coreBond = coreBond,
+            currentSharedState = currentState,
+            optionalRecall = optionalRecall,
+            toolContract = toolPrompt,
+            recentRaw = messages.withContinuationHint(),
+            totalTokenBudget = contextTokenBudgetOverride ?: assistant.contextTokenBudget,
+            recallTokenBudget = assistant.contextRecallTokenBudget,
+            minimumRecentTurns = assistant.contextMinimumRecentTurns,
+            legacyMessageLimit = assistant.contextMessageLimit,
+        )
+        Log.d(TAG, "Context Composer: ${composed.blocks}, total=${composed.estimatedTokens}")
+        val requestMessages = composed.messages.transforms(
             transformers = inputTransformers,
             context = context,
             model = turn.model,
@@ -282,6 +306,12 @@ class ChatRequestFactory(
                 addAll(turn.model.customBodies)
             },
             sessionId = turn.conversationId.toString(),
+            providerId = turn.providerSetting.id,
+            providerName = turn.providerSetting.name,
+            contextSegmentId = turn.contextSegmentId,
+            contextBlocks = composed.blocks.map {
+                ContextBlockSnapshot(it.kind.name, it.estimatedTokens, it.messageCount)
+            },
         )
         return StepRequest(requestMessages, params)
     }

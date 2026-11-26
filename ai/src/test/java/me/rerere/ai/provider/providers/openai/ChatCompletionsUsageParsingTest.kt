@@ -63,4 +63,22 @@ class ChatCompletionsUsageParsingTest {
             usage("""{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}""")?.cachedTokens
         )
     }
+
+    @Test
+    fun `parses cache write and reasoning token details`() {
+        val usage = parseTokenUsage(
+            Json.parseToJsonElement(
+                """{
+                    "prompt_tokens":100,
+                    "completion_tokens":30,
+                    "total_tokens":130,
+                    "prompt_tokens_details":{"cached_tokens":40,"cache_write_tokens":10},
+                    "completion_tokens_details":{"reasoning_tokens":20}
+                }"""
+            ).jsonObject
+        )
+
+        assertEquals(10, usage?.cacheWriteTokens)
+        assertEquals(20, usage?.reasoningTokens)
+    }
 }

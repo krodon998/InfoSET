@@ -26,6 +26,22 @@ data class ConversationConfig(
     val mcpServers: Set<Uuid> = emptySet(),
     val workspaceId: Uuid? = null,
     val enabledSkills: Set<String> = emptySet(),
+    // Context Composer / 统一时间线的预留状态；均与可见聊天原文独立
+    val currentSharedState: String = "",
+    val timelineId: String? = null,
+    val activeSegmentId: String? = null,
+    val modelContextCursors: List<ModelContextCursor> = emptyList(),
+)
+
+@Serializable
+data class ModelContextCursor(
+    val providerId: String,
+    val modelId: String,
+    val lastSeenMessageId: String? = null,
+    val providerNativeContextId: String? = null,
+    val promptCacheKey: String? = null,
+    val lastCheckpointMessageId: String? = null,
+    val compactionState: String? = null,
 )
 
 // 内置搜索是模型的开关，不在助手上，由调用方另行填入
@@ -70,7 +86,11 @@ fun Conversation.withAssistantUpdate(updated: Assistant, settings: Settings): Co
                 } else {
                     // 内置搜索是模型自身的能力，换模型后跟随新模型的开关
                     settings.findModelById(updated.chatModelId)?.tools?.contains(BuiltInTools.Search) == true
-                }
+                },
+                currentSharedState = config.currentSharedState,
+                timelineId = config.timelineId,
+                activeSegmentId = config.activeSegmentId,
+                modelContextCursors = config.modelContextCursors,
             ),
             modeInjectionIds = updated.modeInjectionIds,
             lorebookIds = updated.lorebookIds,
@@ -133,7 +153,12 @@ fun Conversation.bindConfig(settings: Settings): Conversation {
     }
     val assistant = settings.getAssistantOf(this)
     return copy(
-        config = assistant.toConversationConfig().copy(chatModelId = model?.id, builtInSearch = builtInSearch),
+        config = assistant.toConversationConfig().copy(
+            chatModelId = model?.id,
+            builtInSearch = builtInSearch,
+            timelineId = id.toString(),
+            activeSegmentId = id.toString(),
+        ),
         // 旧版本允许会话单独绑定注入，这类会话保留自己的绑定
         modeInjectionIds = modeInjectionIds.ifEmpty { assistant.modeInjectionIds },
         lorebookIds = lorebookIds.ifEmpty { assistant.lorebookIds },

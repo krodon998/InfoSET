@@ -124,6 +124,24 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
+                        formItem(
+                            headlineContent = { Text("经济压缩阈值") },
+                            supportingContent = { Text("超大上下文模型也会在原始热历史到达此 token 数时建立检查点") },
+                            trailingContent = {
+                                CardGroupValue("${settings.autoCompressTokenThreshold / 1_000}K")
+                            },
+                        ) {
+                            Slider(
+                                value = settings.autoCompressTokenThreshold.toFloat(),
+                                onValueChange = {
+                                    val value = (it / 5_000).roundToInt() * 5_000
+                                    vm.updateSettings { latest -> latest.copy(autoCompressTokenThreshold = value) }
+                                },
+                                valueRange = 20_000f..120_000f,
+                                steps = 19,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

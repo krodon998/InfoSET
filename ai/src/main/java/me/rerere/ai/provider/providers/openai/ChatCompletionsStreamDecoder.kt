@@ -177,6 +177,14 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
                 ?: usage["cached_tokens"]?.jsonPrimitive?.intOrNull
                 ?: usage["prompt_cache_hit_tokens"]?.jsonPrimitive?.intOrNull
                 ?: 0,
+            cacheWriteTokens = usage["prompt_tokens_details"]?.jsonObjectOrNull
+                ?.get("cache_write_tokens")?.jsonPrimitive?.intOrNull
+                ?: usage["cache_creation_input_tokens"]?.jsonPrimitive?.intOrNull
+                ?: 0,
+            reasoningTokens = usage["completion_tokens_details"]?.jsonObjectOrNull
+                ?.get("reasoning_tokens")?.jsonPrimitive?.intOrNull
+                ?: usage["reasoning_tokens"]?.jsonPrimitive?.intOrNull
+                ?: 0,
         )
     }
 
