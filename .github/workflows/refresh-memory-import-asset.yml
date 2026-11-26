@@ -1,0 +1,28 @@
+name: Refresh InfoSET memory import asset
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "release-assets/InfoSET-Aire-memory-import-2026-11-26.zip"
+      - ".github/workflows/refresh-memory-import-asset.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v0.1.0-preview.1
+      ASSET_NAME: InfoSET-Aire-memory-import-2026-11-26.zip
+      OLD_ASSET_NAME: InfoSET-Delayed-Box-2026-11-26.zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Replace memory import asset
+        run: |
+          gh release delete-asset "$RELEASE_TAG" "$OLD_ASSET_NAME" --repo "$GITHUB_REPOSITORY" --yes || true
+          gh release delete-asset "$RELEASE_TAG" "$ASSET_NAME" --repo "$GITHUB_REPOSITORY" --yes || true
+          gh release upload "$RELEASE_TAG" "release-assets/$ASSET_NAME" --repo "$GITHUB_REPOSITORY"
