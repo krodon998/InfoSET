@@ -8,9 +8,8 @@ import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,9 +61,14 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -72,13 +76,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -88,6 +96,8 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.Smile
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -102,12 +112,15 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionItem
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
+import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.uuid.Uuid
+import kotlin.math.roundToInt
 
 @Composable
 fun ChatInput(
@@ -155,8 +168,6 @@ fun ChatInput(
         providers = settings.providers,
         type = ModelType.CHAT,
     )
-    var showReasoningPicker by remember { mutableStateOf(false) }
-
     fun sendMessage() {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
@@ -267,13 +278,12 @@ fun ChatInput(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        ModelSelectorButton(
+                        ModelHoldPickerButton(
                             state = modelListState,
-                            onlyIcon = true,
-                            onLongClick = {
-                                if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
-                                    showReasoningPicker = true
-                                }
+                            reasoningLevel = assistant.reasoningLevel,
+                            reasoningEnabled = chatModel?.abilities?.contains(ModelAbility.REASONING) == true,
+                            onUpdateReasoningLevel = {
+                                onUpdateAssistant(assistant.copy(reasoningLevel = it))
                             },
                         )
                         TextInputRow(
@@ -286,7 +296,7 @@ fun ChatInput(
                             modifier = Modifier.weight(1f),
                         )
                         ActionIconButton(onClick = onStickersClick) {
-                            Text("☺", style = MaterialTheme.typography.headlineSmall)
+                            Icon(HugeIcons.Smile, contentDescription = "表情包")
                         }
                         SendButton(
                             loading = loading,
@@ -319,15 +329,185 @@ fun ChatInput(
         state = modelListState,
         onSelect = onUpdateChatModel,
     )
-    if (showReasoningPicker) {
-        ReasoningPicker(
-            reasoningLevel = assistant.reasoningLevel,
-            onDismissRequest = { showReasoningPicker = false },
-            onUpdateReasoningLevel = {
-                onUpdateAssistant(assistant.copy(reasoningLevel = it))
+}
+
+private val reasoningHoldChoices = ReasoningLevel.entries
+private val ReasoningHoldRowHeight = 42.dp
+private val ReasoningHoldPopupWidth = 116.dp
+private val HoldTargetGap = 10.dp
+
+@Composable
+private fun ModelHoldPickerButton(
+    state: ModelListState,
+    reasoningLevel: ReasoningLevel,
+    reasoningEnabled: Boolean,
+    onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
+) {
+    val model = state.currentModel
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val buttonSize = 48.dp
+    val rowHeightPx = with(density) { ReasoningHoldRowHeight.toPx() }
+    val popupWidthPx = with(density) { ReasoningHoldPopupWidth.toPx() }
+    val gapPx = with(density) { HoldTargetGap.toPx() }
+    val popupHeightPx = rowHeightPx * reasoningHoldChoices.size
+    var anchorPosition by remember { mutableStateOf(IntOffset.Zero) }
+    var holding by remember { mutableStateOf(false) }
+    var highlightedIndex by remember { mutableStateOf<Int?>(null) }
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(buttonSize)
+            .onGloballyPositioned { coordinates ->
+                val position = coordinates.positionInWindow()
+                anchorPosition = IntOffset(position.x.roundToInt(), position.y.roundToInt())
+            }
+            .clip(CircleShape)
+            .pointerInput(reasoningEnabled) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val pointerId = down.id
+                    var earlyReleasePosition: androidx.compose.ui.geometry.Offset? = null
+                    val releasedBeforeLongPress = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId }
+                            if (change == null || !change.pressed) {
+                                earlyReleasePosition = change?.position ?: down.position
+                                return@withTimeoutOrNull true
+                            }
+                            change.consume()
+                        }
+                    } == true
+
+                    if (releasedBeforeLongPress) {
+                        val position = earlyReleasePosition ?: down.position
+                        if (
+                            position.x in 0f..size.width.toFloat() &&
+                            position.y in 0f..size.height.toFloat()
+                        ) {
+                            state.open()
+                        }
+                        return@awaitEachGesture
+                    }
+
+                    if (!reasoningEnabled) {
+                        while (true) {
+                            val change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId } ?: break
+                            change.consume()
+                            if (!change.pressed) break
+                        }
+                        return@awaitEachGesture
+                    }
+
+                    holding = true
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    var previousIndex: Int? = null
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId }
+                        if (change == null) break
+                        val index = resolveReasoningHoldIndex(
+                            x = change.position.x,
+                            y = change.position.y,
+                            popupWidth = popupWidthPx,
+                            rowHeight = rowHeightPx,
+                            choiceCount = reasoningHoldChoices.size,
+                            gap = gapPx,
+                        )
+                        highlightedIndex = index
+                        if (index != null && index != previousIndex) {
+                            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        }
+                        previousIndex = index
+                        change.consume()
+                        if (!change.pressed) {
+                            index?.let { onUpdateReasoningLevel(reasoningHoldChoices[it]) }
+                            break
+                        }
+                    }
+                    holding = false
+                    highlightedIndex = null
+                }
             },
-        )
+    ) {
+        if (model != null) {
+            AutoAIIcon(
+                modifier = Modifier.size(36.dp),
+                name = model.modelId,
+                color = Color.Transparent,
+            )
+        } else {
+            Icon(
+                imageVector = HugeIcons.Brain02,
+                contentDescription = stringResource(R.string.setting_model_page_chat_model),
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
+
+    if (holding) {
+        Popup(
+            alignment = Alignment.TopStart,
+            offset = IntOffset(
+                x = anchorPosition.x,
+                y = anchorPosition.y - popupHeightPx.roundToInt() - gapPx.roundToInt(),
+            ),
+            properties = PopupProperties(
+                focusable = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+        ) {
+            Surface(
+                modifier = Modifier.widthIn(min = ReasoningHoldPopupWidth, max = ReasoningHoldPopupWidth),
+                shape = MaterialTheme.shapes.large,
+                tonalElevation = 6.dp,
+                shadowElevation = 6.dp,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Column {
+                    reasoningHoldChoices.forEachIndexed { index, level ->
+                        Surface(
+                            color = if (highlightedIndex == index) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                Color.Transparent
+                            },
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = ReasoningHoldRowHeight)
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = reasoningHoldLabel(level),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (level == reasoningLevel) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun reasoningHoldLabel(level: ReasoningLevel): String = when (level) {
+    ReasoningLevel.OFF -> stringResource(R.string.reasoning_off)
+    ReasoningLevel.AUTO -> stringResource(R.string.reasoning_auto)
+    ReasoningLevel.LOW -> stringResource(R.string.reasoning_light)
+    ReasoningLevel.MEDIUM -> stringResource(R.string.reasoning_medium)
+    ReasoningLevel.HIGH -> stringResource(R.string.reasoning_heavy)
+    ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_xhigh)
+    ReasoningLevel.MAX -> stringResource(R.string.reasoning_max)
 }
 
 @Composable
@@ -338,11 +518,16 @@ private fun SendButton(
     onQueue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var dragOffset by remember { mutableStateOf(0f) }
-    var thresholdReached by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
+    val buttonSize = 38.dp
+    val buttonSizePx = with(density) { buttonSize.toPx() }
+    val gapPx = with(density) { HoldTargetGap.toPx() }
     val showStop = loading && empty
-    val queueSelected = dragOffset <= -36f
+    val canSend = showStop || !empty
+    var pressed by remember { mutableStateOf(false) }
+    var selectedTarget by remember { mutableStateOf(SendHoldTarget.NONE) }
+    var anchorPosition by remember { mutableStateOf(IntOffset.Zero) }
     val containerColor = when {
         showStop -> MaterialTheme.colorScheme.errorContainer
         empty -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -356,31 +541,50 @@ private fun SendButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .size(38.dp)
+            .size(buttonSize)
             .testTag("chat_send_button")
+            .onGloballyPositioned { coordinates ->
+                val position = coordinates.positionInWindow()
+                anchorPosition = IntOffset(position.x.roundToInt(), position.y.roundToInt())
+            }
             .clip(CircleShape)
-            .draggable(
-                enabled = !showStop && !empty,
-                orientation = Orientation.Vertical,
-                state = rememberDraggableState { delta ->
-                    dragOffset = (dragOffset + delta).coerceIn(-96f, 0f)
-                    val selected = dragOffset <= -36f
-                    if (selected && !thresholdReached) {
-                        haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            .pointerInput(canSend, showStop) {
+                if (!canSend) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val pointerId: PointerId = down.id
+                    pressed = true
+                    selectedTarget = SendHoldTarget.SEND
+                    var previousTarget = selectedTarget
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId }
+                        if (change == null) break
+                        val target = resolveSendHoldTarget(
+                            x = change.position.x,
+                            y = change.position.y,
+                            buttonSize = buttonSizePx,
+                            gap = gapPx,
+                            queueVisible = !showStop,
+                        )
+                        selectedTarget = target
+                        if (target == SendHoldTarget.QUEUE && previousTarget != SendHoldTarget.QUEUE) {
+                            haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                        }
+                        previousTarget = target
+                        change.consume()
+                        if (!change.pressed) {
+                            when (target) {
+                                SendHoldTarget.SEND -> onClick()
+                                SendHoldTarget.QUEUE -> onQueue()
+                                SendHoldTarget.NONE -> Unit
+                            }
+                            break
+                        }
                     }
-                    thresholdReached = selected
-                },
-                onDragStopped = {
-                    if (queueSelected) onQueue()
-                    dragOffset = 0f
-                    thresholdReached = false
-                },
-            )
-            .combinedClickable(
-                enabled = showStop || !empty,
-                onClick = onClick,
-                onLongClick = onQueue,
-            )
+                    pressed = false
+                    selectedTarget = SendHoldTarget.NONE
+                }
+            }
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -391,14 +595,84 @@ private fun SendButton(
         Icon(
             imageVector = when {
                 showStop -> HugeIcons.Cancel01
-                queueSelected -> HugeIcons.Clock01
                 else -> HugeIcons.ArrowUp02
             },
-            contentDescription = if (queueSelected) "暂存气泡，暂不请求模型" else stringResource(if (showStop) R.string.stop else R.string.send),
+            contentDescription = stringResource(if (showStop) R.string.stop else R.string.send),
             tint = contentColor,
             modifier = Modifier.size(18.dp)
         )
     }
+
+    if (pressed && !showStop) {
+        Popup(
+            alignment = Alignment.TopStart,
+            offset = IntOffset(
+                x = anchorPosition.x,
+                y = anchorPosition.y - buttonSizePx.roundToInt() - gapPx.roundToInt(),
+            ),
+            properties = PopupProperties(
+                focusable = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+        ) {
+            Surface(
+                modifier = Modifier.size(buttonSize),
+                shape = CircleShape,
+                color = if (selectedTarget == SendHoldTarget.QUEUE) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                contentColor = if (selectedTarget == SendHoldTarget.QUEUE) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                tonalElevation = 6.dp,
+                shadowElevation = 6.dp,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = HugeIcons.Clock01,
+                        contentDescription = "暂存气泡，暂不请求模型",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+internal enum class SendHoldTarget { SEND, QUEUE, NONE }
+
+internal fun resolveSendHoldTarget(
+    x: Float,
+    y: Float,
+    buttonSize: Float,
+    gap: Float,
+    queueVisible: Boolean,
+): SendHoldTarget {
+    if (x in 0f..buttonSize && y in 0f..buttonSize) return SendHoldTarget.SEND
+    val queueTop = -buttonSize - gap
+    if (queueVisible && x in 0f..buttonSize && y in queueTop..(queueTop + buttonSize)) {
+        return SendHoldTarget.QUEUE
+    }
+    return SendHoldTarget.NONE
+}
+
+internal fun resolveReasoningHoldIndex(
+    x: Float,
+    y: Float,
+    popupWidth: Float,
+    rowHeight: Float,
+    choiceCount: Int,
+    gap: Float,
+): Int? {
+    if (x !in 0f..popupWidth || choiceCount <= 0) return null
+    val popupTop = -(rowHeight * choiceCount) - gap
+    if (y !in popupTop..-gap) return null
+    return ((y - popupTop) / rowHeight).toInt().coerceIn(0, choiceCount - 1)
 }
 
 @Composable
@@ -862,7 +1136,7 @@ private fun FullScreenEditor(
                         ) {
                             onStickersClick?.let { openStickers ->
                                 ActionIconButton(onClick = openStickers) {
-                                    Text("☺", style = MaterialTheme.typography.headlineSmall)
+                                    Icon(HugeIcons.Smile, contentDescription = "表情包")
                                 }
                             }
                             Spacer(Modifier.weight(1f))
