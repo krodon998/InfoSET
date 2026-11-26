@@ -97,6 +97,8 @@ fun ChatList(
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
+    onReply: (UIMessage, Int?) -> Unit = { _, _ -> },
+    onOpenReplyReference: (Uuid) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
     onClickSuggestion: (String) -> Unit = {},
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)? = null,
@@ -157,6 +159,8 @@ fun ChatList(
                 onEdit = onEdit,
                 onForkMessage = onForkMessage,
                 onDelete = onDelete,
+                onReply = onReply,
+                onOpenReplyReference = onOpenReplyReference,
                 onUpdateMessage = onUpdateMessage,
                 onClickSuggestion = onClickSuggestion,
                 onTranslate = onTranslate,
@@ -229,6 +233,8 @@ private fun ChatListNormal(
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
+    onReply: (UIMessage, Int?) -> Unit,
+    onOpenReplyReference: (Uuid) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
     onClickSuggestion: (String) -> Unit,
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)?,
@@ -383,6 +389,10 @@ private fun ChatListNormal(
                             onDelete = {
                                 onDelete(node.currentMessage)
                             },
+                            onReply = { partIndex ->
+                                onReply(node.currentMessage, partIndex)
+                            },
+                            onOpenReplyReference = onOpenReplyReference,
                             onShare = {
                                 // 默认选中从第一条到这一条
                                 selectionState.start(

@@ -2059,4 +2059,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="infoos_lock_unlock">解锁</string>
   <string name="infoos_lock_fingerprint_title">解锁 InfoSET</string>
   <string name="infoos_lock_use_password">使用密码</string>
+    <string name="chat_page_stickers">表情</string>
+    <string name="chat_page_split_bubble_send">分气泡发送</string>
+    <string name="chat_page_reply">回复</string>
+    <string name="chat_page_reply_whole">回复整条消息</string>
+    <string name="chat_page_reply_part">回复第 %1$d 个气泡</string>
+    <string name="chat_page_reply_to">正在回复 %1$s</string>
 </resources>

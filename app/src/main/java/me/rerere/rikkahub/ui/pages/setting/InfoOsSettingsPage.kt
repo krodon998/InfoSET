@@ -191,7 +191,6 @@ fun InfoOsSettingsPage(
     var displayNameDraft by remember(settings.displaySetting.userNickname) {
         mutableStateOf(settings.displaySetting.userNickname)
     }
-    var selectedUsedAvatar by remember { mutableStateOf<ManagedFileEntity?>(null) }
     var customMinutes by remember(info.requirePasscodeAfterMinutes) {
         mutableStateOf(info.requirePasscodeAfterMinutes.toString())
     }
@@ -283,45 +282,59 @@ fun InfoOsSettingsPage(
                                 }
                             } else null,
                         ) {
-                            UIAvatar(
-                                name = displayName,
-                                value = settings.displaySetting.userAvatar,
-                                modifier = Modifier.size(128.dp),
-                                onUpdate = { avatar ->
-                                    vm.updateSettings { latest ->
-                                        latest.copy(
-                                            displaySetting = latest.displaySetting.copy(userAvatar = avatar)
+                            val currentAvatar = settings.displaySetting.userAvatar
+                            val currentUrl = (currentAvatar as? Avatar.Image)?.url
+                            val pastAvatars = orderPastAvatars(
+                                files = usedAvatarFiles,
+                                currentUrl = currentUrl,
+                                resolveUrl = { filesManager.getFile(it).toUri().toString() },
+                            )
+                            val avatarEntries = listOf<ManagedFileEntity?>(null) + pastAvatars
+                            avatarEntries.chunked(2).forEach { rowEntries ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                                ) {
+                                    rowEntries.forEach { file ->
+                                        val isCurrent = file == null
+                                        val avatar = if (isCurrent) {
+                                            currentAvatar
+                                        } else {
+                                            Avatar.Image(filesManager.getFile(file).toUri().toString())
+                                        }
+                                        UIAvatar(
+                                            name = displayName,
+                                            value = avatar,
+                                            modifier = Modifier.weight(1f).aspectRatio(1f),
+                                            shape = androidx.compose.foundation.shape.CircleShape,
+                                            onUpdate = { updated ->
+                                                vm.updateSettings { latest ->
+                                                    latest.copy(
+                                                        displaySetting = latest.displaySetting.copy(userAvatar = updated)
+                                                    )
+                                                }
+                                            },
+                                            additionalActionLabel = if (isCurrent) null else {
+                                                stringResource(R.string.infoos_settings_use_this_avatar)
+                                            },
+                                            onAdditionalAction = if (isCurrent) null else {
+                                                {
+                                                    val selected = requireNotNull(file)
+                                                    val value = Avatar.Image(
+                                                        filesManager.getFile(selected).toUri().toString()
+                                                    )
+                                                    vm.updateSettings { latest ->
+                                                        latest.copy(
+                                                            displaySetting = latest.displaySetting.copy(userAvatar = value)
+                                                        )
+                                                    }
+                                                    scope.launch { filesManager.markAvatarUsed(selected.id) }
+                                                }
+                                            },
+                                            showEditBadge = isCurrent,
                                         )
                                     }
-                                },
-                            )
-                            if (usedAvatarFiles.isNotEmpty()) {
-                                Text(
-                                    stringResource(R.string.infoos_settings_used_avatars),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.padding(top = 12.dp),
-                                )
-                                usedAvatarFiles.chunked(2).forEach { rowFiles ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        rowFiles.forEach { file ->
-                                            androidx.compose.material3.Surface(
-                                                onClick = { selectedUsedAvatar = file },
-                                                modifier = Modifier.weight(1f).aspectRatio(1f),
-                                                shape = MaterialTheme.shapes.large,
-                                            ) {
-                                                AsyncImage(
-                                                    model = filesManager.getFile(file),
-                                                    contentDescription = file.displayName,
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    contentScale = ContentScale.Crop,
-                                                )
-                                            }
-                                        }
-                                        if (rowFiles.size == 1) Spacer(Modifier.weight(1f))
-                                    }
+                                    if (rowEntries.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
                         }
@@ -1086,37 +1099,6 @@ fun InfoOsSettingsPage(
             },
         )
     }
-    selectedUsedAvatar?.let { file ->
-        val value = filesManager.getFile(file).toUri().toString()
-        val isCurrent = (settings.displaySetting.userAvatar as? Avatar.Image)?.url == value
-        AlertDialog(
-            onDismissRequest = { selectedUsedAvatar = null },
-            title = { Text(stringResource(R.string.infoos_settings_used_avatars)) },
-            text = {
-                AsyncImage(
-                    model = filesManager.getFile(file),
-                    contentDescription = file.displayName,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(MaterialTheme.shapes.extraLarge),
-                    contentScale = ContentScale.Crop,
-                )
-            },
-            confirmButton = {
-                if (!isCurrent) {
-                    TextButton(onClick = {
-                        vm.updateSettings { latest ->
-                            latest.copy(displaySetting = latest.displaySetting.copy(userAvatar = Avatar.Image(value)))
-                        }
-                        selectedUsedAvatar = null
-                    }) { Text(stringResource(R.string.infoos_settings_use_this_avatar)) }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { selectedUsedAvatar = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
     if (showPlacementDialog) {
         ChoiceDialog(
             title = stringResource(R.string.infoos_settings_new_apps),
@@ -1421,6 +1403,14 @@ internal fun desktopLayoutSummary(grid: HomeGrid, dockVisible: Boolean): String 
     } else {
         "${grid.columns} × (${grid.dockRows + 1} - 1)"
     }
+
+internal fun orderPastAvatars(
+    files: List<ManagedFileEntity>,
+    currentUrl: String?,
+    resolveUrl: (ManagedFileEntity) -> String,
+): List<ManagedFileEntity> = files
+    .filterNot { currentUrl != null && resolveUrl(it) == currentUrl }
+    .sortedWith(compareByDescending<ManagedFileEntity> { it.updatedAt }.thenByDescending { it.id })
 
 internal fun parseMinutes(value: String): Int? {
     val parts = value.split(':')

@@ -49,6 +49,7 @@ import me.rerere.hugeicons.stroke.FavouriteCircle
 import me.rerere.hugeicons.stroke.GitFork
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Refresh03
+import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.StopCircle
 import me.rerere.hugeicons.stroke.TextSelection
@@ -262,6 +263,7 @@ fun ChatMessageActionsSheet(
     onEdit: () -> Unit,
     onShare: () -> Unit,
     onFork: () -> Unit,
+    onReply: (Int?) -> Unit,
     onSelectAndCopy: () -> Unit,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -276,6 +278,25 @@ fun ChatMessageActionsSheet(
         val hasTextContent = message.parts.filterIsInstance<UIMessagePart.Text>()
             .any { it.text.isNotBlank() }
         val actions = buildList {
+            add(
+                MessageSheetAction(
+                    HugeIcons.MessageAdd01,
+                    stringResource(R.string.chat_page_reply_whole),
+                    onClick = { onReply(null) },
+                )
+            )
+            val textPartIndices = message.parts.indices.filter { message.parts[it] is UIMessagePart.Text }
+            if (textPartIndices.size > 1) {
+                textPartIndices.forEachIndexed { bubbleIndex, partIndex ->
+                    add(
+                        MessageSheetAction(
+                            HugeIcons.MessageAdd01,
+                            stringResource(R.string.chat_page_reply_part, bubbleIndex + 1),
+                            onClick = { onReply(partIndex) },
+                        )
+                    )
+                }
+            }
             add(MessageSheetAction(HugeIcons.TextSelection, stringResource(R.string.select_and_copy), onClick = onSelectAndCopy))
             if (hasTextContent) {
                 add(MessageSheetAction(HugeIcons.WebDesign01, stringResource(R.string.render_with_webview), onClick = onWebViewPreview))

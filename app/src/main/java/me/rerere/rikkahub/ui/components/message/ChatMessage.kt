@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -55,6 +57,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastAll
@@ -70,6 +73,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.isSticker
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.File02
@@ -102,6 +106,7 @@ import me.rerere.ui.charts.ChartSpec
 import me.rerere.ui.webview.WebViewContentCache
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.uuid.Uuid
 
 @Composable
 fun ChatMessage(
@@ -116,6 +121,8 @@ fun ChatMessage(
     onEdit: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
+    onReply: (Int?) -> Unit,
+    onOpenReplyReference: (Uuid) -> Unit,
     onUpdate: (MessageNode) -> Unit,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -188,6 +195,9 @@ fun ChatMessage(
             LocalTextStyle provides textStyle,
             LocalWorkspaceId provides assistant?.workspaceId?.toString(),
         ) {
+            message.annotations.filterIsInstance<UIMessageAnnotation.ReplyReference>().firstOrNull()?.let { reference ->
+                ChatReplyReferenceBlock(reference = reference, onClick = { onOpenReplyReference(reference.targetMessageId) })
+            }
             MessagePartsBlock(
                 assistant = assistant,
                 role = message.role,
@@ -256,6 +266,7 @@ fun ChatMessage(
             onDelete = onDelete,
             onShare = onShare,
             onFork = onFork,
+            onReply = onReply,
             model = model,
             onSelectAndCopy = {
                 showSelectCopySheet = true
@@ -518,9 +529,11 @@ private fun MessagePartsBlock(
                             ZoomableAsyncImage(
                                 model = part.url,
                                 contentDescription = null,
-                                modifier = Modifier
-                                    .clip(MaterialTheme.shapes.large)
-                                    .height(72.dp)
+                                modifier = if (part.isSticker()) {
+                                    Modifier.heightIn(max = 132.dp).widthIn(max = 132.dp)
+                                } else {
+                                    Modifier.clip(MaterialTheme.shapes.large).height(72.dp)
+                                }
                             )
                         }
                     }
@@ -568,8 +581,36 @@ private fun MessagePartsBlock(
     }
 
     // Annotations (always rendered at the end)
-    if (annotations.isNotEmpty()) {
-        ChatMessageCitations(annotations = annotations)
+    val citations = annotations.filterIsInstance<UIMessageAnnotation.UrlCitation>()
+    if (citations.isNotEmpty()) {
+        ChatMessageCitations(annotations = citations)
+    }
+}
+
+@Composable
+private fun ChatReplyReferenceBlock(
+    reference: UIMessageAnnotation.ReplyReference,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Text(
+                text = reference.speakerSnapshot,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = reference.previewSnapshot,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -629,14 +670,10 @@ private fun Modifier.clipDrawing(shape: Shape): Modifier = drawWithCache {
 }
 
 @Composable
-private fun ChatMessageCitations(annotations: List<UIMessageAnnotation>) {
+private fun ChatMessageCitations(annotations: List<UIMessageAnnotation.UrlCitation>) {
     var expand by remember { mutableStateOf(false) }
     val urls = remember(annotations) {
-        annotations.map { annotation ->
-            when (annotation) {
-                is UIMessageAnnotation.UrlCitation -> annotation.url
-            }
-        }
+        annotations.map(UIMessageAnnotation.UrlCitation::url)
     }
     Column(
         modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
@@ -663,22 +700,18 @@ private fun ChatMessageCitations(annotations: List<UIMessageAnnotation>) {
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         annotations.fastForEachIndexed { index, annotation ->
-                            when (annotation) {
-                                is UIMessageAnnotation.UrlCitation -> {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Favicon(annotation.url, modifier = Modifier.size(20.dp))
-                                        Text(
-                                            text = buildAnnotatedString {
-                                                append("${index + 1}. ")
-                                                withLink(LinkAnnotation.Url(annotation.url)) {
-                                                    append(annotation.title.urlDecode())
-                                                }
-                                            }
-                                        )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Favicon(annotation.url, modifier = Modifier.size(20.dp))
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("${index + 1}. ")
+                                        withLink(LinkAnnotation.Url(annotation.url)) {
+                                            append(annotation.title.urlDecode())
+                                        }
                                     }
-                                }
+                                )
                             }
                         }
                     }

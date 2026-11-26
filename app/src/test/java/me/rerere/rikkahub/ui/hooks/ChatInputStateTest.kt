@@ -77,4 +77,33 @@ class ChatInputStateTest {
 
         assertNull(state.editingReasoning)
     }
+
+    @Test
+    fun `split send creates ordered non-empty text parts`() {
+        val state = ChatInputState()
+        state.textContent.setTextAndPlaceCursorAtEnd("第一句\n\n  \n\n第二句\r\n\r\n第三句")
+
+        assertEquals(
+            listOf("第一句", "第二句", "第三句"),
+            state.getSplitContents().filterIsInstance<UIMessagePart.Text>().map { it.text },
+        )
+    }
+
+    @Test
+    fun `editing split bubbles keeps every text part and order`() {
+        val original = listOf(
+            UIMessagePart.Text("第一句"),
+            UIMessagePart.Text("第二句"),
+            UIMessagePart.Text("第三句"),
+        )
+        val state = editing(original)
+
+        assertEquals("第一句\n\n第二句\n\n第三句", state.textContent.text.toString())
+        state.textContent.setTextAndPlaceCursorAtEnd("第一句已改\n\n第二句\n\n第三句")
+
+        assertEquals(
+            listOf("第一句已改", "第二句", "第三句"),
+            state.getContents().filterIsInstance<UIMessagePart.Text>().map { it.text },
+        )
+    }
 }

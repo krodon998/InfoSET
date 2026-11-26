@@ -2,6 +2,8 @@ package me.rerere.ai.ui
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import me.rerere.ai.core.MessageRole
+import kotlin.uuid.Uuid
 
 @Serializable
 sealed class UIMessageAnnotation {
@@ -10,5 +12,21 @@ sealed class UIMessageAnnotation {
     data class UrlCitation(
         val title: String,
         val url: String
+    ) : UIMessageAnnotation()
+
+    /**
+     * Stable reply target kept separately from the user's text.
+     *
+     * [previewSnapshot] is deliberately persisted so the reply remains understandable when the
+     * target is outside the current branch, omitted from an import, or deleted later.
+     */
+    @Serializable
+    @SerialName("reply_reference")
+    data class ReplyReference(
+        val targetMessageId: Uuid,
+        val targetPartIndex: Int? = null,
+        val targetRole: MessageRole,
+        val speakerSnapshot: String,
+        val previewSnapshot: String,
     ) : UIMessageAnnotation()
 }
