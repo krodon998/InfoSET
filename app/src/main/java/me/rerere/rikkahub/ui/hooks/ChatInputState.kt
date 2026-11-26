@@ -69,7 +69,7 @@ class ChatInputState {
                 val editedTexts = if (editedTextIndices.size > 1) {
                     splitBubbleText(text).map { UIMessagePart.Text(it) }
                 } else {
-                    listOfNotNull(text.takeIf(String::isNotBlank)?.let(::UIMessagePart.Text))
+                    listOfNotNull(text.takeIf(String::isNotBlank)?.let { UIMessagePart.Text(it) })
                 }
                 val remainingAttachments = messageContent.toMutableList()
                 val merged = mutableListOf<UIMessagePart>()

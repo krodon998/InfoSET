@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai.transformers
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.replyPreview
 
 /** Adds deterministic reply context to the provider projection without changing stored messages. */
 object ReplyReferenceTransformer : InputMessageTransformer {
