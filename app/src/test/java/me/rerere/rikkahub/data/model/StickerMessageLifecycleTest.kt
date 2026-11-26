@@ -24,11 +24,11 @@ class StickerMessageLifecycleTest {
         assertTrue(image.isSticker())
         assertEquals(source, image.metadata?.get(INFOSET_STICKER_ASSET_METADATA)?.toString()?.trim('"'))
         assertEquals(setOf(chatCopy), conversation.currentMessages.flatMap { it.parts }.localFileUrls())
-        assertFalse(conversation.files.any { it.toString().contains(source) })
+        assertFalse(conversation.currentMessages.flatMap { it.parts }.localFileUrls().contains(source))
 
         val deleted = conversation.deleteMessage(message.id)!!
         assertTrue(deleted.messageNodes.isEmpty())
         // The reusable source never belonged to the conversation, so message cleanup cannot delete it.
-        assertFalse(deleted.files.any { it.toString().contains(source) })
+        assertTrue(deleted.currentMessages.flatMap { it.parts }.localFileUrls().isEmpty())
     }
 }
