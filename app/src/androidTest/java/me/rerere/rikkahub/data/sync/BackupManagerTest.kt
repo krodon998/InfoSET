@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
+import me.rerere.rikkahub.data.db.entity.MoodEventEntity
 import me.rerere.rikkahub.data.model.MemoryAccessMode
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.After
@@ -268,6 +269,42 @@ class BackupManagerTest {
         assertEquals(400L, restoredActivity.waitingDurationMs)
         assertEquals(null, restoredActivity.executionOrganizationRef)
         assertEquals(null, restoredActivity.outputRefsJson)
+    }
+
+    @Test fun moodHistoryAndVisibilitySurviveWholeHouseRestore() = runBlocking {
+        val mood = MoodEventEntity(
+            id = "mood-across-restore",
+            actorId = "user:self",
+            actorLabel = "隐",
+            type = "sleepy",
+            intensity = 0.7,
+            startedAt = 1_000,
+            expectedEndAt = 9_000,
+            emoji = "🌙",
+            note = "困困的",
+            visibleToPartner = true,
+            affectsContext = false,
+            source = "USER_UI",
+            sourceRef = "test",
+            createdAt = 1_000,
+            updatedAt = 1_000,
+        )
+        liveDatabase.moodDao().insert(mood)
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        liveDatabase.close()
+        assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
+        liveDatabase = AppDatabaseFactory.create(context)
+
+        val restored = liveDatabase.moodDao().getActiveMood(mood.actorId, 2_000)!!
+        assertEquals(mood.id, restored.id)
+        assertEquals("sleepy", restored.type)
+        assertEquals(0.7, restored.intensity!!, 0.0)
+        assertEquals("困困的", restored.note)
+        assertTrue(restored.visibleToPartner)
+        assertFalse(restored.affectsContext)
+        assertEquals(9_000L, restored.expectedEndAt)
     }
 
     @Test fun githubCredentialNoBackupBlobNeverEntersWholeHouseArchive() = runBlocking {
