@@ -18,10 +18,20 @@ class ChatInputHoldTargetTest {
 
     @Test
     fun `release on clock queues without requesting api`() {
+        val clockTop = holdPopupTop(buttonSize, gap)
+
         assertEquals(
             SendHoldTarget.QUEUE,
-            resolveSendHoldTarget(19f, -29f, buttonSize, gap, queueVisible = true),
+            resolveSendHoldTarget(19f, clockTop + 19f, buttonSize, gap, queueVisible = true),
         )
+    }
+
+    @Test
+    fun `popup visual top uses the same local origin as hit testing`() {
+        assertEquals(-48f, holdPopupTop(buttonSize, gap), 0f)
+
+        val choicesHeight = 42f * 7
+        assertEquals(-304f, holdPopupTop(choicesHeight, gap), 0f)
     }
 
     @Test
@@ -48,7 +58,7 @@ class ChatInputHoldTargetTest {
     fun `reasoning release maps top and bottom rows`() {
         val choices = 7
         val rowHeight = 42f
-        val popupTop = -(rowHeight * choices) - gap
+        val popupTop = holdPopupTop(rowHeight * choices, gap)
 
         assertEquals(
             0,
