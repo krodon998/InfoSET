@@ -118,6 +118,8 @@ fun Conversation.projectArchive(
             }
         }
     }
+}.distinctBy { result ->
+    listOf(result.conversationId, result.messageId, result.partId.orEmpty(), result.preview)
 }.sortedByDescending(ArchiveBrowseResult::createdAt)
 
 private fun UIMessage.result(
