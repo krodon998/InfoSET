@@ -38,6 +38,7 @@ import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.infoSetTapNotice
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
@@ -477,6 +478,37 @@ class ChatService(
     fun postNotice(conversationId: Uuid, key: String, notice: UIMessagePart.Notice) {
         sessionManager.getOrCreate(conversationId).inbox.post(key, notice)
         dispatchInbox(conversationId)
+    }
+
+    /**
+     * 记录并发送一条 InfoSET 拍一拍生活事件。
+     *
+     * 事件以结构化 Notice 进入 Conversation Archive；发生时间、双方快照与记忆候选标记都保存在 metadata。
+     * key 每次唯一，连续拍一拍不会被运行时通知的去重机制折叠。
+     */
+    fun postTap(
+        conversationId: Uuid,
+        senderLabel: String,
+        targetLabel: String,
+        senderId: String? = null,
+        targetId: String? = null,
+        style: String? = "轻轻",
+        memoryCandidate: Boolean = true,
+        requestBriefResponse: Boolean = true,
+    ) {
+        postNotice(
+            conversationId = conversationId,
+            key = "life:tap:${Uuid.random()}",
+            notice = infoSetTapNotice(
+                senderLabel = senderLabel,
+                targetLabel = targetLabel,
+                senderId = senderId,
+                targetId = targetId,
+                style = style,
+                memoryCandidate = memoryCandidate,
+                requestBriefResponse = requestBriefResponse,
+            ),
+        )
     }
 
     /** 会话空闲时从收件箱开始下一轮：先发用户输入，只剩通知时单独开一轮 */
