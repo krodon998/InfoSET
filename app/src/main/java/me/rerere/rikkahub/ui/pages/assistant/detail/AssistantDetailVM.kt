@@ -187,6 +187,12 @@ class AssistantDetailVM(
         }
     }
 
+    fun updateSettings(transform: (Settings) -> Settings) {
+        viewModelScope.launch {
+            settingsStore.update(transform)
+        }
+    }
+
     fun update(assistant: Assistant) {
         viewModelScope.launch {
             var replaced: Assistant? = null
