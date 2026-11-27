@@ -415,8 +415,10 @@ class ConversationRepository(
         return results.map { result ->
             val conversationId = runCatching { Uuid.parse(result.conversationId) }.getOrNull()
                 ?: return@map result
-            val conversation = conversations.getOrPut(conversationId) {
-                getConversationById(conversationId)
+            val conversation = if (conversations.containsKey(conversationId)) {
+                conversations[conversationId]
+            } else {
+                getConversationById(conversationId).also { conversations[conversationId] = it }
             } ?: return@map result
             val messageId = runCatching { Uuid.parse(result.messageId) }.getOrNull()
                 ?: return@map result
