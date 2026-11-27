@@ -33,8 +33,8 @@ fun Conversation.projectArchive(
     date: LocalDate? = null,
 ): List<ArchiveBrowseResult> = buildList {
     messageNodes.forEach { node ->
-        node.messages.forEach { message ->
-            if (date != null && message.createdAt.date != date) return@forEach
+        node.messages.forEach messageLoop@ { message ->
+            if (date != null && message.createdAt.date != date) return@messageLoop
             when (kind) {
                 ArchiveBrowseKind.MESSAGE -> add(
                     message.result(
@@ -54,7 +54,7 @@ fun Conversation.projectArchive(
                                 node.id.toString(),
                                 kind,
                                 message.partIdAt(index)?.toString(),
-                                "图片 · ${part.url.substringAfterLast('/').takeIf(String::isNotBlank) ?: "image"}",
+                                "图片 · ${part.url.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"}",
                             )
                         )
                     }
@@ -68,7 +68,7 @@ fun Conversation.projectArchive(
                                 node.id.toString(),
                                 kind,
                                 message.partIdAt(index)?.toString(),
-                                "视频 · ${part.url.substringAfterLast('/').takeIf(String::isNotBlank) ?: "video"}",
+                                "视频 · ${part.url.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "video"}",
                             )
                         )
                     }
@@ -92,7 +92,7 @@ fun Conversation.projectArchive(
                                 node.id.toString(),
                                 kind,
                                 message.partIdAt(index)?.toString(),
-                                "音频 · ${part.url.substringAfterLast('/').takeIf(String::isNotBlank) ?: "audio"}",
+                                "音频 · ${part.url.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "audio"}",
                             )
                         )
 
