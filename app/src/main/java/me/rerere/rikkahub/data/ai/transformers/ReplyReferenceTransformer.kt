@@ -26,7 +26,7 @@ internal fun projectReplyReferences(messages: List<UIMessage>): List<UIMessage> 
             ?.replyPreview(targetPartIndex)
             ?.takeIf { it.isNotBlank() }
             ?: reference.previewSnapshot
-        val stablePreview = preview.replace(Regex("\\s+"), " ").trim().take(120)
+        val stablePreview = preview.trim()
         val speaker = reference.speakerSnapshot.replace(Regex("\\s+"), " ").trim().ifBlank {
             reference.targetRole.name.lowercase()
         }

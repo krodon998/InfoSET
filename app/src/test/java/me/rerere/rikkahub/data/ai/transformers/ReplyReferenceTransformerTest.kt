@@ -27,6 +27,28 @@ class ReplyReferenceTransformerTest {
     }
 
     @Test
+    fun `whole-message reply keeps every bubble and does not truncate long text`() {
+        val longTail = "尾".repeat(140)
+        val target = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("第一颗气泡\n保留换行"),
+                UIMessagePart.Text("第二颗气泡 $longTail"),
+            ),
+        )
+        val reply = UIMessage.user("整条回复").copy(
+            annotations = listOf(replyTo(target, partIndex = null, snapshot = "旧快照")),
+        )
+
+        val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
+
+        assertEquals(
+            "[Replying to Aire: \"第一颗气泡\n保留换行\n第二颗气泡 $longTail\"]",
+            prefix.text,
+        )
+    }
+
+    @Test
     fun `part reply resolves the exact text bubble`() {
         val target = UIMessage(
             role = MessageRole.ASSISTANT,
@@ -37,6 +59,20 @@ class ReplyReferenceTransformerTest {
         val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
 
         assertEquals("[Replying to Aire: \"二\"]", prefix.text)
+    }
+
+    @Test
+    fun `part reply keeps the complete selected bubble`() {
+        val selected = "单颗气泡第一行\n单颗气泡第二行 😀🎵 ${"密封的信".repeat(30)}"
+        val target = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(UIMessagePart.Text("一"), UIMessagePart.Text(selected), UIMessagePart.Text("三")),
+        )
+        val reply = UIMessage.user("只回第二颗").copy(annotations = listOf(replyTo(target, 1, "旧快照")))
+
+        val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
+
+        assertEquals("[Replying to Aire: \"$selected\"]", prefix.text)
     }
 
     @Test
