@@ -12,6 +12,8 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.util.json
 import java.nio.charset.StandardCharsets
+import java.text.BreakIterator
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -79,7 +81,7 @@ data class UIMessage(
 
     fun getTools() = parts.filterIsInstance<UIMessagePart.Tool>()
 
-    /** Exact user-visible content suitable for a persisted reply-reference snapshot. */
+    /** A compact, grapheme-safe excerpt suitable for a persisted reply-reference snapshot. */
     fun replyPreview(partIndex: Int? = null): String {
         val selected = partIndex?.let(parts::getOrNull)?.let(::listOf) ?: parts
         return selected.mapNotNull { part ->
@@ -91,7 +93,7 @@ data class UIMessage(
                 is UIMessagePart.Audio -> "音频"
                 else -> null
             }
-        }.joinToString(separator = "\n").trim()
+        }.joinToString(separator = "\n").asReplyReferenceExcerpt()
     }
 
     fun isValidToUpload() = parts.any { part ->
@@ -152,6 +154,28 @@ data class UIMessage(
             role = MessageRole.ASSISTANT,
             parts = listOf(UIMessagePart.Text(prompt))
         )
+    }
+}
+
+private const val REPLY_PREVIEW_GRAPHEME_LIMIT = 25
+
+fun String.asReplyReferenceExcerpt(): String =
+    replace(Regex("\\s+"), " ").trim().truncateGraphemes(REPLY_PREVIEW_GRAPHEME_LIMIT)
+
+private fun String.truncateGraphemes(maxGraphemes: Int): String {
+    if (isEmpty() || maxGraphemes <= 0) return ""
+    val iterator = BreakIterator.getCharacterInstance(Locale.ROOT).apply { setText(this@truncateGraphemes) }
+    var end = iterator.first()
+    repeat(maxGraphemes) {
+        val next = iterator.next()
+        if (next == BreakIterator.DONE) return this
+        end = next
+    }
+    val next = iterator.next()
+    return when {
+        next == BreakIterator.DONE -> this
+        substring(end) == "…" -> this
+        else -> substring(0, end).trimEnd() + "…"
     }
 }
 
