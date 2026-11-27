@@ -48,15 +48,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.ai.provider.ModelType
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.groupByDirectory
 import me.rerere.rikkahub.data.model.memoryTitleOf
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
+import me.rerere.rikkahub.ui.components.ai.ModelField
+import me.rerere.rikkahub.ui.components.ai.ModelListSheet
+import me.rerere.rikkahub.ui.components.ai.ReasoningButton
+import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ItemAction
@@ -94,6 +101,8 @@ fun AssistantMemoryPage(id: String) {
         }
     )
     val assistant by vm.assistant.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val providers by vm.providers.collectAsStateWithLifecycle()
     val memories by vm.memories.collectAsStateWithLifecycle()
     val memoryAtoms by vm.memoryAtoms.collectAsStateWithLifecycle()
     val consolidation by vm.memoryConsolidation.collectAsStateWithLifecycle()
@@ -175,7 +184,10 @@ fun AssistantMemoryPage(id: String) {
 
                     MemoryTab.SETTINGS -> MemorySettingsTab(
                         assistant = assistant,
+                        settings = settings,
+                        providers = providers,
                         onUpdateAssistant = { vm.update(it) },
+                        onUpdateSettings = { vm.updateSettings { _ -> it } },
                     )
                 }
             }
@@ -272,8 +284,20 @@ private fun MemoryOverviewTab(
 @Composable
 private fun MemorySettingsTab(
     assistant: Assistant,
+    settings: Settings,
+    providers: List<ProviderSetting>,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateSettings: (Settings) -> Unit,
 ) {
+    val memoryModel = rememberModelListState(
+        modelId = settings.memoryModelId,
+        providers = providers,
+        type = ModelType.CHAT,
+    )
+    ModelListSheet(state = memoryModel) { model ->
+        onUpdateSettings(settings.copy(memoryModelId = model.id))
+    }
+
     var showTimeReminderIntervalDialog by remember(assistant.id) { mutableStateOf(false) }
     var timeReminderIntervalInput by remember(assistant.id) { mutableStateOf("") }
 
@@ -321,6 +345,40 @@ private fun MemorySettingsTab(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        CardGroup {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_model_page_memory_model)) },
+                supportingContent = { Text(stringResource(R.string.setting_model_page_memory_model_desc)) },
+            ) {
+                ModelField(
+                    model = memoryModel.currentModel,
+                    onClick = { memoryModel.open() },
+                    placeholder = stringResource(R.string.setting_model_page_memory_model_follow_fast),
+                    onClear = {
+                        onUpdateSettings(settings.copy(memoryModelId = null))
+                    },
+                )
+            }
+            if (memoryModel.currentModel != null) {
+                item(
+                    headlineContent = { Text(stringResource(R.string.assistant_page_thinking_budget)) },
+                    trailingContent = {
+                        ReasoningButton(
+                            reasoningLevel = settings.memoryModelReasoningLevel,
+                            onUpdateReasoningLevel = {
+                                onUpdateSettings(settings.copy(memoryModelReasoningLevel = it))
+                            },
+                        )
+                    },
+                )
+            }
+            item(
+                onClick = { /* Inspector lives in the overview; this row documents the setting owner. */ },
+                headlineContent = { Text(stringResource(R.string.memory_recall_inspector)) },
+                supportingContent = { Text(stringResource(R.string.memory_recall_inspector_desc)) },
+            )
+        }
+
         CardGroup {
             switchItem(
                 checked = assistant.enableMemory,
