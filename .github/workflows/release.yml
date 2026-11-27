@@ -50,6 +50,11 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Prepare version metadata
+        run: |
+          echo "INFOSET_VERSION_CODE=$(( $(git show -s --format=%ct) / 2 ))" >> "$GITHUB_ENV"
+          echo "INFOSET_VERSION_NAME=${{ inputs.tag }}" | sed 's/INFOSET_VERSION_NAME=v/INFOSET_VERSION_NAME=/' >> "$GITHUB_ENV"
+
       - name: Restore release keystore
         env:
           INFOSET_KEYSTORE_BASE64: ${{ secrets.INFOSET_KEYSTORE_BASE64 }}

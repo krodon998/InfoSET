@@ -28,23 +28,32 @@ jobs:
           mkdir artifact
           gh run download "$RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
-            --name InfoSET-0.1.0-debug \
+            --name InfoSET-signed-preview \
             --dir artifact
 
       - name: Prepare release asset
         run: |
           apk_path="$(find artifact -type f -name '*.apk' -print -quit)"
           test -n "$apk_path"
-          cp "$apk_path" InfoSET-0.1.0-preview-debug.apk
+          cp "$apk_path" InfoSET-0.1.0-preview.apk
 
       - name: Publish GitHub prerelease
         run: |
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete-asset "$RELEASE_TAG" \
+              InfoSET-0.1.0-preview-debug.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --yes >/dev/null 2>&1 || true
             for attempt in 1 2 3; do
               if gh release upload "$RELEASE_TAG" \
-                InfoSET-0.1.0-preview-debug.apk \
+                InfoSET-0.1.0-preview.apk \
                 --repo "$GITHUB_REPOSITORY" \
                 --clobber; then
+                gh release edit "$RELEASE_TAG" \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --target "$HEAD_SHA" \
+                  --title "InfoSET 0.1.0 Preview" \
+                  --notes "Permanently signed rolling InfoSET preview. Package: com.infoset.app. Later previews install in place without clearing app data."
                 exit 0
               fi
               if [ "$attempt" -lt 3 ]; then
@@ -54,10 +63,10 @@ jobs:
             exit 1
           else
             gh release create "$RELEASE_TAG" \
-              InfoSET-0.1.0-preview-debug.apk \
+              InfoSET-0.1.0-preview.apk \
               --repo "$GITHUB_REPOSITORY" \
               --target "$HEAD_SHA" \
               --title "InfoSET 0.1.0 Preview" \
               --prerelease \
-              --notes "First installable InfoSET verification build. Package: com.infoset.app.debug."
+              --notes "Permanently signed rolling InfoSET preview. Package: com.infoset.app. Later previews install in place without clearing app data."
           fi

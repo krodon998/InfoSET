@@ -57,6 +57,11 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Prepare version metadata
+        run: |
+          echo "INFOSET_VERSION_CODE=$(( $(git show -s --format=%ct) / 2 ))" >> "$GITHUB_ENV"
+          echo "INFOSET_VERSION_NAME=0.1.0-preview.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+
       - name: Test InfoSET shell and mailbox
         run: |
           chmod +x gradlew
@@ -96,16 +101,30 @@ jobs:
 
       - name: Build APK
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tests_only != true)
+        env:
+          INFOSET_KEYSTORE_BASE64: ${{ secrets.INFOSET_KEYSTORE_BASE64 }}
+          INFOSET_KEY_ALIAS: ${{ secrets.INFOSET_KEY_ALIAS }}
+          INFOSET_KEY_PASSWORD: ${{ secrets.INFOSET_KEY_PASSWORD }}
+          INFOSET_STORE_PASSWORD: ${{ secrets.INFOSET_STORE_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleGithubDebug
+          test -n "$INFOSET_KEYSTORE_BASE64"
+          printf '%s' "$INFOSET_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/infoset-release.p12"
+          export INFOSET_KEYSTORE_PATH="$RUNNER_TEMP/infoset-release.p12"
+          ./gradlew assembleGithubPreview
+          build_tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          for apk in app/build/outputs/apk/github/preview/*.apk; do
+            "$build_tools/apksigner" verify --verbose --print-certs "$apk"
+            "$build_tools/aapt" dump badging "$apk" \
+              | grep -F "package: name='com.infoset.app' versionCode='$INFOSET_VERSION_CODE'"
+          done
 
       - name: Upload APK
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tests_only != true)
         uses: actions/upload-artifact@v4
         with:
-          name: InfoSET-0.1.0-debug
-          path: app/build/outputs/apk/github/debug/*.apk
+          name: InfoSET-signed-preview
+          path: app/build/outputs/apk/github/preview/*.apk
           if-no-files-found: error
           retention-days: 3
 
