@@ -19,6 +19,9 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.infoSetMemoryCandidateText
+import me.rerere.ai.ui.isInfoSetMemoryCandidate
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.ai.prompts.MemoryConsolidationConversation
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryConsolidationInput
@@ -348,7 +351,8 @@ internal class PendingMemoryTurns(
 )
 
 // 按用户消息切成轮；压缩检查点是模型写的摘要，不是用户说的话。
-// 通知单独成一轮，没有用户文字所以不会交给整理器；并进上一轮的话，没等到回复的通知会让上一轮一直算没结束
+// 普通运行时通知仍跳过；InfoSET 结构化生活事件可显式标记为记忆候选。
+// 通知并进上一轮的话，没等到回复的通知会让上一轮一直算没结束。
 private fun memoryTurnsOf(messages: List<UIMessage>): List<MemoryTurn> {
     val indexed = messages.withIndex().filterNot { it.value.isContextCheckpoint }
     val starts = indexed.indices.filter { indexed[it].value.role == MessageRole.USER }
@@ -357,8 +361,10 @@ private fun memoryTurnsOf(messages: List<UIMessage>): List<MemoryTurn> {
     }
 }
 
-// 只发了图片之类没有文字的轮次没有可提取的内容
-private val MemoryTurn.hasUserText: Boolean get() = userMessage.toText().isNotBlank()
+// 普通图片/运行时通知没有可提取内容；结构化生活事件可以显式进入候选。
+private val MemoryTurn.hasMemoryCandidate: Boolean
+    get() = userMessage.toText().isNotBlank() ||
+        userMessage.parts.filterIsInstance<UIMessagePart.Notice>().any { it.isInfoSetMemoryCandidate() }
 
 /**
  * 第一次跟踪一个对话时的整理进度：只回看最近 [MAX_TURNS_PER_CONVERSATION] 轮。
@@ -370,7 +376,7 @@ internal fun initialMemoryProgress(
     messages: List<UIMessage>,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): Long {
-    val first = memoryTurnsOf(messages).filter { it.hasUserText }.takeLast(MAX_TURNS_PER_CONVERSATION).firstOrNull()
+    val first = memoryTurnsOf(messages).filter { it.hasMemoryCandidate }.takeLast(MAX_TURNS_PER_CONVERSATION).firstOrNull()
         ?: return 0
     return first.userMessage.createdAt.toInstant(timeZone).toEpochMilliseconds() - 1
 }
@@ -399,7 +405,7 @@ internal fun pendingMemoryTurns(
         consolidatedThrough = last.userMessage.time() - 1
     }
 
-    pending = pending.filter { it.hasUserText }
+    pending = pending.filter { it.hasMemoryCandidate }
     val batch = pending.take(MAX_TURNS_PER_CONVERSATION)
     if (batch.isNotEmpty()) {
         val batchEnd = batch.last().userMessage.time()
@@ -429,8 +435,14 @@ internal fun List<IndexedValue<UIMessage>>.toMemoryTranscript(userLength: Int, a
     flatMap { (position, message) ->
         val maxLength = if (message.role == MessageRole.USER) userLength else assistantLength
         val text = message.toText().trim().let { if (it.length > maxLength) it.take(maxLength) + "..." else it }
+        val lifeEvents = message.parts
+            .filterIsInstance<UIMessagePart.Notice>()
+            .mapNotNull { it.infoSetMemoryCandidateText() }
+            .map { "[${message.role.name} #$position life_event]: $it" }
         val memoryWrites = message.getTools().mapNotNull { tool ->
             tool.memoryWritePath()?.let { "[assistant updated memory: ${tool.toolName} $it]" }
         }
-        listOfNotNull("[${message.role.name} #$position]: $text".takeIf { text.isNotEmpty() }) + memoryWrites
+        listOfNotNull("[${message.role.name} #$position]: $text".takeIf { text.isNotEmpty() }) +
+            lifeEvents +
+            memoryWrites
     }.joinToString("\n\n")
