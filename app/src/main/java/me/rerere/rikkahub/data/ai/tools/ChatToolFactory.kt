@@ -71,6 +71,14 @@ class ChatToolFactory(
                     )
                 )
             }
+            addAll(
+                buildQuestionnaireTools(
+                    settings = settings,
+                    assistant = assistant,
+                    conversationRepository = conversationRepository,
+                    conversationId = conversationId,
+                )
+            )
             if (shouldUseExternalWebSearch(assistant, model)) {
                 addAll(createSearchTools(settings))
             }

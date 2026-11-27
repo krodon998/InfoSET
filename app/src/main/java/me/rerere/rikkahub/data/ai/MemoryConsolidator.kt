@@ -21,7 +21,7 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.infoSetMemoryCandidateText
-import me.rerere.ai.ui.isInfoSetMemoryCandidate
+import me.rerere.ai.ui.infoSetQuestionnaireMemoryCandidateText
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.ai.prompts.MemoryConsolidationConversation
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryConsolidationInput
@@ -361,10 +361,23 @@ private fun memoryTurnsOf(messages: List<UIMessage>): List<MemoryTurn> {
     }
 }
 
-// 普通图片/运行时通知没有可提取内容；结构化生活事件可以显式进入候选。
+// 普通图片/运行时通知没有可提取内容；结构化生活事件与问卷回答可以显式进入候选。
 private val MemoryTurn.hasMemoryCandidate: Boolean
     get() = userMessage.toText().isNotBlank() ||
-        userMessage.parts.filterIsInstance<UIMessagePart.Notice>().any { it.isInfoSetMemoryCandidate() }
+        messages.any { (_, message) ->
+            message.parts.asSequence()
+                .flatMap { it.structuredNotices() }
+                .any { it.infoSetCandidateText() != null }
+        }
+
+private fun UIMessagePart.structuredNotices(): Sequence<UIMessagePart.Notice> = when (this) {
+    is UIMessagePart.Notice -> sequenceOf(this)
+    is UIMessagePart.Tool -> output.asSequence().flatMap { it.structuredNotices() }
+    else -> emptySequence()
+}
+
+private fun UIMessagePart.Notice.infoSetCandidateText(): String? =
+    infoSetMemoryCandidateText() ?: infoSetQuestionnaireMemoryCandidateText()
 
 /**
  * 第一次跟踪一个对话时的整理进度：只回看最近 [MAX_TURNS_PER_CONVERSATION] 轮。
@@ -435,14 +448,18 @@ internal fun List<IndexedValue<UIMessage>>.toMemoryTranscript(userLength: Int, a
     flatMap { (position, message) ->
         val maxLength = if (message.role == MessageRole.USER) userLength else assistantLength
         val text = message.toText().trim().let { if (it.length > maxLength) it.take(maxLength) + "..." else it }
-        val lifeEvents = message.parts
-            .filterIsInstance<UIMessagePart.Notice>()
+        val notices = message.parts.asSequence().flatMap { it.structuredNotices() }.toList()
+        val lifeEvents = notices
             .mapNotNull { it.infoSetMemoryCandidateText() }
             .map { "[${message.role.name} #$position life_event]: $it" }
+        val questionnaireAnswers = notices
+            .mapNotNull { it.infoSetQuestionnaireMemoryCandidateText() }
+            .map { "[${message.role.name} #$position questionnaire_answer]: $it" }
         val memoryWrites = message.getTools().mapNotNull { tool ->
             tool.memoryWritePath()?.let { "[assistant updated memory: ${tool.toolName} $it]" }
         }
         listOfNotNull("[${message.role.name} #$position]: $text".takeIf { text.isNotEmpty() }) +
             lifeEvents +
+            questionnaireAnswers +
             memoryWrites
     }.joinToString("\n\n")

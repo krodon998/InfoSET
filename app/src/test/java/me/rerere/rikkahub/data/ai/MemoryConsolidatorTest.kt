@@ -6,7 +6,13 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.InfoSetQuestionnaireType
+import me.rerere.ai.ui.InfoSetQuestionOption
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.createInfoSetQuestionnaire
+import me.rerere.ai.ui.createInfoSetQuestionnaireAnswer
+import me.rerere.ai.ui.infoSetQuestionnaireAnswerNotice
+import me.rerere.ai.ui.infoSetQuestionnaireNotice
 import me.rerere.ai.ui.infoSetTapNotice
 import me.rerere.rikkahub.data.ai.tools.MemoryToolNames
 import org.junit.Assert.assertEquals
@@ -141,6 +147,53 @@ class MemoryConsolidatorTest {
             result.turns.single().messages.toMemoryTranscript(userLength = 100, assistantLength = 100)
                 .substringBefore("\n\n[ASSISTANT"),
         )
+    }
+
+    @Test
+    fun `a structured questionnaire answer inside tool output becomes a memory candidate`() {
+        val questionnaire = createInfoSetQuestionnaire(
+            issuerLabel = "隐",
+            recipientLabel = "Aire",
+            type = InfoSetQuestionnaireType.SINGLE,
+            question = "今晚先做什么？",
+            options = listOf(
+                InfoSetQuestionOption("code", "写代码"),
+                InfoSetQuestionOption("rest", "休息"),
+            ),
+            createdAt = Instant.parse("2026-11-28T03:20:00Z"),
+            id = "q-memory",
+        )
+        val answer = createInfoSetQuestionnaireAnswer(
+            questionnaire = questionnaire,
+            respondentLabel = "Aire",
+            selectedOptionIds = listOf("code"),
+            answeredAt = Instant.parse("2026-11-28T03:21:00Z"),
+        )
+        val prompt = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(infoSetQuestionnaireNotice(questionnaire)),
+            createdAt = minute(3),
+        )
+        val reply = assistant(
+            4,
+            UIMessagePart.Tool(
+                toolCallId = "answer-q-memory",
+                toolName = "infoset_questionnaire_answer",
+                input = """{"questionnaire_id":"q-memory","selected_option_ids":["code"]}""",
+                output = listOf(
+                    UIMessagePart.Text("""{"status":"answered"}"""),
+                    infoSetQuestionnaireAnswerNotice(questionnaire, answer),
+                ),
+            ),
+        )
+
+        val result = pending(listOf(user(1), assistant(2), prompt, reply), consolidatedAt = timeOf(2))
+
+        assertEquals(listOf(2), result.turns.map { it.position })
+        val transcript = result.turns.single().messages.toMemoryTranscript(userLength = 100, assistantLength = 100)
+        assertTrue(transcript.contains("[ASSISTANT #3 questionnaire_answer]: questionnaire_id=q-memory"))
+        assertTrue(transcript.contains("question=今晚先做什么？"))
+        assertTrue(transcript.contains("answer=写代码"))
     }
 
     @Test

@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
+import me.rerere.ai.ui.InfoSetQuestionnaire
+import me.rerere.ai.ui.InfoSetQuestionnaireAnswer
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.UIMessageAnnotation
@@ -277,6 +279,34 @@ class ChatVM(
             senderId = senderId,
             targetId = targetId,
             style = style,
+            requestResponse = requestResponse,
+        )
+    }
+
+    fun handleQuestionnaire(
+        questionnaire: InfoSetQuestionnaire,
+        requestResponse: Boolean = true,
+    ) {
+        analytics.logEvent("life_questionnaire", null)
+        chatService.postQuestionnaire(
+            conversationId = _conversationId,
+            questionnaire = questionnaire,
+            requestResponse = requestResponse,
+        )
+    }
+
+    fun handleQuestionnaireAnswer(
+        questionnaire: InfoSetQuestionnaire,
+        answer: InfoSetQuestionnaireAnswer,
+        memoryCandidate: Boolean = true,
+        requestResponse: Boolean = true,
+    ) {
+        analytics.logEvent("life_questionnaire_answer", null)
+        chatService.postQuestionnaireAnswer(
+            conversationId = _conversationId,
+            questionnaire = questionnaire,
+            answer = answer,
+            memoryCandidate = memoryCandidate,
             requestResponse = requestResponse,
         )
     }
