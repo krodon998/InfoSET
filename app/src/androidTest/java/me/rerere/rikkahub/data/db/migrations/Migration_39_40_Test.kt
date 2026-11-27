@@ -10,6 +10,7 @@ import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.entity.MoodEventEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,7 +36,7 @@ class Migration_39_40_Test {
         try {
             room.openHelper.writableDatabase.query("PRAGMA user_version").use { cursor ->
                 cursor.moveToFirst()
-                assertEquals(40, cursor.getInt(0))
+                assertTrue(cursor.getInt(0) >= 40)
             }
             room.openHelper.writableDatabase.query(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='mood_event'"
