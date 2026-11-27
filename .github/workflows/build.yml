@@ -75,6 +75,7 @@ jobs:
             --tests me.rerere.rikkahub.data.ai.ContextComposerTest \
             --tests me.rerere.rikkahub.data.ai.AtomicMemoryRecallEngineTest \
             --tests me.rerere.rikkahub.data.ai.MemoryConsolidatorTest \
+            --tests me.rerere.rikkahub.data.ai.tools.QuestionnaireToolsTest \
             --tests me.rerere.rikkahub.data.repository.MarkdownMemoryImporterTest \
             --tests me.rerere.rikkahub.data.ai.UsageRecorderTest \
             --tests me.rerere.rikkahub.data.model.ConversationConfigTest \
