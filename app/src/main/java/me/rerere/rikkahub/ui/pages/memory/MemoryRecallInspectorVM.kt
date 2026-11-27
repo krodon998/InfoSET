@@ -32,7 +32,7 @@ class MemoryRecallInspectorVM(
         viewModelScope.launch {
             _running.value = true
             try {
-                val result = repository.recall(
+                val result = repository.activeRecall(
                     memoryId = memoryId,
                     query = query,
                     tokenBudget = tokenBudget,

@@ -9,6 +9,7 @@ import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
+import me.rerere.rikkahub.data.model.MemoryAccessMode
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -45,18 +46,19 @@ class MemoryAtomDAOTest {
         dao.upsertAtom(atom)
         assertNull(dao.getAtom(atom.id)!!.occurredAt)
 
-        val trace = MemoryRecallTraceEntity(
-            id = "trace-1",
+        val passiveTrace = MemoryRecallTraceEntity(
+            id = "trace-passive",
             memoryId = "memory",
             query = "stable sentence",
             createdAt = 20,
             tokenBudget = 200,
             injectedContent = atom.statement,
             injectedTokens = 8,
-            destination = "OPTIONAL_RECALL",
+            destination = "PASSIVE_SURFACE",
+            mode = MemoryAccessMode.PASSIVE_SURFACE.name,
         )
-        val candidate = MemoryRecallCandidateEntity(
-            traceId = trace.id,
+        val passiveCandidate = MemoryRecallCandidateEntity(
+            traceId = passiveTrace.id,
             atomId = atom.id,
             rank = 1,
             statement = atom.statement,
@@ -67,15 +69,31 @@ class MemoryAtomDAOTest {
             injected = true,
             tokenCost = 8,
         )
-        dao.recordRecall(trace, listOf(candidate), listOf(atom.id))
-        dao.recordFeedback(trace.id, "HELPFUL")
-        dao.recordFeedback(trace.id, "HELPFUL")
+        dao.recordAccess(passiveTrace, listOf(passiveCandidate), listOf(atom.id))
+
+        val surfaced = dao.getAtom(atom.id)!!
+        assertEquals(0, surfaced.recallCount)
+        assertEquals(1, surfaced.surfaceCount)
+        assertEquals(20L, surfaced.lastSurfacedAt)
+
+        val activeTrace = passiveTrace.copy(
+            id = "trace-active",
+            createdAt = 30,
+            destination = "ACTIVE_RECALL",
+            mode = MemoryAccessMode.ACTIVE_RECALL.name,
+        )
+        val activeCandidate = passiveCandidate.copy(traceId = activeTrace.id)
+        dao.recordAccess(activeTrace, listOf(activeCandidate), listOf(atom.id))
+        dao.recordFeedback(activeTrace.id, "HELPFUL")
+        dao.recordFeedback(activeTrace.id, "HELPFUL")
 
         val recalled = dao.getAtom(atom.id)!!
         assertEquals(1, recalled.recallCount)
-        assertEquals(20L, recalled.lastRecalledAt)
+        assertEquals(30L, recalled.lastRecalledAt)
+        assertEquals(1, recalled.surfaceCount)
         assertEquals(1, recalled.positiveFeedbackCount)
-        assertEquals("HELPFUL", dao.observeRecentTraces("memory").first().single().feedback)
-        assertEquals(candidate.statement, dao.getCandidates(trace.id).single().statement)
+        assertEquals("HELPFUL", dao.getTrace(activeTrace.id)!!.feedback)
+        assertEquals(MemoryAccessMode.PASSIVE_SURFACE.name, dao.getTrace(passiveTrace.id)!!.mode)
+        assertEquals(activeCandidate.statement, dao.getCandidates(activeTrace.id).single().statement)
     }
 }

@@ -10,7 +10,12 @@ object AtomicMemoryRecallEngine {
     private const val DORMANT_WAKE_THRESHOLD = 0.75
     private const val MAX_PER_TOPIC = 2
 
-    fun recall(atoms: List<MemoryAtom>, query: String, tokenBudget: Int): RecallSelection {
+    fun recall(
+        atoms: List<MemoryAtom>,
+        query: String,
+        tokenBudget: Int,
+        allowNonLexicalMatch: Boolean = false,
+    ): RecallSelection {
         val queryTerms = termsOf(query)
         val ranked = atoms.map { atom ->
             val atomTerms = termsOf(atom.searchableText())
@@ -32,7 +37,7 @@ object AtomicMemoryRecallEngine {
             Scored(atom, total, lexical, activation, importance)
         }.sortedWith(compareByDescending<Scored> { it.total }.thenBy { it.atom.id })
 
-        val wrapperTokens = ContextComposer.estimateTextTokens("<atomic_memory_recall>\n</atomic_memory_recall>")
+        val wrapperTokens = ContextComposer.estimateTextTokens("<atomic_memory>\n</atomic_memory>")
         var remaining = (tokenBudget - wrapperTokens).coerceAtLeast(0)
         val topics = mutableMapOf<String, Int>()
         val candidates = ranked.mapIndexed { index, scored ->
@@ -40,9 +45,10 @@ object AtomicMemoryRecallEngine {
             val line = scored.atom.injectionLine()
             val tokens = ContextComposer.estimateTextTokens(line)
             val reason = when {
-                scored.lexical <= 0.0 && !scored.atom.pinned -> MemoryRecallFilterReason.NO_LEXICAL_MATCH
+                scored.lexical <= 0.0 && !scored.atom.pinned && !allowNonLexicalMatch ->
+                    MemoryRecallFilterReason.NO_LEXICAL_MATCH
                 scored.atom.state == MemoryAtomState.DORMANT && !scored.atom.pinned &&
-                    scored.lexical < DORMANT_WAKE_THRESHOLD ->
+                    !allowNonLexicalMatch && scored.lexical < DORMANT_WAKE_THRESHOLD ->
                     MemoryRecallFilterReason.DORMANT_WEAK_CUE
                 topic.isNotEmpty() && topics.getOrDefault(topic, 0) >= MAX_PER_TOPIC ->
                     MemoryRecallFilterReason.DIVERSITY_LIMIT
@@ -71,9 +77,9 @@ object AtomicMemoryRecallEngine {
             ""
         } else {
             buildString {
-                appendLine("<atomic_memory_recall>")
+                appendLine("<atomic_memory>")
                 selected.forEach { appendLine(it.atom.injectionLine()) }
-                append("</atomic_memory_recall>")
+                append("</atomic_memory>")
             }
         }
         return RecallSelection(
