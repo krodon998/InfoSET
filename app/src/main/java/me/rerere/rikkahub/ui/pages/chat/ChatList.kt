@@ -98,7 +98,7 @@ fun ChatList(
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
-    onReply: (UIMessage, Int?) -> Unit = { _, _ -> },
+    onReply: (UIMessage, partIndex: Int?, segmentIndex: Int?) -> Unit = { _, _, _ -> },
     onOpenReplyReference: (UIMessageAnnotation.ReplyReference) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
     onClickSuggestion: (String) -> Unit = {},
@@ -234,7 +234,7 @@ private fun ChatListNormal(
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
-    onReply: (UIMessage, Int?) -> Unit,
+    onReply: (UIMessage, partIndex: Int?, segmentIndex: Int?) -> Unit,
     onOpenReplyReference: (UIMessageAnnotation.ReplyReference) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
     onClickSuggestion: (String) -> Unit,
@@ -390,8 +390,8 @@ private fun ChatListNormal(
                             onDelete = {
                                 onDelete(node.currentMessage)
                             },
-                            onReply = { partIndex ->
-                                onReply(node.currentMessage, partIndex)
+                            onReply = { partIndex, segmentIndex ->
+                                onReply(node.currentMessage, partIndex, segmentIndex)
                             },
                             onOpenReplyReference = onOpenReplyReference,
                             onShare = {

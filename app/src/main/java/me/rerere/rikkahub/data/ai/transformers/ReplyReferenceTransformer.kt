@@ -24,15 +24,22 @@ internal fun projectReplyReferences(messages: List<UIMessage>): List<UIMessage> 
             reference.targetPartId?.let(messageTarget::partIndexOf) ?: reference.targetPartIndex
         } ?: reference.targetPartIndex
         val preview = target
-            ?.replyPreview(targetPartIndex)
+            ?.replyPreview(targetPartIndex, reference.targetSegmentIndex)
             ?.takeIf { it.isNotBlank() }
             ?: reference.previewSnapshot
         val stablePreview = preview.asReplyReferenceExcerpt()
-        val speaker = reference.speakerSnapshot.replace(Regex("\\s+"), " ").trim().ifBlank {
-            reference.targetRole.name.lowercase()
+        val scope = reference.effectiveScope.name.lowercase()
+        val attributes = buildList {
+            add("msg_id=${reference.targetMessageId}")
+            add("scope=$scope")
+            reference.targetSegmentIndex?.let { add("segment_id=${reference.targetMessageId}:$it") }
+            reference.targetPartId?.let { add("part_id=$it") }
+        }.joinToString(", ")
+        val quoted = buildString {
+            appendLine("[quoted: $attributes]")
+            appendLine(stablePreview.replace("[/quoted]", "\\[/quoted]"))
+            append("[/quoted]")
         }
-        val targetLabel = targetPartIndex?.let { "bubble ${it + 1}" } ?: "whole message"
-        val prefix = "[Replying to $speaker | $targetLabel: \"${stablePreview.replace("\\", "\\\\").replace("\"", "\\\"")}\"]"
-        message.copy(parts = listOf(UIMessagePart.Text(prefix)) + message.parts)
+        message.copy(parts = listOf(UIMessagePart.Text(quoted)) + message.parts)
     }
 }

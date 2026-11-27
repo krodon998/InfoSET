@@ -248,6 +248,8 @@ data class DisplaySetting(
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
     val splitAssistantBubbleByParagraph: Boolean = false,
+    val enableAssistantMessageBreaks: Boolean = true,
+    val messageBreakMaxSegments: Int = 3,
     val bubbleOpacity: Float = 1.0f,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,

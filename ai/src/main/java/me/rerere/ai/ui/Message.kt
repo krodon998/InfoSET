@@ -82,7 +82,14 @@ data class UIMessage(
     fun getTools() = parts.filterIsInstance<UIMessagePart.Tool>()
 
     /** A compact, grapheme-safe excerpt suitable for a persisted reply-reference snapshot. */
-    fun replyPreview(partIndex: Int? = null): String {
+    fun replyPreview(partIndex: Int? = null, segmentIndex: Int? = null): String {
+        if (segmentIndex != null) {
+            return derivedMessageSegments(enabled = true)
+                .getOrNull(segmentIndex)
+                ?.text
+                .orEmpty()
+                .asReplyReferenceExcerpt()
+        }
         val selected = partIndex?.let(parts::getOrNull)?.let(::listOf) ?: parts
         return selected.mapNotNull { part ->
             when (part) {
@@ -157,26 +164,26 @@ data class UIMessage(
     }
 }
 
-private const val REPLY_PREVIEW_GRAPHEME_LIMIT = 25
-
 fun String.asReplyReferenceExcerpt(): String =
-    replace(Regex("\\s+"), " ").trim().truncateGraphemes(REPLY_PREVIEW_GRAPHEME_LIMIT)
+    replace(Regex("\\s+"), " ").trim().truncateGraphemes(
+        maxGraphemes = MessageBreakConfig.REPLY_EXCERPT_MAX_GRAPHEMES,
+        ellipsisCounts = MessageBreakConfig.REPLY_ELLIPSIS_COUNTS_TOWARD_LIMIT,
+    )
 
-private fun String.truncateGraphemes(maxGraphemes: Int): String {
+private fun String.truncateGraphemes(maxGraphemes: Int, ellipsisCounts: Boolean): String {
     if (isEmpty() || maxGraphemes <= 0) return ""
     val iterator = BreakIterator.getCharacterInstance(Locale.ROOT).apply { setText(this@truncateGraphemes) }
-    var end = iterator.first()
-    repeat(maxGraphemes) {
+    val ends = mutableListOf<Int>()
+    iterator.first()
+    while (true) {
         val next = iterator.next()
-        if (next == BreakIterator.DONE) return this
-        end = next
+        if (next == BreakIterator.DONE) break
+        ends += next
     }
-    val next = iterator.next()
-    return when {
-        next == BreakIterator.DONE -> this
-        substring(end) == "…" -> this
-        else -> substring(0, end).trimEnd() + "…"
-    }
+    if (ends.size <= maxGraphemes) return this
+    val contentLimit = (maxGraphemes - if (ellipsisCounts) 1 else 0).coerceAtLeast(0)
+    val end = ends.getOrElse(contentLimit - 1) { 0 }
+    return substring(0, end).trimEnd() + "…"
 }
 
 /** Stable identity for one top-level part, including legacy messages that predate persisted IDs. */

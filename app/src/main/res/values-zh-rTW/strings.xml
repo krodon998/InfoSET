@@ -1869,6 +1869,10 @@
   <string name="chat_message_tool_phone_use_wait">等待 %1$s 秒</string>
   <string name="setting_display_page_split_assistant_bubble_title">依段落分割對話泡泡</string>
   <string name="setting_display_page_split_assistant_bubble_desc">將助理回覆的每個段落分別顯示在各自的泡泡中</string>
+  <string name="setting_display_page_message_break_title">模型主動分氣泡</string>
+  <string name="setting_display_page_message_break_desc">只依明確的 &lt;message_break/&gt; 標記分割；關閉後整則原樣顯示</string>
+  <string name="setting_display_page_message_break_limit">每則回覆最多泡泡數</string>
+  <string name="chat_page_copy_part">複製第 %1$d 個氣泡</string>
   <string name="workspace_detail_storage_title">外部儲存空間</string>
   <string name="workspace_detail_storage_desc">將裝置共用儲存空間中的資料夾以相同路徑掛載到 Rootfs。變更後，請重新開啟所有已開啟的終端機，變更才會生效。</string>
   <string name="workspace_detail_storage_permission_missing">尚未授予所有檔案存取權限</string>

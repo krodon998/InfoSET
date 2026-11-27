@@ -54,6 +54,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CollectionInfo
+import androidx.compose.ui.semantics.CollectionItemInfo
+import androidx.compose.ui.semantics.collectionInfo
+import androidx.compose.ui.semantics.collectionItemInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
@@ -73,6 +79,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.derivedMessageSegments
 import me.rerere.ai.ui.isSticker
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
@@ -120,7 +127,7 @@ fun ChatMessage(
     onEdit: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
-    onReply: (Int?) -> Unit,
+    onReply: (partIndex: Int?, segmentIndex: Int?) -> Unit,
     onOpenReplyReference: (UIMessageAnnotation.ReplyReference) -> Unit,
     onUpdate: (MessageNode) -> Unit,
     isFavorite: Boolean = false,
@@ -198,9 +205,8 @@ fun ChatMessage(
                 ChatReplyReferenceBlock(reference = reference, onClick = { onOpenReplyReference(reference) })
             }
             MessagePartsBlock(
+                message = message,
                 assistant = assistant,
-                role = message.role,
-                parts = message.parts,
                 annotations = message.annotations,
                 loading = loading,
                 model = model,
@@ -309,21 +315,35 @@ private const val COLLAPSED_VISIBLE_STEPS = 2
 @OptIn(FlowPreview::class)
 @Composable
 private fun MessagePartsBlock(
+    message: UIMessage,
     assistant: Assistant?,
-    role: MessageRole,
     model: Model?,
-    parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     loading: Boolean,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
 ) {
+    val role = message.role
+    val parts = message.parts
     val context = LocalContext.current
     // 消息输出HapticFeedback
     val hapticFeedback = LocalHapticFeedback.current
     val settings = LocalSettings.current
     val partsState by rememberUpdatedState(parts)
+    val messageSegments = remember(
+        message.id,
+        parts,
+        loading,
+        settings.displaySetting.enableAssistantMessageBreaks,
+        settings.displaySetting.messageBreakMaxSegments,
+    ) {
+        message.derivedMessageSegments(
+            enabled = settings.displaySetting.enableAssistantMessageBreaks,
+            streaming = loading,
+            maxSegments = settings.displaySetting.messageBreakMaxSegments,
+        )
+    }
 
     val handleClickCitation: (String) -> Unit = remember {
         handler@{ citationId ->
@@ -445,32 +465,39 @@ private fun MessagePartsBlock(
                                     )
                                 }
                             } else {
-                                if (settings.displaySetting.showAssistantBubble) {
-                                    val content = part.text.replaceRegexes(
-                                        assistant = assistant,
-                                        scope = AssistantAffectScope.ASSISTANT,
-                                        visual = true,
-                                    )
-                                    val splitByParagraph = settings.displaySetting.splitAssistantBubbleByParagraph
-                                    // 拆成多个气泡只影响显示，消息本身还是一条
-                                    val paragraphs = remember(content, splitByParagraph) {
-                                        if (splitByParagraph) {
-                                            splitMarkdownParagraphs(content).ifEmpty { listOf(content) }
-                                        } else {
-                                            listOf(content)
-                                        }
-                                    }
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        paragraphs.fastForEachIndexed { index, paragraph ->
-                                            key(index) {
+                                val segments = messageSegments.filter { it.sourcePartIndex == block.index }
+                                val showBubbles = settings.displaySetting.showAssistantBubble || segments.size > 1
+                                if (showBubbles) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.semantics {
+                                            collectionInfo = CollectionInfo(messageSegments.size.coerceAtLeast(1), 1)
+                                        },
+                                    ) {
+                                        segments.fastForEach { segment ->
+                                            key(segment.id) {
                                                 ChatMessageBubble(
                                                     role = role,
                                                     color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
-                                                    modifier = Modifier.animateContentSize(),
+                                                    modifier = Modifier
+                                                        .animateContentSize()
+                                                        .semantics {
+                                                            collectionItemInfo = CollectionItemInfo(
+                                                                rowIndex = segment.index,
+                                                                rowSpan = 1,
+                                                                columnIndex = 0,
+                                                                columnSpan = 1,
+                                                            )
+                                                            stateDescription = "第 ${segment.index + 1} 段，共 ${messageSegments.size} 段"
+                                                        },
                                                 ) {
                                                     MarkdownBlock(
-                                                        content = paragraph,
-                                                        streaming = streamingText && index == paragraphs.lastIndex,
+                                                        content = segment.text.replaceRegexes(
+                                                            assistant = assistant,
+                                                            scope = AssistantAffectScope.ASSISTANT,
+                                                            visual = true,
+                                                        ),
+                                                        streaming = streamingText && segment.index == messageSegments.lastIndex,
                                                         onClickCitation = handleClickCitation,
                                                     )
                                                 }
@@ -479,7 +506,7 @@ private fun MessagePartsBlock(
                                     }
                                 } else {
                                     MarkdownBlock(
-                                        content = part.text.replaceRegexes(
+                                        content = segments.joinToString("\n\n") { it.text }.replaceRegexes(
                                             assistant = assistant,
                                             scope = AssistantAffectScope.ASSISTANT,
                                             visual = true,
@@ -592,6 +619,7 @@ private fun ChatReplyReferenceBlock(
     onClick: () -> Unit,
 ) {
     Surface(
+        modifier = Modifier.padding(bottom = 4.dp),
         onClick = onClick,
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,

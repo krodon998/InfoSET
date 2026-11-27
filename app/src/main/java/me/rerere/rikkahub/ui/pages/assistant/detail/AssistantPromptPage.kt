@@ -365,7 +365,7 @@ private fun AssistantPromptContent(
                                     onEdit = {},
                                     onShare = {},
                                     onDelete = {},
-                                    onReply = {},
+                                    onReply = { _, _ -> },
                                     onOpenReplyReference = {},
                                     onUpdate = {},
                                     lastMessage = false,

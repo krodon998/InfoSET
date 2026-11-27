@@ -513,7 +513,7 @@ private fun ChatPageContent(
                         vm.deleteMessage(it)
                     }
                 },
-                onReply = { message, partIndex ->
+                onReply = { message, partIndex, segmentIndex ->
                     val speaker = when (message.role) {
                         me.rerere.ai.core.MessageRole.USER -> setting.displaySetting.userNickname.ifBlank { "自己" }
                         else -> assistant.name.ifBlank { currentChatModel?.displayName ?: "助手" }
@@ -522,9 +522,15 @@ private fun ChatPageContent(
                         targetMessageId = message.id,
                         targetPartId = partIndex?.let(message::partIdAt),
                         targetPartIndex = partIndex,
+                        targetSegmentIndex = segmentIndex,
+                        scope = if (partIndex != null || segmentIndex != null) {
+                            me.rerere.ai.ui.ReplyScope.SELECTION
+                        } else {
+                            me.rerere.ai.ui.ReplyScope.WHOLE
+                        },
                         targetRole = message.role,
                         speakerSnapshot = speaker,
-                        previewSnapshot = message.replyPreview(partIndex),
+                        previewSnapshot = message.replyPreview(partIndex, segmentIndex),
                     )
                 },
                 onOpenReplyReference = { reference ->

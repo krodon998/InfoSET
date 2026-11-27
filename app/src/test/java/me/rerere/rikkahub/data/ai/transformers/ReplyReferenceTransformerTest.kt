@@ -21,7 +21,7 @@ class ReplyReferenceTransformerTest {
 
         val projected = projectReplyReferences(archive)
 
-        assertEquals("[Replying to Aire | whole message: \"真实原文\"]", (projected.last().parts.first() as UIMessagePart.Text).text)
+        assertEquals(quoted(target.id, "whole", "真实原文"), (projected.last().parts.first() as UIMessagePart.Text).text)
         assertEquals("宝宝写的正文", reply.toText())
         assertEquals(listOf(UIMessagePart.Text("宝宝写的正文")), reply.parts)
     }
@@ -43,7 +43,7 @@ class ReplyReferenceTransformerTest {
         val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
 
         assertEquals(
-            "[Replying to Aire | whole message: \"第一颗气泡 保留换行 第二颗气泡 尾尾尾尾尾尾尾尾…\"]",
+            quoted(target.id, "whole", "第一颗气泡 保留换行 第二颗气泡 尾尾尾尾尾尾尾…"),
             prefix.text,
         )
     }
@@ -58,7 +58,29 @@ class ReplyReferenceTransformerTest {
 
         val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
 
-        assertEquals("[Replying to Aire | bubble 2: \"二\"]", prefix.text)
+        assertEquals(quoted(target.id, "selection", "二", partId = target.partIdAt(1)), prefix.text)
+    }
+
+    @Test
+    fun `derived segment reply projects a structured selection block`() {
+        val target = UIMessage.assistant("第一段\n<message_break/>\n第二段")
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = target.id,
+            targetSegmentIndex = 1,
+            scope = me.rerere.ai.ui.ReplyScope.SELECTION,
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "第二段",
+        )
+        val reply = UIMessage.user("继续").copy(annotations = listOf(reference))
+
+        val projected = projectReplyReferences(listOf(target, reply)).last()
+
+        assertEquals(
+            "[quoted: msg_id=${target.id}, scope=selection, segment_id=${target.id}:1]\n第二段\n[/quoted]",
+            (projected.parts.first() as UIMessagePart.Text).text,
+        )
+        assertEquals("继续", reply.toText())
     }
 
     @Test
@@ -72,7 +94,10 @@ class ReplyReferenceTransformerTest {
 
         val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
 
-        assertEquals("[Replying to Aire | bubble 2: \"单颗气泡第一行 单颗气泡第二行 😀🎵 密封的信密封…\"]", prefix.text)
+        assertEquals(
+            quoted(target.id, "selection", "单颗气泡第一行 单颗气泡第二行 😀🎵 密封的信密…", partId = target.partIdAt(1)),
+            prefix.text,
+        )
     }
 
     @Test
@@ -95,7 +120,7 @@ class ReplyReferenceTransformerTest {
 
         val prefix = projectReplyReferences(listOf(reordered, reply)).last().parts.first() as UIMessagePart.Text
 
-        assertEquals("[Replying to Aire | bubble 1: \"二\"]", prefix.text)
+        assertEquals(quoted(reordered.id, "selection", "二", partId = targetPartId), prefix.text)
     }
 
     @Test
@@ -113,7 +138,10 @@ class ReplyReferenceTransformerTest {
         val second = projectReplyReferences(listOf(reply)).single()
 
         assertEquals(first, second)
-        assertEquals("[Replying to 隐 | bubble 3: \"已经删除的原句\"]", (first.parts.first() as UIMessagePart.Text).text)
+        assertEquals(
+            quoted(reference.targetMessageId, "selection", "已经删除的原句"),
+            (first.parts.first() as UIMessagePart.Text).text,
+        )
         assertFalse(reply.toText().contains("Replying to"))
     }
 
@@ -131,7 +159,7 @@ class ReplyReferenceTransformerTest {
 
         val prefix = projectReplyReferences(listOf(reply)).single().parts.first() as UIMessagePart.Text
 
-        assertEquals("[Replying to Aire | whole message: \"${"字".repeat(24)}😀…\"]", prefix.text)
+        assertEquals(quoted(reference.targetMessageId, "whole", "${"字".repeat(24)}…"), prefix.text)
     }
 
     private fun replyTo(target: UIMessage, partIndex: Int?, snapshot: String) =
@@ -143,4 +171,17 @@ class ReplyReferenceTransformerTest {
             speakerSnapshot = "Aire",
             previewSnapshot = snapshot,
         )
+
+    private fun quoted(
+        messageId: Uuid,
+        scope: String,
+        excerpt: String,
+        partId: Uuid? = null,
+    ): String = buildString {
+        append("[quoted: msg_id=$messageId, scope=$scope")
+        partId?.let { append(", part_id=$it") }
+        appendLine("]")
+        appendLine(excerpt)
+        append("[/quoted]")
+    }
 }

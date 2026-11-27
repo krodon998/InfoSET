@@ -92,6 +92,30 @@ class UIMessageSerializationTest {
     }
 
     @Test
+    fun `reply reference serializes structured field names and reads legacy names`() {
+        val messageId = Uuid.random()
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = messageId,
+            targetSegmentIndex = 1,
+            scope = ReplyScope.SELECTION,
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "第二段",
+        )
+
+        val encoded = Json.encodeToString<UIMessageAnnotation>(reference)
+        assertTrue(encoded.contains("\"message_id\":\"$messageId\""))
+        assertTrue(encoded.contains("\"scope\":\"selection\""))
+        assertTrue(encoded.contains("\"excerpt\":\"第二段\""))
+
+        val legacy = """{"type":"reply_reference","targetMessageId":"$messageId","targetRole":"assistant","speakerSnapshot":"Aire","previewSnapshot":"旧摘要"}"""
+        val decoded = Json.decodeFromString<UIMessageAnnotation>(legacy) as UIMessageAnnotation.ReplyReference
+        assertEquals(messageId, decoded.targetMessageId)
+        assertEquals("旧摘要", decoded.previewSnapshot)
+        assertEquals(ReplyScope.WHOLE, decoded.effectiveScope)
+    }
+
+    @Test
     fun `part identities survive serialization including nested tool output`() {
         val message = UIMessage(
             role = MessageRole.ASSISTANT,

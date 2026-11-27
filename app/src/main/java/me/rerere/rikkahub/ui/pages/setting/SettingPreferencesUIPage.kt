@@ -114,15 +114,29 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                     )
-                    if (displaySetting.showAssistantBubble) {
-                        switchItem(
-                            checked = displaySetting.splitAssistantBubbleByParagraph,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(splitAssistantBubbleByParagraph = it))
-                            },
-                            supportingContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_desc)) },
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_title)) },
-                        )
+                    switchItem(
+                        checked = displaySetting.enableAssistantMessageBreaks,
+                        onCheckedChange = {
+                            updateDisplaySetting(displaySetting.copy(enableAssistantMessageBreaks = it))
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_message_break_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_message_break_title)) },
+                    )
+                    if (displaySetting.enableAssistantMessageBreaks) {
+                        formItem(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_message_break_limit)) },
+                            trailingContent = { CardGroupValue(displaySetting.messageBreakMaxSegments.toString()) },
+                        ) {
+                            Slider(
+                                value = displaySetting.messageBreakMaxSegments.toFloat(),
+                                onValueChange = {
+                                    updateDisplaySetting(displaySetting.copy(messageBreakMaxSegments = it.roundToInt()))
+                                },
+                                valueRange = 1f..5f,
+                                steps = 3,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                     formItem(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_bubble_opacity_title)) },
