@@ -267,6 +267,7 @@ class ChatVM(
         senderId: String? = null,
         targetId: String? = null,
         style: String? = "轻轻",
+        requestResponse: Boolean = true,
     ) {
         analytics.logEvent("life_tap", null)
         chatService.postTap(
@@ -276,6 +277,7 @@ class ChatVM(
             senderId = senderId,
             targetId = targetId,
             style = style,
+            requestResponse = requestResponse,
         )
     }
 
