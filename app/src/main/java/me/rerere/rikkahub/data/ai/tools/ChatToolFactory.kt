@@ -15,6 +15,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.AtomicMemoryRepository
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.LifeSurfaceRepository
 import me.rerere.rikkahub.data.repository.MoodRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
@@ -44,6 +45,7 @@ class ChatToolFactory(
     private val memoryRepository: MemoryRepository,
     private val atomicMemoryRepository: AtomicMemoryRepository,
     private val moodRepository: MoodRepository,
+    private val lifeSurfaceRepository: LifeSurfaceRepository,
     private val conversationRepository: ConversationRepository,
     private val localTools: LocalTools,
     private val mcpManager: McpManager,
@@ -74,6 +76,13 @@ class ChatToolFactory(
                 )
             }
             addAll(buildMoodTools(assistant = assistant, moodRepository = moodRepository))
+            addAll(
+                buildLifeTools(
+                    settings = settings,
+                    assistant = assistant,
+                    lifeSurfaceRepository = lifeSurfaceRepository,
+                )
+            )
             if (shouldUseExternalWebSearch(assistant, model)) {
                 addAll(createSearchTools(settings))
             }
