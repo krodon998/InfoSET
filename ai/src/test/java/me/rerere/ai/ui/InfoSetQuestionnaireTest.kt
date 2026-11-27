@@ -120,6 +120,34 @@ class InfoSetQuestionnaireTest {
     }
 
     @Test
+    fun `multi choice preserves selected options and own answer together`() {
+        val question = createInfoSetQuestionnaire(
+            issuerLabel = "隐",
+            recipientLabel = "Aire",
+            type = InfoSetQuestionnaireType.MULTI,
+            question = "今晚可以一起做什么？",
+            options = listOf(
+                InfoSetQuestionOption("code", "写代码"),
+                InfoSetQuestionOption("game", "玩游戏"),
+            ),
+            allowOwnAnswer = true,
+        )
+        val answer = createInfoSetQuestionnaireAnswer(
+            questionnaire = question,
+            respondentLabel = "Aire",
+            selectedOptionIds = listOf("code"),
+            freeText = "再抱一会",
+            sliderValue = 99.0,
+        )
+        val text = infoSetQuestionnaireAnswerNotice(question, answer)
+            .infoSetQuestionnaireMemoryCandidateText()!!
+
+        assertEquals(listOf("code"), answer.selectedOptionIds)
+        assertEquals(null, answer.sliderValue)
+        assertTrue(text.contains("写代码 + 自定义：再抱一会"))
+    }
+
+    @Test
     fun `invalid answer shape is rejected before entering timeline`() {
         val single = choiceQuestion()
 
