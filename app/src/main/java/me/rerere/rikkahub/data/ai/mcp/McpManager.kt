@@ -23,6 +23,8 @@ import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
 import me.rerere.oauth.OAuthHttpClient
 import me.rerere.oauth.OAuthLoopbackCallbackServer
 import me.rerere.rikkahub.AppScope
+import me.rerere.rikkahub.data.ai.account.GitHubAccountManager
+import me.rerere.rikkahub.data.ai.account.GitHubAuth
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
@@ -43,6 +45,7 @@ class McpManager(
     private val settingsStore: SettingsStore,
     private val appScope: AppScope,
     private val filesManager: FilesManager,
+    private val githubAccountManager: GitHubAccountManager,
 ) {
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -85,6 +88,13 @@ class McpManager(
         httpClient = httpClient,
         oauthCoordinator = oauthCoordinator,
         statusStore = statusStore,
+        runtimeHeadersProvider = McpRuntimeHeadersProvider { config ->
+            if (config.isOfficialGitHubMcp()) {
+                githubAccountManager.authorizationHeader()?.let(::listOf).orEmpty()
+            } else {
+                emptyList()
+            }
+        },
     )
 
     init {
@@ -93,6 +103,14 @@ class McpManager(
                 .map { settings -> settings.mcpServers }
                 .distinctUntilChanged()
                 .collect(sessionRegistry::reconcile)
+        }
+        appScope.launch {
+            githubAccountManager.status
+                .map { it::class }
+                .distinctUntilChanged()
+                .collect {
+                    sessionRegistry.reconnectWhere(McpServerConfig::isOfficialGitHubMcp)
+                }
         }
     }
 
@@ -162,3 +180,6 @@ class McpManager(
         return UIMessagePart.Image(url = filesManager.getFile(entity).toUri().toString())
     }
 }
+
+internal fun McpServerConfig.isOfficialGitHubMcp(): Boolean =
+    serverUrl.trimEnd('/') == GitHubAuth.MCP_ENDPOINT.trimEnd('/')

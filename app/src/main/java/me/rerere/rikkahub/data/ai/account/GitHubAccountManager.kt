@@ -116,6 +116,12 @@ class GitHubAccountManager(
         credential?.takeUnless(GitHubAccountCredential::isExpired)
             ?: error("GitHub is not signed in")
 
+    /** Runtime-only Authorization header for the official GitHub MCP transport. */
+    internal fun authorizationHeader(): Pair<String, String>? =
+        credential?.takeUnless(GitHubAccountCredential::isExpired)?.let {
+            "Authorization" to "${it.tokenType} ${it.accessToken}"
+        }
+
     private suspend fun login(context: Context): GitHubAccountCredential = withContext(Dispatchers.IO) {
         val authorization = oauthClient.requestDeviceAuthorization(
             GitHubAuth.deviceAuthorizationRequest(clientId)

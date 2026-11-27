@@ -156,7 +156,14 @@ val dataSourceModule = module {
         MessageFtsManager(get())
     }
 
-    single { McpManager(settingsStore = get(), appScope = get(), filesManager = get()) }
+    single {
+        McpManager(
+            settingsStore = get(),
+            appScope = get(),
+            filesManager = get(),
+            githubAccountManager = get(),
+        )
+    }
 
     single {
         MemoryConsolidator(

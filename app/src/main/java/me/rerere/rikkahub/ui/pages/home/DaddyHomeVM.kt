@@ -10,10 +10,15 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.account.GitHubAccountManager
 import me.rerere.rikkahub.data.ai.account.GitHubAccountStatus
+import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
+import me.rerere.rikkahub.data.ai.mcp.isOfficialGitHubMcp
+import me.rerere.rikkahub.data.ai.mcp.withOfficialGitHubMcp
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.entity.GitHubRepositoryBindingEntity
 import me.rerere.rikkahub.data.repository.ActivityPeriod
 import me.rerere.rikkahub.data.repository.DaddyCapability
@@ -28,6 +33,7 @@ class DaddyHomeVM(
     private val accountManager: GitHubAccountManager,
     private val repository: DaddyHomeRepository,
     private val githubGateway: GitHubHomeGateway,
+    private val settingsStore: SettingsStore,
     workspaceRepository: WorkspaceRepository,
 ) : ViewModel() {
     val accountStatus = accountManager.status
@@ -40,6 +46,9 @@ class DaddyHomeVM(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val previewText = MutableStateFlow<String?>(null)
     val previewTitle = MutableStateFlow<String?>(null)
+    val githubMcpEnabled = settingsStore.settingsFlow
+        .map { settings -> settings.mcpServers.any { it.isOfficialGitHubMcp() && it.commonOptions.enable } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages = _messages.asSharedFlow()
@@ -60,6 +69,20 @@ class DaddyHomeVM(
             runCatching { accountManager.logout() }
                 .onSuccess { accountManager.startLogin(context) }
                 .onFailure { _messages.emit(it.message ?: "重新连接 GitHub 失败") }
+        }
+    }
+
+    fun setGitHubMcpEnabled(enabled: Boolean) {
+        if (enabled && accountStatus.value !is GitHubAccountStatus.Connected) {
+            _messages.tryEmit("先连接 GitHub 账号")
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                settingsStore.update { it.withOfficialGitHubMcp(enabled) }
+            }.onSuccess {
+                _messages.emit(if (enabled) "官方 GitHub MCP 已接入 Daddy" else "官方 GitHub MCP 已停用")
+            }.onFailure { _messages.emit(it.message ?: "GitHub MCP 更新失败") }
         }
     }
 

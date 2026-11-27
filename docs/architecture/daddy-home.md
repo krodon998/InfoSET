@@ -18,6 +18,11 @@ The account screen exposes loading, unavailable, disconnected, authorizing, devi
 and failed states. Connected accounts can log out or reconnect. Registering the real OAuth App and
 injecting its public client ID remain an explicit external setup step.
 
+The account surface can install the official remote GitHub MCP endpoint into the mature MCP and
+Context Composer path. Its Settings entry contains only the endpoint, enabled tools, and display
+metadata. The transport resolves the dedicated device-flow credential in memory when it connects;
+logout removes that runtime header and forces the GitHub MCP session to reconnect unauthenticated.
+
 ## Actor capability grants
 
 The stable first actor is `daddy`. Each grant records:
@@ -37,9 +42,12 @@ path prefix, optional InfoSET Workspace, and whether branch writes are enabled. 
 both the binding and current capability grant before reading a file, writing a branch, copying a
 file into a Workspace, or running a Workspace command.
 
-Remote calls use the token only to build the in-memory Authorization header. Audit events record the
-actor, capability, source account reference, target repository/path, time, and outcome. They do not
-record headers, token values, file bodies, or command output.
+The official GitHub MCP is Daddy's model-facing repository tool surface. The bounded home screen
+uses a narrow bootstrap bridge for repository verification and explicit file transfer into an
+InfoSET Workspace; it cannot bypass the same repository bindings and capability checks. Both paths
+use the token only to build an in-memory Authorization header. Audit events record the actor,
+capability, source account reference, target repository/path, time, and outcome. They do not record
+headers, token values, file bodies, or command output.
 
 ## Activity Journal
 

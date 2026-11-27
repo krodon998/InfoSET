@@ -79,6 +79,7 @@ fun DaddyHomePage(vm: DaddyHomeVM = koinViewModel()) {
     val workspaces by vm.workspaces.collectAsStateWithLifecycle()
     val previewTitle by vm.previewTitle.collectAsStateWithLifecycle()
     val previewText by vm.previewText.collectAsStateWithLifecycle()
+    val githubMcpEnabled by vm.githubMcpEnabled.collectAsStateWithLifecycle()
     var owner by remember { mutableStateOf("") }
     var repository by remember { mutableStateOf("") }
     var pathPrefix by remember { mutableStateOf("") }
@@ -114,6 +115,16 @@ fun DaddyHomePage(vm: DaddyHomeVM = koinViewModel()) {
                     onLogout = vm::logout,
                     onReconnect = { vm.reconnect(context) },
                 )
+                CardGroup(modifier = Modifier.padding(top = 8.dp)) {
+                    switchItem(
+                        checked = githubMcpEnabled,
+                        onCheckedChange = vm::setGitHubMcpEnabled,
+                        headlineContent = { Text("官方 GitHub MCP") },
+                        supportingContent = {
+                            Text("复用上方账号，密钥只在连接时从 Keystore 凭证仓注入")
+                        },
+                    )
+                }
             }
 
             item("capabilities") {
