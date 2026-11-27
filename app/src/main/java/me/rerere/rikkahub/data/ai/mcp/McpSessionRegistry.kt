@@ -85,6 +85,11 @@ internal class McpStatusStore {
     }
 }
 
+/** Adds credentials at transport creation time without persisting them in MCP settings. */
+internal fun interface McpRuntimeHeadersProvider {
+    fun headersFor(config: McpServerConfig): List<Pair<String, String>>
+}
+
 /**
  * MCP 连接运行时注册表。
  *
@@ -97,6 +102,7 @@ internal class McpSessionRegistry(
     private val httpClient: HttpClient,
     private val oauthCoordinator: McpOAuthCoordinator,
     private val statusStore: McpStatusStore,
+    private val runtimeHeadersProvider: McpRuntimeHeadersProvider = McpRuntimeHeadersProvider { emptyList() },
 ) {
     private val sessions = ConcurrentHashMap<Uuid, McpSession>()
 
@@ -195,6 +201,19 @@ internal class McpSessionRegistry(
 
     suspend fun syncAll() {
         sessions.values.toList().forEach { session -> syncSession(session) }
+    }
+
+    suspend fun reconnectWhere(predicate: (McpServerConfig) -> Boolean) {
+        sessions.values.toList()
+            .filter { predicate(it.config) }
+            .forEach { session ->
+                connectSession(
+                    session = session,
+                    requestedConfig = session.config,
+                    cancelPendingReconnect = true,
+                    forceReconnect = true,
+                )
+            }
     }
 
     private suspend fun connectSession(
@@ -443,7 +462,12 @@ internal class McpSessionRegistry(
 
     private fun HttpRequestBuilder.appendResolvedHeaders(config: McpServerConfig) {
         headers.appendAll(StringValues.build {
-            config.resolvedHeaders().forEach { (name, value) -> append(name, value) }
+            val runtimeHeaders = runtimeHeadersProvider.headersFor(config)
+            val runtimeNames = runtimeHeaders.map { it.first.lowercase() }.toSet()
+            config.resolvedHeaders()
+                .filterNot { it.first.lowercase() in runtimeNames }
+                .forEach { (name, value) -> append(name, value) }
+            runtimeHeaders.forEach { (name, value) -> append(name, value) }
         })
     }
 

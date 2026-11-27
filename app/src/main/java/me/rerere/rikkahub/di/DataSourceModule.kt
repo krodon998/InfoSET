@@ -33,6 +33,8 @@ import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.remote.ModelsDevUpdater
+import me.rerere.rikkahub.data.repository.DaddyHomeRepository
+import me.rerere.rikkahub.data.repository.GitHubHomeGateway
 import me.rerere.rikkahub.data.remote.RemoteFileStore
 import me.rerere.rikkahub.data.remote.RikkaHubAPI
 import me.rerere.rikkahub.data.remote.SettingsProxyAuthenticator
@@ -141,6 +143,12 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().daddyHomeDao()
+    }
+
+    single { DaddyHomeRepository(dao = get()) }
+
+    single {
         UsageRecorder(dao = get(), scope = get<AppScope>())
     }
 
@@ -148,7 +156,15 @@ val dataSourceModule = module {
         MessageFtsManager(get())
     }
 
-    single { McpManager(settingsStore = get(), appScope = get(), filesManager = get()) }
+    single {
+        McpManager(
+            settingsStore = get(),
+            appScope = get(),
+            filesManager = get(),
+            githubAccountManager = get(),
+            daddyHomeRepository = get(),
+        )
+    }
 
     single {
         MemoryConsolidator(
@@ -277,6 +293,15 @@ val dataSourceModule = module {
             oauthClient = OAuthHttpClient(get()),
             vault = get(),
             clientId = BuildConfig.GITHUB_OAUTH_CLIENT_ID,
+        )
+    }
+
+    single {
+        GitHubHomeGateway(
+            httpClient = get(),
+            accountManager = get(),
+            homeRepository = get(),
+            workspaceRepository = get(),
         )
     }
 

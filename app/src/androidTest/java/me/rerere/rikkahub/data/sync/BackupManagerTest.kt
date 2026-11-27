@@ -14,6 +14,8 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
+import me.rerere.rikkahub.data.db.entity.ActivityJournalEntity
+import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
@@ -210,6 +212,73 @@ class BackupManagerTest {
         assertEquals(1, restored.recallCount)
         assertEquals(trace.id, restoredDao.observeRecentTraces(atom.memoryId).first().single().id)
         assertEquals(candidate.atomId, restoredDao.getCandidates(trace.id).single().atomId)
+    }
+
+    @Test fun daddyGrantAndSparseActivitySurviveWholeHouseRestore() = runBlocking {
+        val dao = liveDatabase.daddyHomeDao()
+        val grant = ActorCapabilityGrantEntity(
+            id = "grant-across-restore",
+            actorId = "daddy",
+            capability = "MEMORY_READ",
+            scopeType = "GLOBAL",
+            scopeValue = "*",
+            grantedBy = "user:hidden",
+            executionSource = "INFOSET_UI",
+            createdAt = 1_000,
+        )
+        val activity = ActivityJournalEntity(
+            id = "activity-across-restore",
+            actorId = "daddy",
+            category = "MEMORY",
+            title = "Replay a private recall chain",
+            executionSource = "INFOSET",
+            executionOrganizationRef = null,
+            billingSource = null,
+            startedAt = 2_000,
+            endedAt = 2_500,
+            activeDurationMs = 100,
+            waitingDurationMs = 400,
+            result = "SUCCEEDED",
+            createdAt = 2_000,
+            updatedAt = 2_500,
+        )
+        dao.upsertGrant(grant)
+        dao.upsertActivity(activity)
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        liveDatabase.close()
+        assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
+        liveDatabase = AppDatabaseFactory.create(context)
+
+        val restoredDao = liveDatabase.daddyHomeDao()
+        val restoredGrant = restoredDao.observeGrants("daddy").first().single()
+        val restoredActivity = restoredDao.observeActivities("daddy", 0, 10_000).first().single()
+        assertEquals(grant.id, restoredGrant.id)
+        assertEquals(null, restoredGrant.expiresAt)
+        assertEquals(activity.id, restoredActivity.id)
+        assertEquals(100L, restoredActivity.activeDurationMs)
+        assertEquals(400L, restoredActivity.waitingDurationMs)
+        assertEquals(null, restoredActivity.executionOrganizationRef)
+        assertEquals(null, restoredActivity.outputRefsJson)
+    }
+
+    @Test fun githubCredentialNoBackupBlobNeverEntersWholeHouseArchive() = runBlocking {
+        val credential = File(context.noBackupFilesDir, "github-account/credential.enc")
+        credential.parentFile!!.mkdirs()
+        credential.writeText("sealed-token-material")
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = true)
+
+        ZipFile(archive).use { zip ->
+            val names = zip.entries().asSequence().map { it.name }.toList()
+            assertFalse(names.any { it.contains("github-account") || it.endsWith("credential.enc") })
+            assertFalse(names.filterNot { zip.getEntry(it).isDirectory }.any { name ->
+                zip.getInputStream(zip.getEntry(name)).use { input ->
+                    input.readBytes().decodeToString().contains("sealed-token-material")
+                }
+            })
+        }
     }
 
     @Test fun archiveWithoutLaunchCountRestoresItAsZero() = runBlocking {

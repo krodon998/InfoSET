@@ -23,10 +23,14 @@ import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
 import me.rerere.oauth.OAuthHttpClient
 import me.rerere.oauth.OAuthLoopbackCallbackServer
 import me.rerere.rikkahub.AppScope
+import me.rerere.rikkahub.data.ai.account.GitHubAccountManager
+import me.rerere.rikkahub.data.ai.account.GitHubAuth
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.repository.ActivityResult
+import me.rerere.rikkahub.data.repository.DaddyHomeRepository
 import me.rerere.rikkahub.utils.JsonInstant
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -43,7 +47,10 @@ class McpManager(
     private val settingsStore: SettingsStore,
     private val appScope: AppScope,
     private val filesManager: FilesManager,
+    private val githubAccountManager: GitHubAccountManager,
+    daddyHomeRepository: DaddyHomeRepository,
 ) {
+    private val githubCallGuard = GitHubMcpCallGuard(githubAccountManager, daddyHomeRepository)
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.MINUTES)
@@ -85,6 +92,13 @@ class McpManager(
         httpClient = httpClient,
         oauthCoordinator = oauthCoordinator,
         statusStore = statusStore,
+        runtimeHeadersProvider = McpRuntimeHeadersProvider { config ->
+            if (config.isOfficialGitHubMcp()) {
+                githubAccountManager.authorizationHeader()?.let(::listOf).orEmpty()
+            } else {
+                emptyList()
+            }
+        },
     )
 
     init {
@@ -93,6 +107,14 @@ class McpManager(
                 .map { settings -> settings.mcpServers }
                 .distinctUntilChanged()
                 .collect(sessionRegistry::reconcile)
+        }
+        appScope.launch {
+            githubAccountManager.status
+                .map { it::class }
+                .distinctUntilChanged()
+                .collect {
+                    sessionRegistry.reconnectWhere(McpServerConfig::isOfficialGitHubMcp)
+                }
         }
     }
 
@@ -115,12 +137,53 @@ class McpManager(
     }
 
     suspend fun callTool(serverId: Uuid, toolName: String, args: JsonObject): List<UIMessagePart> {
+        val config = settingsStore.settingsFlow.value.mcpServers.find { it.id == serverId }
+        val authorizedCall = if (config?.isOfficialGitHubMcp() == true) {
+            githubCallGuard.authorize(toolName, args)
+        } else {
+            null
+        }
+        val startedAt = System.currentTimeMillis()
         val result = try {
-            sessionRegistry.callTool(serverId, toolName, args)
+            sessionRegistry.callTool(serverId, toolName, args).also {
+                authorizedCall?.let { call ->
+                    githubCallGuard.complete(
+                        call = call,
+                        result = ActivityResult.SUCCEEDED,
+                        waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    )
+                }
+            }
         } catch (e: CancellationException) {
+            authorizedCall?.let { call ->
+                githubCallGuard.complete(
+                    call = call,
+                    result = ActivityResult.CANCELLED,
+                    waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    failure = e,
+                )
+            }
             throw e
         } catch (e: McpClientUnavailableException) {
+            authorizedCall?.let { call ->
+                githubCallGuard.complete(
+                    call = call,
+                    result = ActivityResult.FAILED,
+                    waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    failure = e,
+                )
+            }
             return listOf(UIMessagePart.Text("Failed to execute MCP tool: ${e.message ?: e.javaClass.name}"))
+        } catch (e: Exception) {
+            authorizedCall?.let { call ->
+                githubCallGuard.complete(
+                    call = call,
+                    result = ActivityResult.FAILED,
+                    waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    failure = e,
+                )
+            }
+            throw e
         }
         return result.content.map { content ->
             when (content) {
@@ -162,3 +225,6 @@ class McpManager(
         return UIMessagePart.Image(url = filesManager.getFile(entity).toUri().toString())
     }
 }
+
+internal fun McpServerConfig.isOfficialGitHubMcp(): Boolean =
+    serverUrl.trimEnd('/') == GitHubAuth.MCP_ENDPOINT.trimEnd('/')

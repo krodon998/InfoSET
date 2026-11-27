@@ -111,6 +111,9 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalPage
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
 import me.rerere.rikkahub.ui.pages.history.HistoryPage
+import me.rerere.rikkahub.ui.pages.home.ActivityDetailPage
+import me.rerere.rikkahub.ui.pages.home.ActivityJournalPage
+import me.rerere.rikkahub.ui.pages.home.DaddyHomePage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
 import me.rerere.rikkahub.ui.pages.mailbox.MailboxLetterPage
@@ -525,6 +528,18 @@ class RouteActivity : ComponentActivity() {
                                 SettingPage()
                             }
 
+                            entry<Screen.DaddyHome> {
+                                DaddyHomePage()
+                            }
+
+                            entry<Screen.ActivityJournal> {
+                                ActivityJournalPage()
+                            }
+
+                            entry<Screen.ActivityDetail> { key ->
+                                ActivityDetailPage(key.activityId)
+                            }
+
                             entry<Screen.InfoOsSetting> { key ->
                                 InfoOsSettingsPage(key.section, key.detail)
                             }
@@ -833,6 +848,15 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Setting : Screen
+
+    @Serializable
+    data object DaddyHome : Screen
+
+    @Serializable
+    data object ActivityJournal : Screen
+
+    @Serializable
+    data class ActivityDetail(val activityId: String) : Screen
 
     @Serializable
     data class InfoOsSetting(val section: String, val detail: String = "") : Screen

@@ -7,6 +7,7 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import me.rerere.ai.core.TokenUsage
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.DaddyHomeDAO
 import me.rerere.rikkahub.data.db.dao.FavoriteDAO
 import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
@@ -21,9 +22,13 @@ import me.rerere.rikkahub.data.db.dao.TranslationHistoryDAO
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.ActivityJournalEntity
+import me.rerere.rikkahub.data.db.entity.ActorAuditEventEntity
+import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
+import me.rerere.rikkahub.data.db.entity.GitHubRepositoryBindingEntity
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
@@ -64,8 +69,12 @@ import me.rerere.rikkahub.utils.JsonInstant
         MemoryAtomEntity::class,
         MemoryRecallTraceEntity::class,
         MemoryRecallCandidateEntity::class,
+        ActorCapabilityGrantEntity::class,
+        ActorAuditEventEntity::class,
+        GitHubRepositoryBindingEntity::class,
+        ActivityJournalEntity::class,
     ],
-    version = 37,
+    version = 38,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -92,6 +101,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 29, to = 30),
         AutoMigration(from = 31, to = 32),
         AutoMigration(from = 33, to = 34),
+        AutoMigration(from = 37, to = 38),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -123,6 +133,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mailboxLetterDao(): MailboxLetterDAO
 
     abstract fun memoryAtomDao(): MemoryAtomDAO
+
+    abstract fun daddyHomeDao(): DaddyHomeDAO
 }
 
 object TokenUsageConverter {

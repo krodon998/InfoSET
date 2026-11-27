@@ -56,6 +56,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.GlobalSearch
+import me.rerere.hugeicons.stroke.Github
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.ImageUpload
 import me.rerere.hugeicons.stroke.Internet
@@ -272,6 +273,18 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { CardGroupIcon(HugeIcons.LookTop, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.infoos_settings_local_profile)) },
                         headlineContent = { Text(stringResource(R.string.infoos_settings_account)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.DaddyHome) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Github, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text("GitHub 账号、权限、受控仓库与活动审计") },
+                        headlineContent = { Text("Daddy 回家") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.ActivityJournal) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Bookshelf01, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text("日／周／月活动、工具、结果与产出") },
+                        headlineContent = { Text("Daddy 的活动") },
                     )
                 }
             }
