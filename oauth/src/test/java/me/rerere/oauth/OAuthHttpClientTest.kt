@@ -185,6 +185,37 @@ class OAuthHttpClientTest {
     }
 
     @Test
+    fun `device token accepts GitHub polling errors returned with http 200`() = runTest {
+        val requests = mutableListOf<Request>()
+        val client = deviceTokenClient(
+            200 to """{"error":"authorization_pending","error_description":"waiting"}""",
+            200 to """{"access_token":"github-token","token_type":"bearer","scope":"repo"}""",
+            requests = requests,
+        )
+
+        val token = client.awaitDeviceToken(deviceTokenRequest, authorization)
+
+        assertEquals("github-token", token.accessToken)
+        assertEquals("repo", token.scope)
+        assertEquals(2, requests.size)
+    }
+
+    @Test
+    fun `device token exposes GitHub error description returned with http 200`() = runTest {
+        val client = deviceTokenClient(
+            200 to """{"error":"access_denied","error_description":"The user cancelled"}""",
+            requests = mutableListOf(),
+        )
+
+        val error = runCatching {
+            client.awaitDeviceToken(deviceTokenRequest, authorization)
+        }.exceptionOrNull() as OAuthHttpClient.DeviceAuthorizationException
+
+        assertEquals("access_denied", error.error)
+        assertEquals("The user cancelled", error.message)
+    }
+
+    @Test
     fun `device token gives up when the code expires`() = runTest {
         val requests = mutableListOf<Request>()
         val client = deviceTokenClient(

@@ -14,6 +14,10 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
+val githubOAuthClientId = providers.gradleProperty("infoset.githubOAuthClientId").orNull
+    ?: System.getenv("INFOSET_GITHUB_OAUTH_CLIENT_ID")
+    ?: ""
+
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk {
@@ -31,6 +35,7 @@ android {
 
         // InfoSET owns its release cadence. Upstream RikkaHub update checks stay disabled.
         buildConfigField("boolean", "APP_UPDATES_ENABLED", "false")
+        buildConfigField("String", "GITHUB_OAUTH_CLIENT_ID", "\"$githubOAuthClientId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
