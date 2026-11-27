@@ -62,6 +62,17 @@ interface DaddyHomeDAO {
     @Query("SELECT * FROM github_repository_binding WHERE id = :id")
     suspend fun getRepositoryBinding(id: String): GitHubRepositoryBindingEntity?
 
+    @Query(
+        "SELECT * FROM github_repository_binding WHERE actor_id = :actorId AND account_id = :accountId " +
+            "AND owner = :owner COLLATE NOCASE AND repository = :repository COLLATE NOCASE LIMIT 1"
+    )
+    suspend fun findRepositoryBinding(
+        actorId: String,
+        accountId: Long,
+        owner: String,
+        repository: String,
+    ): GitHubRepositoryBindingEntity?
+
     @Query("SELECT * FROM github_repository_binding WHERE actor_id = :actorId ORDER BY owner, repository")
     fun observeRepositoryBindings(actorId: String): Flow<List<GitHubRepositoryBindingEntity>>
 

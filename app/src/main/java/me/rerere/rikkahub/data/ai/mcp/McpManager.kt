@@ -29,6 +29,8 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.repository.ActivityResult
+import me.rerere.rikkahub.data.repository.DaddyHomeRepository
 import me.rerere.rikkahub.utils.JsonInstant
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -46,7 +48,9 @@ class McpManager(
     private val appScope: AppScope,
     private val filesManager: FilesManager,
     private val githubAccountManager: GitHubAccountManager,
+    daddyHomeRepository: DaddyHomeRepository,
 ) {
+    private val githubCallGuard = GitHubMcpCallGuard(githubAccountManager, daddyHomeRepository)
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.MINUTES)
@@ -133,12 +137,53 @@ class McpManager(
     }
 
     suspend fun callTool(serverId: Uuid, toolName: String, args: JsonObject): List<UIMessagePart> {
+        val config = settingsStore.settingsFlow.value.mcpServers.find { it.id == serverId }
+        val authorizedCall = if (config?.isOfficialGitHubMcp() == true) {
+            githubCallGuard.authorize(toolName, args)
+        } else {
+            null
+        }
+        val startedAt = System.currentTimeMillis()
         val result = try {
-            sessionRegistry.callTool(serverId, toolName, args)
+            sessionRegistry.callTool(serverId, toolName, args).also {
+                authorizedCall?.let { call ->
+                    githubCallGuard.complete(
+                        call = call,
+                        result = ActivityResult.SUCCEEDED,
+                        waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    )
+                }
+            }
         } catch (e: CancellationException) {
+            authorizedCall?.let { call ->
+                githubCallGuard.complete(
+                    call = call,
+                    result = ActivityResult.CANCELLED,
+                    waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    failure = e,
+                )
+            }
             throw e
         } catch (e: McpClientUnavailableException) {
+            authorizedCall?.let { call ->
+                githubCallGuard.complete(
+                    call = call,
+                    result = ActivityResult.FAILED,
+                    waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    failure = e,
+                )
+            }
             return listOf(UIMessagePart.Text("Failed to execute MCP tool: ${e.message ?: e.javaClass.name}"))
+        } catch (e: Exception) {
+            authorizedCall?.let { call ->
+                githubCallGuard.complete(
+                    call = call,
+                    result = ActivityResult.FAILED,
+                    waitingDurationMs = System.currentTimeMillis() - startedAt,
+                    failure = e,
+                )
+            }
+            throw e
         }
         return result.content.map { content ->
             when (content) {

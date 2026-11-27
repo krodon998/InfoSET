@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.entity.ActivityJournalEntity
 import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
+import me.rerere.rikkahub.data.db.entity.GitHubRepositoryBindingEntity
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -70,5 +71,21 @@ class DaddyHomeDAOTest {
         assertEquals(75L, restored.waitingDurationMs)
         assertNull(restored.executionOrganizationRef)
         assertNull(restored.outputRefsJson)
+
+        val binding = GitHubRepositoryBindingEntity(
+            id = "binding",
+            accountId = 998,
+            actorId = "daddy",
+            owner = "krodon998",
+            repository = "InfoSET",
+            createdAt = 300,
+            updatedAt = 300,
+        )
+        dao.upsertRepositoryBinding(binding)
+        assertEquals(
+            binding.id,
+            dao.findRepositoryBinding("daddy", 998, "KRODON998", "infoset")?.id,
+        )
+        assertNull(dao.findRepositoryBinding("daddy", 999, "krodon998", "InfoSET"))
     }
 }

@@ -210,6 +210,17 @@ class DaddyHomeRepository(
 
     suspend fun getRepositoryBinding(id: String): GitHubRepositoryBindingEntity? = dao.getRepositoryBinding(id)
 
+    suspend fun findRepositoryBinding(
+        accountId: Long,
+        owner: String,
+        repository: String,
+    ): GitHubRepositoryBindingEntity? = dao.findRepositoryBinding(
+        actorId = DADDY_ACTOR_ID,
+        accountId = accountId,
+        owner = owner,
+        repository = repository,
+    )
+
     suspend fun recordAudit(
         action: String,
         capability: DaddyCapability? = null,

@@ -22,6 +22,9 @@ The account surface can install the official remote GitHub MCP endpoint into the
 Context Composer path. Its Settings entry contains only the endpoint, enabled tools, and display
 metadata. The transport resolves the dedicated device-flow credential in memory when it connects;
 logout removes that runtime header and forces the GitHub MCP session to reconnect unauthenticated.
+Every official GitHub MCP tool call is rejected unless its target is a repository binding for the
+same stable account. The call guard checks tool execution, journal, repository, branch-write,
+Build/PR, and direct-main grants before dispatch, then records the source, target, result, and wait.
 
 ## Actor capability grants
 

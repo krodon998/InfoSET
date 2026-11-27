@@ -162,6 +162,7 @@ val dataSourceModule = module {
             appScope = get(),
             filesManager = get(),
             githubAccountManager = get(),
+            daddyHomeRepository = get(),
         )
     }
 

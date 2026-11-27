@@ -1,12 +1,12 @@
 package me.rerere.rikkahub.data.ai.mcp
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import me.rerere.rikkahub.data.ai.account.GitHubAuth
 import me.rerere.rikkahub.data.datastore.Settings
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class GitHubMcpConfigTest {
     @Test
