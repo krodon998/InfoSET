@@ -15,8 +15,9 @@ backup, Activity Journal, audit detail, request logs, a provider prompt, or a re
 and device migration require a new sign-in.
 
 The account screen exposes loading, unavailable, disconnected, authorizing, device-code, connected,
-and failed states. Connected accounts can log out or reconnect. Registering the real OAuth App and
-injecting its public client ID remain an explicit external setup step.
+and failed states. Connected accounts can log out or reconnect. The registered OAuth App is
+`InfoSET Daddy Home`; its public client ID is compiled from `gradle.properties`. Device Flow is
+enabled and no client secret is generated or embedded.
 
 The account surface can install the official remote GitHub MCP endpoint into the mature MCP and
 Context Composer path. Its Settings entry contains only the endpoint, enabled tools, and display
