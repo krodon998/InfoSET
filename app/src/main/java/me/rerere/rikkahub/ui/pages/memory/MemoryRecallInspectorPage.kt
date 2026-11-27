@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
+import me.rerere.rikkahub.data.model.MemoryAccessMode
 import me.rerere.rikkahub.data.model.MemoryRecallFeedback
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -83,7 +84,7 @@ fun MemoryRecallInspectorPage(memoryId: String) {
                 CardGroup(title = { Text(stringResource(R.string.memory_recall_injected)) }) {
                     item(
                         overlineContent = {
-                            Text("${selected.trace.destination} · ${selected.trace.injectedTokens}/${selected.trace.tokenBudget} tokens")
+                            Text("${memoryAccessModeLabel(selected.trace.mode)} · ${selected.trace.destination} · ${selected.trace.injectedTokens}/${selected.trace.tokenBudget} tokens")
                         },
                         headlineContent = {
                             Text(
@@ -93,20 +94,22 @@ fun MemoryRecallInspectorPage(memoryId: String) {
                             )
                         },
                     )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.memory_recall_feedback)) },
-                        supportingContent = { Text(selected.trace.feedback ?: stringResource(R.string.memory_recall_no_feedback)) },
-                        trailingContent = {
-                            Column {
-                                TextButton(onClick = { vm.feedback(MemoryRecallFeedback.HELPFUL) }) {
-                                    Text(stringResource(R.string.memory_recall_helpful))
+                    if (selected.trace.mode != MemoryAccessMode.PASSIVE_SURFACE.name) {
+                        item(
+                            headlineContent = { Text(stringResource(R.string.memory_recall_feedback)) },
+                            supportingContent = { Text(selected.trace.feedback ?: stringResource(R.string.memory_recall_no_feedback)) },
+                            trailingContent = {
+                                Column {
+                                    TextButton(onClick = { vm.feedback(MemoryRecallFeedback.HELPFUL) }) {
+                                        Text(stringResource(R.string.memory_recall_helpful))
+                                    }
+                                    TextButton(onClick = { vm.feedback(MemoryRecallFeedback.NOT_HELPFUL) }) {
+                                        Text(stringResource(R.string.memory_recall_not_helpful))
+                                    }
                                 }
-                                TextButton(onClick = { vm.feedback(MemoryRecallFeedback.NOT_HELPFUL) }) {
-                                    Text(stringResource(R.string.memory_recall_not_helpful))
-                                }
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
                 selected.candidates.forEach { candidate -> CandidateCard(candidate) }
             }
@@ -116,7 +119,7 @@ fun MemoryRecallInspectorPage(memoryId: String) {
                     recent.forEach { trace ->
                         item(
                             onClick = { vm.inspect(trace) },
-                            overlineContent = { Text("${trace.destination} · ${trace.injectedTokens} tokens") },
+                            overlineContent = { Text("${memoryAccessModeLabel(trace.mode)} · ${trace.destination} · ${trace.injectedTokens} tokens") },
                             headlineContent = { Text(trace.query, maxLines = 2) },
                             supportingContent = { Text(trace.feedback ?: stringResource(R.string.memory_recall_no_feedback)) },
                         )
@@ -157,3 +160,11 @@ private fun CandidateCard(candidate: MemoryRecallCandidateEntity) {
 }
 
 private fun Double.score() = String.format(Locale.ROOT, "%.3f", this)
+
+
+@Composable
+private fun memoryAccessModeLabel(mode: String): String = when (mode) {
+    MemoryAccessMode.PASSIVE_SURFACE.name -> stringResource(R.string.memory_access_passive_surface)
+    MemoryAccessMode.ACTIVE_RECALL.name -> stringResource(R.string.memory_access_active_recall)
+    else -> stringResource(R.string.memory_access_legacy_recall)
+}
