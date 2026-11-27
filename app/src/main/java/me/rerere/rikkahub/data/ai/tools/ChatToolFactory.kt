@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.ai.tools.local.LocalTools
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.repository.AtomicMemoryRepository
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
@@ -40,6 +41,7 @@ class InvalidMcpServerNamesException(val names: List<String>) :
 class ChatToolFactory(
     private val context: Context,
     private val memoryRepository: MemoryRepository,
+    private val atomicMemoryRepository: AtomicMemoryRepository,
     private val conversationRepository: ConversationRepository,
     private val localTools: LocalTools,
     private val mcpManager: McpManager,
@@ -59,6 +61,15 @@ class ChatToolFactory(
         val tools = buildList {
             if (assistant.enableMemory) {
                 addAll(buildMemoryTools(memoryRepository, assistant.memoryId))
+                addAll(
+                    buildActiveMemoryRecallTools(
+                        repository = atomicMemoryRepository,
+                        conversationRepository = conversationRepository,
+                        memoryId = assistant.memoryId,
+                        assistantId = assistant.id,
+                        currentConversationId = conversationId,
+                    )
+                )
             }
             if (shouldUseExternalWebSearch(assistant, model)) {
                 addAll(createSearchTools(settings))
