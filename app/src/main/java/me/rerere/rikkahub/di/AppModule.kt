@@ -112,6 +112,7 @@ val appModule = module {
             context = get(),
             memoryRepository = get(),
             atomicMemoryRepository = get(),
+            moodRepository = get(),
             conversationRepository = get(),
             localTools = get(),
             mcpManager = get(),
