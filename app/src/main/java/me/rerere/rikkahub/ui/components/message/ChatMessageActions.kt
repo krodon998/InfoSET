@@ -297,7 +297,7 @@ internal fun UIMessage.textForBubbleTarget(
 
 /** Compact context menu used by the QQ-style timeline. */
 @Composable
-fun ChatMessageContextMenu(
+internal fun ChatMessageContextMenu(
     message: UIMessage,
     target: MessageBubbleTarget,
     isFavorite: Boolean,

@@ -33,7 +33,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.writeClipboardText
 
 @Composable
-fun ChatMessageCopySheet(
+internal fun ChatMessageCopySheet(
     message: UIMessage,
     target: MessageBubbleTarget = MessageBubbleTarget(),
     onEdit: (() -> Unit)? = null,
