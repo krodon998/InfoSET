@@ -19,6 +19,9 @@ import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
+import me.rerere.rikkahub.data.db.entity.LifeSurfaceInteractionEntity
+import me.rerere.rikkahub.data.db.entity.LifeSurfaceItemEntity
+import me.rerere.rikkahub.data.db.entity.LifeSurfaceObjectEntity
 import me.rerere.rikkahub.data.db.entity.MoodEventEntity
 import me.rerere.rikkahub.data.model.MemoryAccessMode
 import me.rerere.rikkahub.utils.JsonInstant
@@ -305,6 +308,61 @@ class BackupManagerTest {
         assertTrue(restored.visibleToPartner)
         assertFalse(restored.affectsContext)
         assertEquals(9_000L, restored.expectedEndAt)
+    }
+
+    @Test fun lifeSurfaceSourceObjectsAndInteractionsSurviveWholeHouseRestore() = runBlocking {
+        val dao = liveDatabase.lifeSurfaceDao()
+        val item = LifeSurfaceItemEntity(
+            id = "moment-across-restore",
+            surface = "MOMENT",
+            authorId = "user:self",
+            authorLabel = "隐",
+            body = "旧片段原文",
+            publishAt = 1_000,
+            sourceKind = "AIRE_MEMORY_ARCHIVE",
+            sourceRef = "archive/fragment#7",
+            originalText = "旧片段原文",
+            originalCreatedAt = 1_000,
+            createdAt = 2_000,
+            updatedAt = 2_000,
+        )
+        val objectRef = LifeSurfaceObjectEntity(
+            id = "moment-object",
+            itemId = item.id,
+            kind = "SONG",
+            ref = "spotify:track:restore",
+            label = "一首歌",
+            position = 0,
+            createdAt = 2_000,
+        )
+        val interaction = LifeSurfaceInteractionEntity(
+            id = "moment-comment",
+            itemId = item.id,
+            actorId = "assistant:aire",
+            actorLabel = "Aire",
+            type = "COMMENT",
+            body = "后来追加的评论",
+            source = "NATIVE",
+            createdAt = 3_000,
+            updatedAt = 3_000,
+        )
+        dao.insertItemWithObjects(item, listOf(objectRef))
+        dao.insertInteraction(interaction)
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        liveDatabase.close()
+        assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
+        liveDatabase = AppDatabaseFactory.create(context)
+
+        val restoredDao = liveDatabase.lifeSurfaceDao()
+        val restoredItem = restoredDao.getItem(item.id)!!
+        assertEquals("AIRE_MEMORY_ARCHIVE", restoredItem.sourceKind)
+        assertEquals("archive/fragment#7", restoredItem.sourceRef)
+        assertEquals("旧片段原文", restoredItem.originalText)
+        assertEquals(1_000L, restoredItem.originalCreatedAt)
+        assertEquals("spotify:track:restore", restoredDao.observeObjects(item.id).first().single().ref)
+        assertEquals("后来追加的评论", restoredDao.observeInteractions(item.id).first().single().body)
     }
 
     @Test fun githubCredentialNoBackupBlobNeverEntersWholeHouseArchive() = runBlocking {
