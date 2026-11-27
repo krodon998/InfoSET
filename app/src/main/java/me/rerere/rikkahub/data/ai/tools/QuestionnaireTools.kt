@@ -121,7 +121,7 @@ fun buildQuestionnaireTools(
             val questionnaireId = obj.string("questionnaire_id")
             val conversation = conversationRepository.getConversationById(conversationId)
                 ?: error("Conversation not found")
-            val questionnaire = conversation.findQuestionnaire(questionnaireId)
+            val questionnaire = conversation.findInfoSetQuestionnaire(questionnaireId)
                 ?: error("Questionnaire not found: $questionnaireId")
             val answer = createInfoSetQuestionnaireAnswer(
                 questionnaire = questionnaire,
@@ -145,7 +145,7 @@ fun buildQuestionnaireTools(
     ),
 )
 
-private fun Conversation.findQuestionnaire(id: String): InfoSetQuestionnaire? =
+internal fun Conversation.findInfoSetQuestionnaire(id: String): InfoSetQuestionnaire? =
     messageNodes.asSequence()
         .flatMap { it.messages.asSequence() }
         .flatMap { it.parts.asSequence() }
