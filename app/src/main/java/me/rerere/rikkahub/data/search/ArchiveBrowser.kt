@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.partIdAt
 import me.rerere.rikkahub.data.model.Conversation
 
@@ -100,19 +101,36 @@ fun Conversation.projectArchive(
                     }
                 }
 
-                ArchiveBrowseKind.LINK -> message.parts.forEachIndexed { index, part ->
-                    if (part is UIMessagePart.Text) {
-                        URL_REGEX.findAll(part.text).forEach { match ->
-                            add(
-                                message.result(
-                                    this@projectArchive,
-                                    node.id.toString(),
-                                    kind,
-                                    message.partIdAt(index)?.toString(),
-                                    match.value.trimEnd('.', ',', ';', '，', '。', '；'),
+                ArchiveBrowseKind.LINK -> {
+                    message.parts.forEachIndexed { index, part ->
+                        if (part is UIMessagePart.Text) {
+                            URL_REGEX.findAll(part.text).forEach { match ->
+                                add(
+                                    message.result(
+                                        this@projectArchive,
+                                        node.id.toString(),
+                                        kind,
+                                        message.partIdAt(index)?.toString(),
+                                        match.value.trimEnd('.', ',', ';', '，', '。', '；'),
+                                    )
                                 )
-                            )
+                            }
                         }
+                    }
+                    val citationPartId = message.parts.indexOfFirst { it is UIMessagePart.Text }
+                        .takeIf { it >= 0 }
+                        ?.let { message.partIdAt(it)?.toString() }
+                        ?: message.partIdAt(0)?.toString()
+                    message.annotations.filterIsInstance<UIMessageAnnotation.UrlCitation>().forEach { citation ->
+                        add(
+                            message.result(
+                                this@projectArchive,
+                                node.id.toString(),
+                                kind,
+                                citationPartId,
+                                citation.url,
+                            )
+                        )
                     }
                 }
             }
