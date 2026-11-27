@@ -20,6 +20,8 @@ data class Model(
     val providerOverwrite: ProviderSetting? = null,
     // 上下文窗口大小(token)
     val contextLength: Int = 1_000_000,
+    // Provider/model 级输出上限；null = provider auto
+    val maxOutputTokens: Int? = null,
     // 每百万 token 的美元价格；留空表示不估算费用
     val pricing: ModelPricing = ModelPricing(),
 )

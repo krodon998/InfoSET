@@ -370,8 +370,6 @@ object SettingCatalog {
             R.string.setting_page_default_model, aliases = setOf("聊天模型", "chat model")),
         entry("models.fast", R.string.setting_model_page_fast_model, SettingDestination.MODELS, intelligence,
             R.string.setting_page_default_model, aliases = setOf("快速模型", "fast model")),
-        entry("models.memory", R.string.setting_model_page_memory_model, SettingDestination.MODELS, intelligence,
-            R.string.setting_page_default_model, aliases = setOf("记忆模型", "memory model")),
         entry("models.ocr", R.string.setting_model_page_ocr_model, SettingDestination.MODELS, intelligence,
             R.string.setting_page_default_model, aliases = setOf("识图", "ocr model")),
         entry("models.translate", R.string.setting_model_page_translate_model, SettingDestination.MODELS, intelligence,

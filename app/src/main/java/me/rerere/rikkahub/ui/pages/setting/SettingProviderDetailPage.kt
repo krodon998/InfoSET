@@ -705,6 +705,30 @@ private fun ModelSettingsForm(
                             )
                         }
 
+                        var maxOutputTokensInput by remember(model.id, model.maxOutputTokens) {
+                            mutableStateOf(model.maxOutputTokens?.toString().orEmpty())
+                        }
+                        OutlinedTextField(
+                            value = maxOutputTokensInput,
+                            onValueChange = { input ->
+                                if (input.all(Char::isDigit)) {
+                                    maxOutputTokensInput = input
+                                    val next = input.toIntOrNull()?.takeIf { it > 0 }
+                                    if (input.isBlank() || next != null) {
+                                        onModelChange(model.copy(maxOutputTokens = next))
+                                    }
+                                }
+                            },
+                            label = { Text(stringResource(R.string.assistant_max_output_tokens)) },
+                            supportingText = {
+                                Text(stringResource(R.string.assistant_max_output_tokens_provider_desc))
+                            },
+                            placeholder = { Text(stringResource(R.string.auto)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+
                         ModelPricingEditor(
                             pricing = model.pricing,
                             onUpdate = { onModelChange(model.copy(pricing = it)) },

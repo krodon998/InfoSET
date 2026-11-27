@@ -168,6 +168,16 @@
   <string name="assistant_page_tab_memory">Memory</string>
   <string name="assistant_page_tab_prompt">Prompts</string>
   <string name="assistant_page_tab_request">Custom Request</string>
+  <string name="auto">Auto</string>
+  <string name="assistant_advanced_settings">Advanced</string>
+  <string name="assistant_advanced_settings_desc">Context budget and legacy request compatibility</string>
+  <string name="assistant_context_budget">Context budget</string>
+  <string name="assistant_context_budget_auto_desc">Auto uses the current 48K experimental baseline; advanced override supports 32K, 48K, or 64K.</string>
+  <string name="assistant_context_budget_advanced">Context budget override</string>
+  <string name="assistant_max_output_tokens">Max output tokens</string>
+  <string name="assistant_max_output_tokens_auto_desc">Auto; provider/model advanced settings may override.</string>
+  <string name="assistant_max_output_tokens_provider_desc">Leave empty for provider auto. This is separate from the Context Composer budget.</string>
+  <string name="assistant_legacy_request_overrides">Legacy request compatibility</string>
   <string name="assistant_page_tags">Tags</string>
   <string name="assistant_page_temperature">Temperature</string>
   <string name="assistant_page_temperature_warning">Usually 1. Not recommended to change for reasoning models.</string>

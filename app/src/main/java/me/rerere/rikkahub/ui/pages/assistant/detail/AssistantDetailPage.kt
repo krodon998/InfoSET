@@ -177,8 +177,8 @@ fun AssistantDetailPage(id: String) {
                     item(
                         onClick = { navController.navigate(Screen.AssistantRequest(id)) },
                         leadingContent = { CardGroupIcon(HugeIcons.Code) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_request_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_request)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_advanced_settings_desc)) },
+                        headlineContent = { Text(stringResource(R.string.assistant_advanced_settings)) },
                     )
                 }
             }

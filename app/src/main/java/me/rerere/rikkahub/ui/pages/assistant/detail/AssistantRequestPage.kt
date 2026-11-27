@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -21,7 +22,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.SUPPORTED_CONTEXT_TOKEN_BUDGET_OVERRIDES
+import me.rerere.rikkahub.data.model.withContextTokenBudgetOverride
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -40,7 +44,7 @@ fun AssistantRequestPage(id: String) {
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(stringResource(R.string.assistant_page_tab_request))
+                    Text(stringResource(R.string.assistant_advanced_settings))
                 },
                 navigationIcon = {
                     BackButton()
@@ -76,6 +80,39 @@ internal fun AssistantRequestContent(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        CardGroup(
+            title = { Text(stringResource(R.string.assistant_context_budget_advanced)) },
+        ) {
+            item(
+                onClick = { onUpdate(assistant.withContextTokenBudgetOverride(null)) },
+                headlineContent = { Text(stringResource(R.string.auto)) },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_context_budget_auto_desc))
+                },
+                trailingContent = {
+                    RadioButton(
+                        selected = assistant.contextTokenBudgetOverride == null,
+                        onClick = null,
+                    )
+                },
+            )
+            SUPPORTED_CONTEXT_TOKEN_BUDGET_OVERRIDES.forEach { budget ->
+                item(
+                    onClick = { onUpdate(assistant.withContextTokenBudgetOverride(budget)) },
+                    headlineContent = { Text("${budget / 1000}K") },
+                    trailingContent = {
+                        RadioButton(
+                            selected = assistant.contextTokenBudgetOverride == budget,
+                            onClick = null,
+                        )
+                    },
+                )
+            }
+        }
+
+        Text(
+            text = stringResource(R.string.assistant_legacy_request_overrides),
+        )
         CustomHeaders(
             headers = assistant.customHeaders,
             onUpdate = {
