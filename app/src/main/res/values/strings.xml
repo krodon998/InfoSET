@@ -109,6 +109,9 @@
   <string name="memory_universe_worker">Aire maintenance entrance</string>
   <string name="memory_universe_worker_desc">Organizers may propose and test changes; source records stay intact and working-memory changes remain editable.</string>
   <string name="memory_recall_inspector">Recall Inspector</string>
+  <string name="memory_access_passive_surface">Passive surface</string>
+  <string name="memory_access_active_recall">Active recall</string>
+  <string name="memory_access_legacy_recall">Legacy recall</string>
   <string name="memory_recall_inspector_desc">Inspect candidate scores, provenance, filtering, actual injection, token cost, and feedback.</string>
   <string name="memory_recall_test_cue">Test message or recall cue</string>
   <string name="memory_recall_run">Run recall</string>
