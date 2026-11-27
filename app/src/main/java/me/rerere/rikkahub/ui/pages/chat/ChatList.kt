@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +56,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.partIndexOf
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
@@ -86,6 +88,8 @@ fun ChatList(
     settings: Settings,
     hazeState: HazeState,
     errors: List<ChatError> = emptyList(),
+    focusMessageId: Uuid? = null,
+    focusPartId: Uuid? = null,
     onDismissError: (Uuid) -> Unit = {},
     onClearAllErrors: () -> Unit = {},
     onRegenerate: (UIMessage) -> Unit = {},
@@ -113,6 +117,8 @@ fun ChatList(
         settings = settings,
         hazeState = hazeState,
         errors = errors,
+        focusMessageId = focusMessageId,
+        focusPartId = focusPartId,
         onDismissError = onDismissError,
         onClearAllErrors = onClearAllErrors,
         onRegenerate = onRegenerate,
@@ -163,6 +169,8 @@ private fun ChatListNormal(
     settings: Settings,
     hazeState: HazeState,
     errors: List<ChatError>,
+    focusMessageId: Uuid?,
+    focusPartId: Uuid?,
     onDismissError: (Uuid) -> Unit,
     onClearAllErrors: () -> Unit,
     onRegenerate: (UIMessage) -> Unit,
@@ -322,8 +330,21 @@ private fun ChatListNormal(
                         selectedKeys = selectedItems,
                         enabled = selectionState.selecting,
                     ) {
+                        val isFocusedTarget = node.currentMessage.id == focusMessageId &&
+                            (focusPartId == null || node.currentMessage.partIndexOf(focusPartId) != null)
                         ChatMessage(
                             node = node,
+                            modifier = if (isFocusedTarget) {
+                                Modifier
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                                        shape = MaterialTheme.shapes.large,
+                                    )
+                                    .padding(4.dp)
+                            } else {
+                                Modifier
+                            },
                             model = node.currentMessage.modelId?.let(modelById::get)
                                 ?: node.currentMessage.snapshotModel(),
                             assistant = assistant,

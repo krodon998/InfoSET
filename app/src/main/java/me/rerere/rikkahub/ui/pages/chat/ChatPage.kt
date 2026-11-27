@@ -48,6 +48,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.partIdAt
+import me.rerere.ai.ui.partIndexOf
 import me.rerere.ai.ui.stickerMetadata
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Menu03
@@ -86,7 +87,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
 @Composable
-fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
+fun ChatPage(
+    id: Uuid,
+    text: String?,
+    files: List<Uri>,
+    nodeId: Uuid? = null,
+    messageId: Uuid? = null,
+    partId: Uuid? = null,
+) {
     val vm: ChatVM = koinViewModel(
         parameters = {
             parametersOf(id.toString())
@@ -144,14 +152,32 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
 
     val chatListState = rememberLazyListState()
-    LaunchedEffect(nodeId, conversation.messageNodes.size) {
-        if (!vm.chatListInitialized && conversation.messageNodes.isNotEmpty()) {
-            if (nodeId != null) {
-                val index = conversation.messageNodes.indexOfFirst { it.id == nodeId }
-                if (index >= 0) {
-                    chatListState.scrollToItem(index)
+    LaunchedEffect(nodeId, messageId, partId, conversation.messageNodes.size) {
+        if (conversation.messageNodes.isEmpty()) return@LaunchedEffect
+        val hasExplicitTarget = messageId != null || nodeId != null
+        if (hasExplicitTarget || !vm.chatListInitialized) {
+            val target = when {
+                messageId != null -> conversation.messageNodes.mapIndexedNotNull { index, node ->
+                    val branchIndex = node.messages.indexOfFirst { it.id == messageId }
+                    if (branchIndex >= 0) Triple(index, node, branchIndex) else null
+                }.firstOrNull()
+                nodeId != null -> conversation.messageNodes.indexOfFirst { it.id == nodeId }
+                    .takeIf { it >= 0 }
+                    ?.let { index ->
+                        val node = conversation.messageNodes[index]
+                        Triple(index, node, node.selectIndex)
+                    }
+                else -> null
+            }
+            if (target != null) {
+                val (index, node, branchIndex) = target
+                if (node.selectIndex != branchIndex) {
+                    vm.selectMessageNode(node.id, branchIndex)
                 }
-            } else {
+                // partIndexOf also resolves deterministic IDs for legacy messages that predate persisted part IDs.
+                partId?.let { node.messages[branchIndex].partIndexOf(it) }
+                chatListState.scrollToItem(index)
+            } else if (!hasExplicitTarget) {
                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
             }
             vm.chatListInitialized = true
@@ -171,6 +197,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         assistant = assistant,
         currentChatModel = currentChatModel,
         errors = errors,
+        focusMessageId = messageId,
+        focusPartId = partId,
         onDismissError = { vm.dismissError(it) },
         onClearAllErrors = { vm.clearAllErrors() },
     )
@@ -190,6 +218,8 @@ private fun ChatPageContent(
     assistant: Assistant,
     currentChatModel: Model?,
     errors: List<ChatError>,
+    focusMessageId: Uuid? = null,
+    focusPartId: Uuid? = null,
     onDismissError: (Uuid) -> Unit,
     onClearAllErrors: () -> Unit,
 ) {
@@ -344,6 +374,8 @@ private fun ChatPageContent(
                 settings = setting,
                 hazeState = hazeState,
                 errors = errors,
+                focusMessageId = focusMessageId,
+                focusPartId = focusPartId,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
                 onRegenerate = {

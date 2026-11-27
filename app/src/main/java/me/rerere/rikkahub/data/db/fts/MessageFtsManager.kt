@@ -18,6 +18,7 @@ data class MessageSearchResult(
     val title: String,
     val updateAt: Instant,
     val snippet: String,
+    val partId: String? = null,
 )
 
 enum class MessageSearchSort(val orderBy: String) {

@@ -11,7 +11,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.LocalDate
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.partIdAt
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
@@ -24,6 +27,9 @@ import me.rerere.rikkahub.data.db.fts.MessageSearchSort
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.search.ArchiveBrowseKind
+import me.rerere.rikkahub.data.search.ArchiveBrowseResult
+import me.rerere.rikkahub.data.search.projectArchive
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
 import kotlin.uuid.Uuid
@@ -369,11 +375,65 @@ class ConversationRepository(
         keyword: String,
         sort: MessageSearchSort = MessageSearchSort.RELEVANCE,
         assistantId: Uuid? = null,
-    ) = messageFtsManager.search(keyword, sort, assistantId?.let { listOf(it.toString()) })
+    ) = enrichSearchPartIds(
+        messageFtsManager.search(keyword, sort, assistantId?.let { listOf(it.toString()) }),
+        keyword,
+    )
 
     /** 只在 [assistantIds] 这些助手的对话里搜索 */
     suspend fun searchMessagesOfAssistants(keyword: String, assistantIds: Set<Uuid>) =
-        messageFtsManager.search(keyword, MessageSearchSort.RELEVANCE, assistantIds.map { it.toString() })
+        enrichSearchPartIds(
+            messageFtsManager.search(keyword, MessageSearchSort.RELEVANCE, assistantIds.map { it.toString() }),
+            keyword,
+        )
+
+    suspend fun browseArchive(
+        kind: ArchiveBrowseKind,
+        date: LocalDate? = null,
+        assistantId: Uuid? = null,
+        limit: Int = 300,
+    ): List<ArchiveBrowseResult> {
+        if (limit <= 0) return emptyList()
+        val results = mutableListOf<ArchiveBrowseResult>()
+        val ids = conversationDAO.getAllIds()
+        for (id in ids) {
+            val uuid = runCatching { Uuid.parse(id) }.getOrNull() ?: continue
+            val conversation = getConversationById(uuid) ?: continue
+            if (assistantId != null && conversation.assistantId != assistantId) continue
+            results += conversation.projectArchive(kind = kind, date = date)
+        }
+        return results
+            .sortedByDescending(ArchiveBrowseResult::createdAt)
+            .take(limit)
+    }
+
+    private suspend fun enrichSearchPartIds(
+        results: List<me.rerere.rikkahub.data.db.fts.MessageSearchResult>,
+        keyword: String,
+    ): List<me.rerere.rikkahub.data.db.fts.MessageSearchResult> {
+        val conversations = mutableMapOf<Uuid, Conversation?>()
+        return results.map { result ->
+            val conversationId = runCatching { Uuid.parse(result.conversationId) }.getOrNull()
+                ?: return@map result
+            val conversation = if (conversations.containsKey(conversationId)) {
+                conversations[conversationId]
+            } else {
+                getConversationById(conversationId).also { conversations[conversationId] = it }
+            } ?: return@map result
+            val messageId = runCatching { Uuid.parse(result.messageId) }.getOrNull()
+                ?: return@map result
+            val message = conversation.getMessageNodeByMessageId(messageId)
+                ?.messages
+                ?.firstOrNull { it.id == messageId }
+                ?: return@map result
+            val literalIndex = message.parts.indexOfFirst { part ->
+                part is UIMessagePart.Text && part.text.contains(keyword, ignoreCase = true)
+            }
+            val fallbackIndex = message.parts.indexOfFirst { it is UIMessagePart.Text }
+            val index = literalIndex.takeIf { it >= 0 } ?: fallbackIndex.takeIf { it >= 0 }
+            result.copy(partId = index?.let { message.partIdAt(it)?.toString() })
+        }
+    }
 
     suspend fun rebuildAllIndexes(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }) {
         messageFtsManager.deleteAll()
