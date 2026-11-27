@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
+import me.rerere.rikkahub.data.model.MemoryAccessMode
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -163,6 +164,8 @@ class BackupManagerTest {
             statement = "A sparse memory survives a whole-house move",
             occurredAt = null,
             importedAt = 1234,
+            surfaceCount = 2,
+            lastSurfacedAt = 1500,
             sourceKind = "MARKDOWN",
             sourceRef = "/profile.md",
             createdAt = 1234,
@@ -177,7 +180,8 @@ class BackupManagerTest {
             tokenBudget = 128,
             injectedContent = atom.statement,
             injectedTokens = 12,
-            destination = "OPTIONAL_RECALL",
+            destination = "ACTIVE_RECALL",
+            mode = MemoryAccessMode.ACTIVE_RECALL.name,
             feedback = "HELPFUL",
         )
         val candidate = MemoryRecallCandidateEntity(
@@ -210,7 +214,10 @@ class BackupManagerTest {
         assertEquals(atom.importedAt, restored.importedAt)
         assertEquals(null, restored.occurredAt)
         assertEquals(1, restored.recallCount)
+        assertEquals(2, restored.surfaceCount)
+        assertEquals(1500L, restored.lastSurfacedAt)
         assertEquals(trace.id, restoredDao.observeRecentTraces(atom.memoryId).first().single().id)
+        assertEquals(MemoryAccessMode.ACTIVE_RECALL.name, restoredDao.getTrace(trace.id)!!.mode)
         assertEquals(candidate.atomId, restoredDao.getCandidates(trace.id).single().atomId)
     }
 
