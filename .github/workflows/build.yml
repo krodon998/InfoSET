@@ -124,7 +124,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: InfoSET-signed-preview
-          path: app/build/outputs/apk/github/preview/*.apk
+          path: app/build/outputs/apk/github/preview/*universal*.apk
           if-no-files-found: error
           retention-days: 3
 
