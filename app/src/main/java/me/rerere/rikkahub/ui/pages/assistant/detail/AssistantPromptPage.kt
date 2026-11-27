@@ -224,22 +224,6 @@ private fun AssistantPromptContent(
                     maxLines = 8,
                 )
             }
-            switchItem(
-                checked = assistant.allowConversationSystemPrompt,
-                onCheckedChange = {
-                    onUpdate(
-                        assistant.copy(
-                            allowConversationSystemPrompt = it
-                        )
-                    )
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_allow_conversation_system_prompt_desc))
-                },
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_allow_conversation_system_prompt))
-                },
-            )
         }
 
         CardGroup {
