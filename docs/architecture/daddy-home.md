@@ -27,6 +27,21 @@ Every official GitHub MCP tool call is rejected unless its target is a repositor
 same stable account. The call guard checks tool execution, journal, repository, branch-write,
 Build/PR, and direct-main grants before dispatch, then records the source, target, result, and wait.
 
+## ChatGPT / Codex account boundary
+
+Daddy Home also exposes an official Sign in with ChatGPT entry. It uses OpenAI dynamic agent client
+registration with PKCE, a stable per-install host identity, the public `api.openai.com/v1/models`
+and `api.openai.com/v1/responses` endpoints, `store=false`, streaming, and encrypted reasoning-item
+replay. It does not call ChatGPT private backend endpoints.
+
+The complete access and refresh credentials are stored only as a Keystore AES-GCM ciphertext under
+`noBackupFilesDir/provider-accounts/credentials.enc`. Settings JSON retains a redacted signed-in
+marker, account display metadata, the issued public OAuth client ID, and host ID. Existing plaintext
+account credentials are migrated one way into the vault on startup. Logout removes the vault entry;
+the public registration metadata remains available for reauthorization. Provider settings, Room,
+whole-house backup, Android cloud backup, logs, prompts, and repositories never receive bearer or
+refresh tokens.
+
 ## Actor capability grants
 
 The stable first actor is `daddy`. Each grant records:
@@ -52,6 +67,9 @@ InfoSET Workspace; it cannot bypass the same repository bindings and capability 
 use the token only to build an in-memory Authorization header. Audit events record the actor,
 capability, source account reference, target repository/path, time, and outcome. They do not record
 headers, token values, file bodies, or command output.
+
+The visible audit feed translates action, capability, tool, and result codes into Chinese labels;
+the stored codes remain stable for queries, restore, and forward-compatible auditing.
 
 ## Activity Journal
 

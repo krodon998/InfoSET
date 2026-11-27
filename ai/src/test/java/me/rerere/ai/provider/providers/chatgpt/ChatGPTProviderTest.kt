@@ -166,6 +166,15 @@ class ChatGPTProviderTest {
     }
 
     @Test
+    fun `parses public models data envelope`() {
+        val models = parseCodexModels(
+            """{"data":[{"slug":"gpt-5.5-codex","display_name":"GPT-5.5 Codex","visibility":"list"}]}"""
+        )
+
+        assertEquals(listOf("gpt-5.5-codex"), models.map { it.modelId })
+    }
+
+    @Test
     fun `chatgpt provider round trips through provider list serialization`() {
         val provider = ProviderSetting.ChatGPT(
             credential = OAuthCredential(accessToken = "access", refreshToken = "refresh", accountId = "acc"),

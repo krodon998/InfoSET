@@ -37,18 +37,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import kotlin.time.Instant
 
-// 参照 openai/codex（codex-rs/model-provider-info、codex-rs/login）
-internal const val CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
-private const val CODEX_ORIGINATOR = "codex_cli_rs"
-
-// 订阅用量，参照 codex-rs/backend-client 的 rate_limit_status_url
-private const val CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
-
-// 模型列表按客户端版本过滤，太旧会拿不到新模型
-private const val CODEX_CLIENT_VERSION = "0.163.0"
+internal const val OPENAI_API_BASE_URL = "https://api.openai.com/v1"
 
 /**
- * Codex 后端对请求体的要求，Codex CLI 也是这样发的：
+ * Sign in with ChatGPT uses the public Responses API with stateless encrypted reasoning replay.
  *
  * - system 提示以 developer 消息放在 `input` 开头，不使用 `instructions` 字段
  * - 不接受 `max_output_tokens`、`temperature`、`top_p`
@@ -61,11 +53,7 @@ internal val CODEX_CAPABILITIES = ResponseProviderCapabilities(
 )
 
 /**
- * ChatGPT 账号登录后走 Codex 后端。协议是 Responses API，但和 api.openai.com 有几处不同：
- *
- * - 只支持流式；[generateText] 用流式结果拼出完整消息
- * - 请求体的差异见 [CODEX_CAPABILITIES]
- * - 鉴权除了 Bearer token，还要带 `ChatGPT-Account-ID` 和 `originator`
+ * ChatGPT account sessions use only the public OpenAI API surface.
  */
 class ChatGPTProvider(
     client: OkHttpClient,
@@ -76,7 +64,7 @@ class ChatGPTProvider(
 
     override suspend fun listModels(providerSetting: ProviderSetting.ChatGPT): List<Model> {
         val request = Request.Builder()
-            .url("$CODEX_BASE_URL/models?client_version=$CODEX_CLIENT_VERSION")
+            .url("$OPENAI_API_BASE_URL/models")
             .apply { configureAuth(providerSetting) }
             .get()
             .build()
@@ -84,12 +72,7 @@ class ChatGPTProvider(
     }
 
     override suspend fun getQuota(providerSetting: ProviderSetting.ChatGPT): ProviderQuota {
-        val request = Request.Builder()
-            .url(CODEX_USAGE_URL)
-            .apply { configureAuth(providerSetting) }
-            .get()
-            .build()
-        return parseCodexUsage(client.fetchBody(request))
+        return ProviderQuota.UsageLimits(windows = emptyList(), limitReached = false)
     }
 
     override suspend fun streamText(
@@ -98,11 +81,10 @@ class ChatGPTProvider(
         params: TextGenerationParams
     ): Flow<StreamChunk> = responseAPI.streamText(
         endpoint = ResponsesEndpoint(
-            url = "$CODEX_BASE_URL/responses",
+            url = "$OPENAI_API_BASE_URL/responses",
             capabilities = CODEX_CAPABILITIES,
             configureRequest = {
                 configureAuth(providerSetting, params.customHeaders)
-                params.sessionId?.let { header("session-id", it) }
             },
         ),
         messages = messages,
@@ -135,18 +117,18 @@ class ChatGPTProvider(
         setting: ProviderSetting.ChatGPT,
         customHeaders: List<CustomHeader> = emptyList(),
     ) = configureAccountAuth(credentials, setting, customHeaders) { credential ->
-        credential.accountId?.let { header("ChatGPT-Account-ID", it) }
-        header("originator", CODEX_ORIGINATOR)
+        check(credential.accessToken.isNotBlank()) { "ChatGPT credential is unavailable" }
     }
 }
 
 /** 解析 `GET /models` 的结果，只保留 Codex 选择器里可见的模型 */
 internal fun parseCodexModels(body: String): List<Model> {
-    val models = json.parseToJsonElement(body).jsonObject["models"]?.jsonArray.orEmpty()
+    val root = json.parseToJsonElement(body).jsonObject
+    val models = (root["models"] ?: root["data"])?.jsonArray.orEmpty()
         .map { it.jsonObject }
     val visible = models.filter { it.stringOrNull("visibility") == "list" }.ifEmpty { models }
     return visible.mapNotNull { model ->
-        val slug = model.stringOrNull("slug") ?: return@mapNotNull null
+        val slug = model.stringOrNull("slug") ?: model.stringOrNull("id") ?: return@mapNotNull null
         val inputModalities = model["input_modalities"]?.jsonArray
             ?.mapNotNull { modality ->
                 when (modality.jsonPrimitiveOrNull?.contentOrNull) {

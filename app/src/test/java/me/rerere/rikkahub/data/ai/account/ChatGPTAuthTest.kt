@@ -103,34 +103,48 @@ class ChatGPTAuthTest {
     }
 
     @Test
-    fun `refresh request uses json encoding`() {
-        val request = ChatGPTAuth.refreshRequest("refresh-1")
+    fun `refresh request uses issued client and public API resource`() {
+        val request = ChatGPTAuth.refreshRequest("refresh-1", "oaiapp_123")
 
-        assertEquals(OAuthHttpClient.TokenEncoding.JSON, request.encoding)
-        assertEquals(ChatGPTAuth.CLIENT_ID, request.clientId)
+        assertEquals(OAuthHttpClient.TokenEncoding.FORM, request.encoding)
+        assertEquals("oaiapp_123", request.clientId)
         assertEquals(ChatGPTAuth.TOKEN_ENDPOINT, request.tokenEndpoint)
+        assertEquals(listOf(ChatGPTAuth.RESOURCE), request.resources)
     }
 
     @Test
-    fun `authorization url matches codex cli parameters`() {
+    fun `authorization url uses dynamic agent registration parameters`() {
         val client = OAuthHttpClient(okhttp3.OkHttpClient())
         val url = client.buildAuthorizationUrl(
             ChatGPTAuth.authorizationRequest(
                 pkce = OAuthHttpClient.Pkce(verifier = "v", challenge = "c"),
                 state = "s",
-                redirectUri = "http://127.0.0.1:1455/auth/callback",
+                redirectUri = "http://localhost:1455/auth/callback",
+                clientId = ChatGPTAuth.DYNAMIC_CLIENT_ID,
+                hostId = "urn:uuid:home",
+                nonce = "n",
             )
         )
 
         assertEquals(
-            "https://auth.openai.com/oauth/authorize?response_type=code" +
-                "&client_id=app_EMoamEEZ73f0CkXaXp7hrann" +
-                "&redirect_uri=http%3A%2F%2F127.0.0.1%3A1455%2Fauth%2Fcallback" +
+            "https://auth.openai.com/api/accounts/authorize?response_type=code" +
+                "&client_id=dynamic_agent_client" +
+                "&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback" +
                 "&code_challenge=c&code_challenge_method=S256&state=s" +
-                "&scope=openid%20profile%20email%20offline_access" +
-                "&id_token_add_organizations=true&codex_cli_simplified_flow=true&originator=codex_cli_rs",
+                "&scope=openid%20profile%20email%20offline_access%20resource.invoke%20chatgpt.tokens.use.direct" +
+                "&resource=https%3A%2F%2Fapi.openai.com%2Fv1" +
+                "&nonce=n&ext_agent_host_id=urn%3Auuid%3Ahome&agent_name_hint=InfoSET%20Daddy%20Home",
             url,
         )
+    }
+
+    @Test
+    fun `id token validation binds issuer audience nonce expiry and subject`() {
+        val token = jwt(
+            """{"iss":"https://auth.openai.com","aud":"oaiapp_123","nonce":"n","exp":2000,"sub":"user-1"}"""
+        )
+
+        ChatGPTAuth.requireValidIdToken(token, "oaiapp_123", "n", nowSeconds = 1000)
     }
 
     @Test

@@ -85,7 +85,7 @@ class CodexEventStreamTest {
         }
 
         client.newEventSource(
-            Request.Builder().url("$CODEX_BASE_URL/responses").build(),
+            Request.Builder().url("$OPENAI_API_BASE_URL/responses").build(),
             object : EventSourceListener() {
                 override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                     collect(decoder.accept(SseEvent(id = id, event = type, data = data)).chunks)
