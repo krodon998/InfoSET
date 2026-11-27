@@ -53,4 +53,26 @@ class QuestionnaireToolsTest {
 
         assertEquals(questionnaire, conversation.findInfoSetQuestionnaire("q-tool"))
     }
+
+    @Test
+    fun `assistant cannot answer questionnaire addressed to another actor`() {
+        val questionnaire = createInfoSetQuestionnaire(
+            issuerLabel = "Aire",
+            recipientId = "user:self",
+            recipientLabel = "隐",
+            type = InfoSetQuestionnaireType.SINGLE,
+            question = "给隐的题",
+            options = listOf(
+                InfoSetQuestionOption("a", "A"),
+                InfoSetQuestionOption("b", "B"),
+            ),
+            id = "q-user",
+        )
+
+        val failure = runCatching {
+            questionnaire.requireRecipient("assistant:aire")
+        }.exceptionOrNull()
+
+        assert(failure is IllegalArgumentException)
+    }
 }
