@@ -134,5 +134,7 @@ class LifeSurfaceDAOTest {
             repository.setLike(board.id, "user:self", "隐", enabled = false, now = 301)
         }
         assertTrue(expiredReaction.isFailure)
+        assertTrue(runCatching { repository.markBoardRead(board.id, now = 301) }.isFailure)
+        assertTrue(runCatching { repository.setBoardPinned(board.id, pinned = false, now = 301) }.isFailure)
     }
 }
