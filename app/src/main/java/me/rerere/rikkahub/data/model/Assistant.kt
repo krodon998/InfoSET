@@ -30,6 +30,8 @@ data class Assistant(
     val contextMessageLimit: Int = 0,
     // Context Composer v1 总预算；消息条数上限仅作为旧配置的二级安全阀
     val contextTokenBudget: Int = 48_000,
+    // 新设置页的显式高级覆盖；null = Auto，旧 contextTokenBudget 继续作为兼容基线
+    val contextTokenBudgetOverride: Int? = null,
     val contextRecallTokenBudget: Int = 4_000,
     val contextMinimumRecentTurns: Int = 6,
     val streamOutput: Boolean = true,
@@ -59,6 +61,17 @@ data class Assistant(
     val timeReminderIntervalMinutes: Int = 60, // 时间提醒间隔（分钟，至少 1 分钟）
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt
 )
+
+const val AUTO_CONTEXT_TOKEN_BUDGET = 48_000
+val SUPPORTED_CONTEXT_TOKEN_BUDGET_OVERRIDES = listOf(32_000, 48_000, 64_000)
+
+fun Assistant.effectiveContextTokenBudget(): Int =
+    contextTokenBudgetOverride ?: contextTokenBudget
+
+fun Assistant.withContextTokenBudgetOverride(value: Int?): Assistant {
+    require(value == null || value in SUPPORTED_CONTEXT_TOKEN_BUDGET_OVERRIDES)
+    return copy(contextTokenBudgetOverride = value)
+}
 
 @Serializable
 data class QuickMessage(
