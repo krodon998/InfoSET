@@ -1,12 +1,18 @@
 package me.rerere.rikkahub.data.ai.account
 
 import me.rerere.oauth.OAuthHttpClient
+import me.rerere.rikkahub.BuildConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GitHubAuthTest {
+    @Test
+    fun `release source contains the registered public OAuth app identity`() {
+        assertEquals("Ov23livyXRP2GznDpnaF", BuildConfig.GITHUB_OAUTH_CLIENT_ID)
+    }
+
     @Test
     fun `device flow uses GitHub endpoints and private home scopes`() {
         val authorization = GitHubAuth.deviceAuthorizationRequest("client-id")
