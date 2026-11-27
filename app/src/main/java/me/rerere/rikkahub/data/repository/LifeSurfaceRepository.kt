@@ -231,6 +231,7 @@ class LifeSurfaceRepository(
         pinned: Boolean,
         now: Long = Clock.System.now().toEpochMilliseconds(),
     ) {
+        requireBoardItemAvailable(itemId, now)
         check(dao.setPinnedAt(itemId, now.takeIf { pinned }, now) == 1) {
             "board item not found"
         }
@@ -240,6 +241,7 @@ class LifeSurfaceRepository(
         itemId: String,
         now: Long = Clock.System.now().toEpochMilliseconds(),
     ) {
+        requireBoardItemAvailable(itemId, now)
         check(dao.markRead(itemId, now, now) == 1) { "board item not found" }
     }
 
@@ -247,6 +249,7 @@ class LifeSurfaceRepository(
         itemId: String,
         now: Long = Clock.System.now().toEpochMilliseconds(),
     ) {
+        requireBoardItemAvailable(itemId, now)
         check(dao.markResponded(itemId, now, now) == 1) { "board item not found" }
     }
 
@@ -381,4 +384,9 @@ class LifeSurfaceRepository(
         require(item.expiresAt == null || item.expiresAt > now) { "life surface item has expired" }
         return item
     }
+
+    private suspend fun requireBoardItemAvailable(itemId: String, now: Long): LifeSurfaceItemEntity =
+        requireAvailableItem(itemId, now).also {
+            require(it.surface == LIFE_SURFACE_BOARD) { "life surface item is not a board message" }
+        }
 }
