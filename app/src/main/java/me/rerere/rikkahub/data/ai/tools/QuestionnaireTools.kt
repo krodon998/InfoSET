@@ -74,6 +74,7 @@ fun buildQuestionnaireTools(
             val questionnaire = createInfoSetQuestionnaire(
                 issuerId = assistant.id.toString(),
                 issuerLabel = assistant.name.ifBlank { "Aire" },
+                recipientId = "user:self",
                 recipientLabel = settings.displaySetting.userNickname.ifBlank { "用户" },
                 type = type,
                 question = obj.string("question"),
