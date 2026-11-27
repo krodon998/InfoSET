@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
+import me.rerere.rikkahub.data.model.MemoryAccessMode
 
 @Dao
 interface MemoryAtomDAO {
@@ -70,17 +71,36 @@ interface MemoryAtomDAO {
     )
     suspend fun markRecalled(atomIds: List<String>, recalledAt: Long)
 
+    @Query(
+        "UPDATE memory_atom SET surface_count = surface_count + 1, last_surfaced_at = :surfacedAt " +
+            "WHERE id IN (:atomIds)"
+    )
+    suspend fun markSurfaced(atomIds: List<String>, surfacedAt: Long)
+
     @Transaction
-    suspend fun recordRecall(
+    suspend fun recordAccess(
         trace: MemoryRecallTraceEntity,
         candidates: List<MemoryRecallCandidateEntity>,
         injectedAtomIds: List<String>,
     ): Boolean {
         if (insertTrace(trace) == -1L) return false
         if (candidates.isNotEmpty()) insertCandidates(candidates)
-        if (injectedAtomIds.isNotEmpty()) markRecalled(injectedAtomIds, trace.createdAt)
+        if (injectedAtomIds.isNotEmpty()) {
+            if (trace.mode == MemoryAccessMode.PASSIVE_SURFACE.name) {
+                markSurfaced(injectedAtomIds, trace.createdAt)
+            } else {
+                markRecalled(injectedAtomIds, trace.createdAt)
+            }
+        }
         return true
     }
+
+    @Transaction
+    suspend fun recordRecall(
+        trace: MemoryRecallTraceEntity,
+        candidates: List<MemoryRecallCandidateEntity>,
+        injectedAtomIds: List<String>,
+    ): Boolean = recordAccess(trace, candidates, injectedAtomIds)
 
     @Query("SELECT * FROM memory_recall_trace WHERE memory_id = :memoryId ORDER BY created_at DESC LIMIT :limit")
     fun observeRecentTraces(memoryId: String, limit: Int = 20): Flow<List<MemoryRecallTraceEntity>>
