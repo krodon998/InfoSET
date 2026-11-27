@@ -47,6 +47,10 @@ data class MemoryAtomEntity(
     val recallCount: Int = 0,
     @ColumnInfo("last_recalled_at")
     val lastRecalledAt: Long? = null,
+    @ColumnInfo(name = "surface_count", defaultValue = "0")
+    val surfaceCount: Int = 0,
+    @ColumnInfo("last_surfaced_at")
+    val lastSurfacedAt: Long? = null,
     @ColumnInfo(defaultValue = "1.0")
     val activation: Double = 1.0,
     @ColumnInfo(name = "positive_feedback_count", defaultValue = "0")
@@ -87,6 +91,8 @@ data class MemoryRecallTraceEntity(
     @ColumnInfo("injected_tokens")
     val injectedTokens: Int,
     val destination: String,
+    @ColumnInfo(defaultValue = "'LEGACY_RECALL'")
+    val mode: String = "LEGACY_RECALL",
     val feedback: String? = null,
 )
 
