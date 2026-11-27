@@ -11,11 +11,13 @@ permissions:
 
 jobs:
   publish:
-    # Pull-request builds intentionally skip the APK artifact. Only a successful
-    # push build can publish the rolling Preview release.
+    # Pull-request builds intentionally skip the APK artifact. Successful main
+    # builds may arrive from a push or an explicit trusted workflow dispatch.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push'
+      github.event.workflow_run.head_branch == 'main' &&
+      (github.event.workflow_run.event == 'push' ||
+       github.event.workflow_run.event == 'workflow_dispatch')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
