@@ -87,6 +87,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.locateReplyTarget
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
@@ -526,11 +527,14 @@ private fun ChatPageContent(
                         previewSnapshot = message.replyPreview(partIndex),
                     )
                 },
-                onOpenReplyReference = { targetMessageId ->
-                    val index = conversation.messageNodes.indexOfFirst { node ->
-                        node.messages.any { it.id == targetMessageId }
+                onOpenReplyReference = { reference ->
+                    conversation.locateReplyTarget(reference)?.let { location ->
+                        val targetNode = conversation.messageNodes[location.nodeIndex]
+                        if (targetNode.selectIndex != location.branchIndex) {
+                            vm.selectMessageNode(location.nodeId, location.branchIndex)
+                        }
+                        scope.launch { chatListState.animateScrollToItem(location.nodeIndex) }
                     }
-                    if (index >= 0) scope.launch { chatListState.animateScrollToItem(index) }
                 },
                 onUpdateMessage = { newNode ->
                     vm.selectMessageNode(newNode.id, newNode.selectIndex)
