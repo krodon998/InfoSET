@@ -124,11 +124,7 @@ fun buildQuestionnaireTools(
                 ?: error("Conversation not found")
             val questionnaire = conversation.findInfoSetQuestionnaire(questionnaireId)
                 ?: error("Questionnaire not found: $questionnaireId")
-            questionnaire.recipientId?.let { recipientId ->
-                require(recipientId == assistant.id.toString()) {
-                    "Questionnaire $questionnaireId is addressed to another actor"
-                }
-            }
+            questionnaire.requireRecipient(assistant.id.toString())
             val answer = createInfoSetQuestionnaireAnswer(
                 questionnaire = questionnaire,
                 respondentId = assistant.id.toString(),
@@ -150,6 +146,14 @@ fun buildQuestionnaireTools(
         },
     ),
 )
+
+internal fun InfoSetQuestionnaire.requireRecipient(actorId: String) {
+    recipientId?.let {
+        require(it == actorId) {
+            "Questionnaire $id is addressed to another actor"
+        }
+    }
+}
 
 internal fun Conversation.findInfoSetQuestionnaire(id: String): InfoSetQuestionnaire? =
     messageNodes.asSequence()
