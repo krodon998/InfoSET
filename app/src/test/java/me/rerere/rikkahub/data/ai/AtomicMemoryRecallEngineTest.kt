@@ -48,6 +48,19 @@ class AtomicMemoryRecallEngineTest {
     }
 
     @Test
+    fun `active metadata lookup may select without a lexical cue`() {
+        val result = AtomicMemoryRecallEngine.recall(
+            atoms = listOf(atom("dated", "A remembered event")),
+            query = "",
+            tokenBudget = 200,
+            allowNonLexicalMatch = true,
+        )
+
+        assertTrue(result.candidates.single().injected)
+        assertTrue("A remembered event" in result.content)
+    }
+
+    @Test
     fun `pinned atom remains stable context without a lexical match`() {
         val pinned = atom("core", "Keep replies concise").copy(pinned = true)
 
