@@ -91,6 +91,14 @@ jobs:
             --tests me.rerere.ai.provider.providers.openai.ChatCompletionsUsageParsingTest
           ./gradlew assembleGithubDebugAndroidTest
 
+      - name: Export Room schema
+        uses: actions/upload-artifact@v4
+        with:
+          name: room-schema-v37
+          path: app/schemas/me.rerere.rikkahub.data.db.AppDatabase/37.json
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Build APK
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tests_only != true)
         run: |
