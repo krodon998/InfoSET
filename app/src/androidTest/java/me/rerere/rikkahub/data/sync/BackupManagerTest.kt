@@ -257,8 +257,8 @@ class BackupManagerTest {
         assertEquals(grant.id, restoredGrant.id)
         assertEquals(null, restoredGrant.expiresAt)
         assertEquals(activity.id, restoredActivity.id)
-        assertEquals(100, restoredActivity.activeDurationMs)
-        assertEquals(400, restoredActivity.waitingDurationMs)
+        assertEquals(100L, restoredActivity.activeDurationMs)
+        assertEquals(400L, restoredActivity.waitingDurationMs)
         assertEquals(null, restoredActivity.executionOrganizationRef)
         assertEquals(null, restoredActivity.outputRefsJson)
     }

@@ -66,8 +66,8 @@ class DaddyHomeDAOTest {
         )
         dao.upsertActivity(activity)
         val restored = dao.observeActivities("daddy", 0, 1_000).first().single()
-        assertEquals(25, restored.activeDurationMs)
-        assertEquals(75, restored.waitingDurationMs)
+        assertEquals(25L, restored.activeDurationMs)
+        assertEquals(75L, restored.waitingDurationMs)
         assertNull(restored.executionOrganizationRef)
         assertNull(restored.outputRefsJson)
     }

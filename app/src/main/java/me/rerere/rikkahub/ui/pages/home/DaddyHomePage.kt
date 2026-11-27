@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -132,6 +131,24 @@ fun DaddyHomePage(vm: DaddyHomeVM = koinViewModel()) {
                             onCheckedChange = { vm.setCapability(capability, it) },
                             headlineContent = { Text(capability.label) },
                             supportingContent = { Text(capability.description) },
+                        )
+                    }
+                }
+            }
+
+            item("execution-organization") {
+                SectionTitle("执行组织")
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("OpenAI Personal API Org", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "组织、Project 与 Pro 赠金计费来源会在这里绑定。当前只保留空字段，尚未读取或保存 API key。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -553,6 +570,9 @@ fun ActivityDetailPage(activityId: String) {
                 item { DetailCard("有效时长", formatDuration(value.activeDurationMs ?: 0)) }
                 item { DetailCard("后台等待", formatDuration(value.waitingDurationMs)) }
                 item { DetailCard("执行来源", value.executionSource) }
+                value.executionAccountRef?.let { item { DetailCard("执行账号", it) } }
+                value.executionOrganizationRef?.let { item { DetailCard("执行组织", it) } }
+                value.billingSource?.let { item { DetailCard("计费来源", it) } }
                 item { DetailCard("工具", value.toolNamesJson ?: "未记录") }
                 item { DetailCard("结果", value.result) }
                 value.summary?.let { item { DetailCard("摘要", it) } }

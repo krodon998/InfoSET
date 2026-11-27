@@ -13,6 +13,7 @@ silently become a replacement for the others.
 | Context and checkpoints | Conversation messages plus `ContextComposer` projection | Derived | Short recent context, cache-stable request projection, and continuation summaries |
 | Candidates | Extractor/worker proposals with source references | Reviewable | Possible memories waiting for organization or rejection |
 | Core bond and persona | Pinned, explicitly owned memory entries | Explicit edits only | Stable identity, relationship agreements, and long-lived preferences |
+| Activity Journal | Actor actions, tools, duration, results, and outputs | Append/audit | Inspectable derived life and work history; never conversation source text |
 
 Missing source timestamps stay nullable. `importedAt` and provenance are recorded separately and
 must never be substituted for `occurredAt`. Undated records retain source order and appear under an
@@ -69,6 +70,11 @@ history import, and audit playback without changing the ownership rules above.
 
 Question cards, poke events, mood, and branch/join interactions may emit archive events and memory
 candidates. They do not write stable memory directly.
+
+Daddy Home capability grants and Activity Journal are documented in
+[`daddy-home.md`](./daddy-home.md). Journal rows can link to a recall trace, PR, build, workspace
+output, or room object. They remain outside Conversation Archive and never substitute for the source
+message, memory atom, or provider request snapshot they reference.
 
 ## Revalidated design sources
 

@@ -15,10 +15,10 @@ class ActivityAnalyticsTest {
 
         val summary = summarizeActivities(listOf(completed, instant, running))
 
-        assertEquals(4_000, summary.activeDurationMs)
+        assertEquals(4_000L, summary.activeDurationMs)
         assertEquals(2, summary.activityCount)
-        assertEquals(4_000, summary.categories.first { it.category == ActivityCategory.WORK }.activeDurationMs)
-        assertEquals(0, summary.categories.first { it.category == ActivityCategory.MEMORY }.activeDurationMs)
+        assertEquals(4_000L, summary.categories.first { it.category == ActivityCategory.WORK }.activeDurationMs)
+        assertEquals(0L, summary.categories.first { it.category == ActivityCategory.MEMORY }.activeDurationMs)
     }
 
     @Test
