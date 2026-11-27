@@ -7,7 +7,7 @@ import me.rerere.rikkahub.data.model.MemoryRecallFilterReason
 import kotlin.math.max
 
 object AtomicMemoryRecallEngine {
-    private const val DORMANT_WAKE_THRESHOLD = 0.45
+    private const val DORMANT_WAKE_THRESHOLD = 0.75
     private const val MAX_PER_TOPIC = 2
 
     fun recall(atoms: List<MemoryAtom>, query: String, tokenBudget: Int): RecallSelection {

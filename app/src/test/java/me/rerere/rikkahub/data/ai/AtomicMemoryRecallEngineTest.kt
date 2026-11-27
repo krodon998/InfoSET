@@ -47,6 +47,17 @@ class AtomicMemoryRecallEngineTest {
         assertEquals("", result.content)
     }
 
+    @Test
+    fun `pinned atom remains stable context without a lexical match`() {
+        val pinned = atom("core", "Keep replies concise").copy(pinned = true)
+
+        val candidate = AtomicMemoryRecallEngine.recall(listOf(pinned), "completely unrelated cue", 200)
+            .candidates.single()
+
+        assertTrue(candidate.injected)
+        assertEquals(null, candidate.filteredReason)
+    }
+
     private fun atom(id: String, statement: String, state: MemoryAtomState = MemoryAtomState.ACTIVE) = MemoryAtom(
         id = id,
         memoryId = "memory",

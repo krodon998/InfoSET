@@ -69,6 +69,7 @@ class MemoryAtomDAOTest {
         )
         dao.recordRecall(trace, listOf(candidate), listOf(atom.id))
         dao.recordFeedback(trace.id, "HELPFUL")
+        dao.recordFeedback(trace.id, "HELPFUL")
 
         val recalled = dao.getAtom(atom.id)!!
         assertEquals(1, recalled.recallCount)
