@@ -34,10 +34,14 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.ui.InfoSetQuestionnaire
+import me.rerere.ai.ui.InfoSetQuestionnaireAnswer
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.infoSetQuestionnaireAnswerNotice
+import me.rerere.ai.ui.infoSetQuestionnaireNotice
 import me.rerere.ai.ui.infoSetTapNotice
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.common.android.Logging
@@ -525,6 +529,38 @@ class ChatService(
                 style = style,
                 memoryCandidate = memoryCandidate,
                 requestBriefResponse = requestResponse,
+            ),
+            answer = requestResponse,
+        )
+    }
+
+    /** Add a structured questionnaire prompt to the canonical conversation timeline. */
+    fun postQuestionnaire(
+        conversationId: Uuid,
+        questionnaire: InfoSetQuestionnaire,
+        requestResponse: Boolean = true,
+    ) {
+        sendStructuredNotice(
+            conversationId = conversationId,
+            notice = infoSetQuestionnaireNotice(questionnaire),
+            answer = requestResponse,
+        )
+    }
+
+    /** Add a structured questionnaire answer while preserving its prompt/option snapshots. */
+    fun postQuestionnaireAnswer(
+        conversationId: Uuid,
+        questionnaire: InfoSetQuestionnaire,
+        answer: InfoSetQuestionnaireAnswer,
+        memoryCandidate: Boolean = true,
+        requestResponse: Boolean = true,
+    ) {
+        sendStructuredNotice(
+            conversationId = conversationId,
+            notice = infoSetQuestionnaireAnswerNotice(
+                questionnaire = questionnaire,
+                answer = answer,
+                memoryCandidate = memoryCandidate,
             ),
             answer = requestResponse,
         )
