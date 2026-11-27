@@ -33,7 +33,7 @@ jobs:
 
       - name: Prepare release asset
         run: |
-          apk_path="$(find artifact -type f -name '*.apk' -print -quit)"
+          apk_path="$(find artifact -type f -name '*universal*.apk' -print -quit)"
           test -n "$apk_path"
           cp "$apk_path" InfoSET-0.1.0-preview.apk
 
