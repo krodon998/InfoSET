@@ -481,10 +481,29 @@ class ChatService(
     }
 
     /**
+     * 把结构化事件作为独立时间线消息排入当前会话。
+     *
+     * 与 [postNotice] 的运行时通知不同，这里每次 enqueue 都保留，不按 key 合并；[answer] 为 false 时只落 Archive，
+     * 不启动模型。Notice 仍通过 expandNotices 以事件语义进入后续上下文。
+     */
+    fun sendStructuredNotice(
+        conversationId: Uuid,
+        notice: UIMessagePart.Notice,
+        answer: Boolean = true,
+    ) {
+        val session = sessionManager.getOrCreate(conversationId)
+        synchronized(session) {
+            if (session.inbox.state.value.messages.isEmpty()) session.inbox.resume()
+            session.inbox.enqueue(listOf(notice), answer = answer)
+            dispatchInbox(conversationId)
+        }
+    }
+
+    /**
      * 记录并发送一条 InfoSET 拍一拍生活事件。
      *
      * 事件以结构化 Notice 进入 Conversation Archive；发生时间、双方快照与记忆候选标记都保存在 metadata。
-     * key 每次唯一，连续拍一拍不会被运行时通知的去重机制折叠。
+     * [requestResponse] 为 false 时只拍一下并留档，不触发模型调用。
      */
     fun postTap(
         conversationId: Uuid,
@@ -494,11 +513,10 @@ class ChatService(
         targetId: String? = null,
         style: String? = "轻轻",
         memoryCandidate: Boolean = true,
-        requestBriefResponse: Boolean = true,
+        requestResponse: Boolean = true,
     ) {
-        postNotice(
+        sendStructuredNotice(
             conversationId = conversationId,
-            key = "life:tap:${Uuid.random()}",
             notice = infoSetTapNotice(
                 senderLabel = senderLabel,
                 targetLabel = targetLabel,
@@ -506,8 +524,9 @@ class ChatService(
                 targetId = targetId,
                 style = style,
                 memoryCandidate = memoryCandidate,
-                requestBriefResponse = requestBriefResponse,
+                requestBriefResponse = requestResponse,
             ),
+            answer = requestResponse,
         )
     }
 
