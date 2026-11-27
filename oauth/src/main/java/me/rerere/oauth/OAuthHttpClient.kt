@@ -266,18 +266,32 @@ class OAuthHttpClient(
             val (code, body) = withContext(Dispatchers.IO) {
                 executeRaw(httpRequest).use { it.code to it.body.string() }
             }
-            if (code in 200..299) return json.decodeFromString(TokenResponse.serializer(), body)
-            val error = runCatching {
-                json.parseToJsonElement(body).jsonObject["error"]?.jsonPrimitive?.contentOrNull
-            }.getOrNull()
+            // GitHub's device-flow token endpoint reports RFC 8628 polling errors in a
+            // successful HTTP response when JSON is requested. Inspect the OAuth payload
+            // before treating every 2xx body as a token.
+            val errorObject = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
+            val error = errorObject?.get("error")?.jsonPrimitive?.contentOrNull
+            val errorDescription = errorObject
+                ?.get("error_description")
+                ?.jsonPrimitive
+                ?.contentOrNull
+            if (error == null && code in 200..299) {
+                return json.decodeFromString(TokenResponse.serializer(), body)
+            }
             when (error) {
                 "authorization_pending" -> {}
                 "slow_down" -> interval += 5
-                "access_denied" -> throw DeviceAuthorizationException(error, "Authorization was denied")
-                "expired_token" -> throw DeviceAuthorizationException(error, "Device code expired")
+                "access_denied" -> throw DeviceAuthorizationException(
+                    error,
+                    errorDescription ?: "Authorization was denied",
+                )
+                "expired_token" -> throw DeviceAuthorizationException(
+                    error,
+                    errorDescription ?: "Device code expired",
+                )
                 else -> throw DeviceAuthorizationException(
                     error ?: "http_$code",
-                    "HTTP $code for ${request.tokenEndpoint}: ${body.take(300)}",
+                    errorDescription ?: "HTTP $code for ${request.tokenEndpoint}: ${body.take(300)}",
                 )
             }
         }
