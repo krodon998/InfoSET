@@ -22,6 +22,8 @@ data class MemoryAtom(
     val relations: List<String> = emptyList(),
     val recallCount: Int = 0,
     val lastRecalledAt: Long? = null,
+    val surfaceCount: Int = 0,
+    val lastSurfacedAt: Long? = null,
     val activation: Double = 1.0,
     val positiveFeedbackCount: Int = 0,
     val negativeFeedbackCount: Int = 0,
@@ -47,10 +49,25 @@ enum class MemoryRecallFilterReason {
     BUDGET_EXCEEDED,
 }
 
+enum class MemoryAccessMode {
+    LEGACY_RECALL,
+    PASSIVE_SURFACE,
+    ACTIVE_RECALL,
+}
+
 enum class MemoryRecallFeedback {
     HELPFUL,
     NOT_HELPFUL,
 }
+
+data class MemoryRecallFilters(
+    val exactPhrase: String? = null,
+    val person: String? = null,
+    val topic: String? = null,
+    val occurredFrom: Long? = null,
+    val occurredTo: Long? = null,
+    val sourceRef: String? = null,
+)
 
 data class MemoryRecallCandidate(
     val atom: MemoryAtom,
@@ -74,4 +91,5 @@ data class MemoryRecallResult(
     val injectedTokens: Int,
     val destination: String,
     val candidates: List<MemoryRecallCandidate>,
+    val mode: MemoryAccessMode = MemoryAccessMode.LEGACY_RECALL,
 )
