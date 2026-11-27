@@ -317,6 +317,7 @@ private fun InfoSetQuestionnaire.modelFacingText(): String = buildString {
         InfoSetQuestionnaireType.FREE_TEXT ->
             append("\n请自由填写自己的答案。")
     }
+    append("\n若你是此问卷的收件人，请使用 infoset_questionnaire_answer 工具提交结构化回答。")
 }
 
 private fun InfoSetQuestionnaire.answerModelFacingText(answer: InfoSetQuestionnaireAnswer): String =
