@@ -7,11 +7,13 @@ import kotlinx.datetime.toInstant
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.infoSetTapNotice
 import me.rerere.rikkahub.data.ai.tools.MemoryToolNames
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 class MemoryConsolidatorTest {
@@ -112,6 +114,33 @@ class MemoryConsolidatorTest {
         assertEquals(listOf(0), result.turns.map { it.position })
         assertEquals(listOf("user 1", "reply 2"), result.turns.single().messages.map { it.value.toText() })
         assertEquals(timeOf(3) - 1, result.consolidatedThrough)
+    }
+
+    @Test
+    fun `a structured life event and its reply become a memory candidate`() {
+        val occurredAt = Instant.parse("2026-11-28T03:12:00Z")
+        val tap = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(
+                infoSetTapNotice(
+                    senderLabel = "隐",
+                    targetLabel = "Aire",
+                    style = "轻轻",
+                    occurredAt = occurredAt,
+                )
+            ),
+            createdAt = minute(3),
+        )
+        val messages = listOf(user(1), assistant(2), tap, assistant(4))
+
+        val result = pending(messages, consolidatedAt = timeOf(2), updatedAt = timeOf(5))
+
+        assertEquals(listOf(2), result.turns.map { it.position })
+        assertEquals(
+            "[USER #2 life_event]: type=tap; sender=隐; target=Aire; style=轻轻; occurred_at=${occurredAt}",
+            result.turns.single().messages.toMemoryTranscript(userLength = 100, assistantLength = 100)
+                .substringBefore("\n\n[ASSISTANT"),
+        )
     }
 
     @Test
