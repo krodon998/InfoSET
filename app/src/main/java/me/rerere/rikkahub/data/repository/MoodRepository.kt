@@ -9,6 +9,7 @@ import kotlin.uuid.Uuid
 
 const val INFOSET_USER_ACTOR_ID = "user:self"
 
+// Mood is shared, time-bounded state. Long-term memory remains a separate system.
 class MoodRepository(
     private val dao: MoodDAO,
 ) {
