@@ -256,6 +256,31 @@ class ChatVM(
         chatService.sendMessage(_conversationId, content, annotations = annotations, answer = answer)
     }
 
+    /**
+     * InfoSET 生活交互入口：记录一次结构化拍一拍并让当前会话自然回应。
+     *
+     * UI 入口与动效由表现层决定；这里仅提供稳定调用面。
+     */
+    fun handleTap(
+        senderLabel: String,
+        targetLabel: String,
+        senderId: String? = null,
+        targetId: String? = null,
+        style: String? = "轻轻",
+        requestResponse: Boolean = true,
+    ) {
+        analytics.logEvent("life_tap", null)
+        chatService.postTap(
+            conversationId = _conversationId,
+            senderLabel = senderLabel,
+            targetLabel = targetLabel,
+            senderId = senderId,
+            targetId = targetId,
+            style = style,
+            requestResponse = requestResponse,
+        )
+    }
+
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {
         if (parts.isEmptyInputMessage()) return
         analytics.logEvent("ai_edit_message", null)
