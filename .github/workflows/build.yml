@@ -110,14 +110,14 @@ jobs:
 
       - name: Verify Room schema
         run: |
-          test -f app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
-          git diff --exit-code -- app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
+          test -f app/schemas/me.rerere.rikkahub.data.db.AppDatabase/41.json
+          git diff --exit-code -- app/schemas/me.rerere.rikkahub.data.db.AppDatabase/41.json
 
       - name: Upload generated Room schema
         uses: actions/upload-artifact@v4
         with:
-          name: room-schema-v40
-          path: app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
+          name: room-schema-v41
+          path: app/schemas/me.rerere.rikkahub.data.db.AppDatabase/41.json
           if-no-files-found: error
           retention-days: 3
 
@@ -225,7 +225,7 @@ jobs:
                   totals[key] += int(root.attrib.get(key, 0))
 
           print("memory instrumentation:", ", ".join(f"{key}={value}" for key, value in totals.items()))
-          if totals != {"tests": 18, "failures": 0, "errors": 0, "skipped": 0}:
+          if totals != {"tests": 22, "failures": 0, "errors": 0, "skipped": 0}:
               raise SystemExit("memory instrumentation did not execute the complete green suite")
           PY
 
