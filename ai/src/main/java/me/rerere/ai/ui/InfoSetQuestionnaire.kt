@@ -92,21 +92,28 @@ fun createInfoSetQuestionnaire(
     sliderStep: Double? = null,
     createdAt: Instant = Clock.System.now(),
     id: String = Uuid.random().toString(),
-): InfoSetQuestionnaire = InfoSetQuestionnaire(
-    id = id,
-    issuerId = issuerId,
-    issuerLabel = issuerLabel,
-    recipientId = recipientId,
-    recipientLabel = recipientLabel,
-    type = type,
-    question = question.trim(),
-    options = options,
-    allowOwnAnswer = allowOwnAnswer,
-    sliderMin = sliderMin,
-    sliderMax = sliderMax,
-    sliderStep = sliderStep,
-    createdAt = createdAt.toString(),
-).also { it.validate() }
+): InfoSetQuestionnaire {
+    val isChoice = type == InfoSetQuestionnaireType.SINGLE ||
+        type == InfoSetQuestionnaireType.MULTI ||
+        type == InfoSetQuestionnaireType.RANKING
+    val allowsOwn = type == InfoSetQuestionnaireType.SINGLE ||
+        type == InfoSetQuestionnaireType.MULTI
+    return InfoSetQuestionnaire(
+        id = id,
+        issuerId = issuerId,
+        issuerLabel = issuerLabel,
+        recipientId = recipientId,
+        recipientLabel = recipientLabel,
+        type = type,
+        question = question.trim(),
+        options = options.takeIf { isChoice }.orEmpty(),
+        allowOwnAnswer = allowOwnAnswer && allowsOwn,
+        sliderMin = sliderMin.takeIf { type == InfoSetQuestionnaireType.SLIDER },
+        sliderMax = sliderMax.takeIf { type == InfoSetQuestionnaireType.SLIDER },
+        sliderStep = sliderStep.takeIf { type == InfoSetQuestionnaireType.SLIDER },
+        createdAt = createdAt.toString(),
+    ).also { it.validate() }
+}
 
 fun createInfoSetQuestionnaireAnswer(
     questionnaire: InfoSetQuestionnaire,
@@ -134,7 +141,10 @@ fun createInfoSetQuestionnaireAnswer(
         }.orEmpty(),
         sliderValue = sliderValue.takeIf { questionnaire.type == InfoSetQuestionnaireType.SLIDER },
         freeText = normalizedFreeText.takeIf {
-            questionnaire.type == InfoSetQuestionnaireType.FREE_TEXT || questionnaire.allowOwnAnswer
+            questionnaire.type == InfoSetQuestionnaireType.FREE_TEXT ||
+                (questionnaire.allowOwnAnswer &&
+                    (questionnaire.type == InfoSetQuestionnaireType.SINGLE ||
+                        questionnaire.type == InfoSetQuestionnaireType.MULTI))
         },
         answeredAt = answeredAt.toString(),
     ).also { it.validateAgainst(questionnaire) }
