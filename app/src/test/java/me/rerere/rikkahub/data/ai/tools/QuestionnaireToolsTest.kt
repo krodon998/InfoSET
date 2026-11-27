@@ -10,6 +10,7 @@ import me.rerere.ai.ui.infoSetQuestionnaireNotice
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.uuid.Uuid
 
@@ -73,6 +74,6 @@ class QuestionnaireToolsTest {
             questionnaire.requireRecipient("assistant:aire")
         }.exceptionOrNull()
 
-        assert(failure is IllegalArgumentException)
+        assertTrue(failure is IllegalArgumentException)
     }
 }
