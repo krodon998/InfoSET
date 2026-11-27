@@ -17,6 +17,8 @@ plugins {
 val githubOAuthClientId = providers.gradleProperty("infoset.githubOAuthClientId").orNull
     ?: System.getenv("INFOSET_GITHUB_OAUTH_CLIENT_ID")
     ?: ""
+val infosetVersionCode = System.getenv("INFOSET_VERSION_CODE")?.toIntOrNull() ?: 1
+val infosetVersionName = System.getenv("INFOSET_VERSION_NAME")?.takeIf(String::isNotBlank) ?: "0.1.0"
 
 android {
     namespace = "me.rerere.rikkahub"
@@ -30,8 +32,8 @@ android {
         applicationId = "com.infoset.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = infosetVersionCode
+        versionName = infosetVersionName
 
         // InfoSET owns its release cadence. Upstream RikkaHub update checks stay disabled.
         buildConfigField("boolean", "APP_UPDATES_ENABLED", "false")
@@ -98,6 +100,16 @@ android {
             applicationIdSuffix = ".debug"
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
+        }
+        create("preview") {
+            initWith(getByName("release"))
+            optimization {
+                enable = false
+            }
+            signingConfig = signingConfigs.getByName("release")
+            buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
+            buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
+            matchingFallbacks += listOf("release")
         }
     }
     // 按分发渠道区分：github 是 GitHub Release / 每日构建的 APK，play 是上架 Google Play 的 AAB
