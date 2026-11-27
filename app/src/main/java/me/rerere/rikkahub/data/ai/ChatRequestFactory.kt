@@ -130,10 +130,14 @@ class ChatRequestFactory(
             atoms = atomicMemoryRepository.getAtoms(memoryId)
         }
         val atomicRecall = recallQuery?.takeIf { atoms.isNotEmpty() && it.toText().isNotBlank() }?.let { cue ->
+            val atomicBudget = (
+                assistant.contextRecallTokenBudget -
+                    ContextComposer.estimateTextTokens(buildAtomicMemoryPrompt(""))
+                ).coerceAtLeast(0)
             atomicMemoryRepository.recall(
                 memoryId = memoryId,
                 query = cue.toText(),
-                tokenBudget = assistant.contextRecallTokenBudget,
+                tokenBudget = atomicBudget,
                 conversationId = conversation.id.toString(),
                 traceKey = "${conversation.id}:${cue.id}:${conversation.config?.activeSegmentId}",
             )

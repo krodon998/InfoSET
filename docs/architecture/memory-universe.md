@@ -90,3 +90,25 @@ it with a new design:
 
 These are mechanism references. InfoSET keeps its own schema, identity, permissions, archive, UI,
 and migration rules.
+
+## Atomic memory and recall v1
+
+The first persistent node uses Room schema 37:
+
+- `memory_atom` stores a stable ID and required statement, with nullable event time, people, place,
+  topic, event, change, reflection, provenance, importance, stability, confidence, tags, and relations.
+  `importedAt` is independent from nullable `occurredAt`.
+- recall count, last recall, activation, feedback counters, state, and pinning are system fields;
+  a strong cue can surface a dormant atom without deleting or rewriting archive data;
+- `memory_recall_trace` and `memory_recall_candidate` preserve the request cue, candidate scores,
+  provenance snapshot, filter reason, actual injected atom text, token cost, destination, and feedback;
+- Markdown writes pass through the compatibility adapter and replace only the atoms projected from
+  that source path. Deterministic IDs keep unchanged statements stable across refreshes. Once atoms
+  exist, provider requests use atomic recall and do not inject the Markdown store as a second source;
+- whole-house backup already snapshots the complete Room database, so atoms, stable IDs, traces,
+  and feedback move through the same staged validation and restore lifecycle as conversations.
+
+Recall v1 is deliberately lexical and deterministic. It scores cue overlap, activation, explicit
+importance/stability/confidence, feedback, and pinned status, then applies dormant-cue, diversity,
+and token-budget filters. The Recall Inspector exposes both test recalls and traces created by real
+chat requests. Semantic/vector indexes remain a later projection after lexical misses are measured.

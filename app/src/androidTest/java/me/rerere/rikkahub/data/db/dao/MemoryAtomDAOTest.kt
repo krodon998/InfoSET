@@ -72,7 +72,7 @@ class MemoryAtomDAOTest {
 
         val recalled = dao.getAtom(atom.id)!!
         assertEquals(1, recalled.recallCount)
-        assertEquals(20, recalled.lastRecalledAt)
+        assertEquals(20L, recalled.lastRecalledAt)
         assertEquals(1, recalled.positiveFeedbackCount)
         assertEquals("HELPFUL", dao.observeRecentTraces("memory").first().single().feedback)
         assertEquals(candidate.statement, dao.getCandidates(trace.id).single().statement)

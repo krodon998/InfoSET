@@ -97,8 +97,11 @@ class AtomicMemoryRepository(
         return atoms.size
     }
 
-    suspend fun importMarkdownFiles(memoryId: String, files: List<MemoryFile>, importedAt: Long = clock()): Int =
-        files.sumOf { syncMarkdownFile(memoryId, it, importedAt) }
+    suspend fun importMarkdownFiles(memoryId: String, files: List<MemoryFile>, importedAt: Long = clock()): Int {
+        var count = 0
+        for (file in files) count += syncMarkdownFile(memoryId, file, importedAt)
+        return count
+    }
 
     suspend fun deleteMarkdownSource(memoryId: String, path: String) {
         dao.deleteAtomsBySource(memoryId, MARKDOWN_SOURCE, path)
@@ -205,7 +208,7 @@ internal object MarkdownMemoryImporter {
         return file.displayBody
             .split(Regex("\\n\\s*\\n"))
             .map { paragraph -> paragraph.lines().filterNot { it.trimStart().startsWith("#") }.joinToString(" ") }
-            .mapNotNull(String::cleanStatement)
+            .mapNotNull { it.cleanStatement() }
             .distinct()
     }
 

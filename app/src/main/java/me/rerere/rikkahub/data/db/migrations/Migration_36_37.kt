@@ -48,8 +48,8 @@ val Migration_36_37 = object : Migration(36, 37) {
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_atom_occurred_at` ON `memory_atom` (`occurred_at`)")
         db.execSQL(
-            "CREATE INDEX IF NOT EXISTS `index_memory_atom_source_kind_source_ref` " +
-                "ON `memory_atom` (`source_kind`, `source_ref`)"
+            "CREATE INDEX IF NOT EXISTS `index_memory_atom_memory_id_source_kind_source_ref` " +
+                "ON `memory_atom` (`memory_id`, `source_kind`, `source_ref`)"
         )
 
         db.execSQL(

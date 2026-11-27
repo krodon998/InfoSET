@@ -11,7 +11,7 @@ import androidx.room.Index
         Index(value = ["memory_id"]),
         Index(value = ["memory_id", "state"]),
         Index(value = ["occurred_at"]),
-        Index(value = ["source_kind", "source_ref"]),
+        Index(value = ["memory_id", "source_kind", "source_ref"]),
     ],
 )
 data class MemoryAtomEntity(
@@ -43,16 +43,19 @@ data class MemoryAtomEntity(
     val tagsJson: String? = null,
     @ColumnInfo("relations_json")
     val relationsJson: String? = null,
-    @ColumnInfo("recall_count")
+    @ColumnInfo(name = "recall_count", defaultValue = "0")
     val recallCount: Int = 0,
     @ColumnInfo("last_recalled_at")
     val lastRecalledAt: Long? = null,
+    @ColumnInfo(defaultValue = "1.0")
     val activation: Double = 1.0,
-    @ColumnInfo("positive_feedback_count")
+    @ColumnInfo(name = "positive_feedback_count", defaultValue = "0")
     val positiveFeedbackCount: Int = 0,
-    @ColumnInfo("negative_feedback_count")
+    @ColumnInfo(name = "negative_feedback_count", defaultValue = "0")
     val negativeFeedbackCount: Int = 0,
+    @ColumnInfo(defaultValue = "'ACTIVE'")
     val state: String = "ACTIVE",
+    @ColumnInfo(defaultValue = "0")
     val pinned: Boolean = false,
     @ColumnInfo("created_at")
     val createdAt: Long,

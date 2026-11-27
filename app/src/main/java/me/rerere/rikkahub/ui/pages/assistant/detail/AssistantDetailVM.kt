@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -91,7 +90,9 @@ class AssistantDetailVM(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            combine(assistant, memories) { currentAssistant, files -> currentAssistant to files }
+            assistant.flatMapLatest { currentAssistant ->
+                memoryRepository.getFilesFlow(memoryIdOf(currentAssistant)).map { files -> currentAssistant to files }
+            }
                 .collectLatest { (currentAssistant, files) ->
                     if (files.isNotEmpty()) {
                         atomicMemoryRepository.importMarkdownFiles(memoryIdOf(currentAssistant), files)

@@ -65,7 +65,8 @@ interface MemoryAtomDAO {
 
     @Query(
         "UPDATE memory_atom SET recall_count = recall_count + 1, last_recalled_at = :recalledAt, " +
-            "activation = MIN(1.0, activation + 0.05) WHERE id IN (:atomIds)"
+            "activation = MIN(1.0, activation + 0.05), " +
+            "state = CASE WHEN state = 'DORMANT' THEN 'COOLING' ELSE state END WHERE id IN (:atomIds)"
     )
     suspend fun markRecalled(atomIds: List<String>, recalledAt: Long)
 
@@ -96,17 +97,37 @@ interface MemoryAtomDAO {
     @Query("UPDATE memory_recall_trace SET feedback = :feedback WHERE id = :traceId")
     suspend fun updateTraceFeedback(traceId: String, feedback: String)
 
+    @Query("SELECT feedback FROM memory_recall_trace WHERE id = :traceId")
+    suspend fun getTraceFeedback(traceId: String): String?
+
     @Query("UPDATE memory_atom SET positive_feedback_count = positive_feedback_count + 1 WHERE id IN (:atomIds)")
     suspend fun incrementPositiveFeedback(atomIds: List<String>)
 
     @Query("UPDATE memory_atom SET negative_feedback_count = negative_feedback_count + 1 WHERE id IN (:atomIds)")
     suspend fun incrementNegativeFeedback(atomIds: List<String>)
 
+    @Query(
+        "UPDATE memory_atom SET positive_feedback_count = MAX(0, positive_feedback_count - 1) " +
+            "WHERE id IN (:atomIds)"
+    )
+    suspend fun decrementPositiveFeedback(atomIds: List<String>)
+
+    @Query(
+        "UPDATE memory_atom SET negative_feedback_count = MAX(0, negative_feedback_count - 1) " +
+            "WHERE id IN (:atomIds)"
+    )
+    suspend fun decrementNegativeFeedback(atomIds: List<String>)
+
     @Transaction
     suspend fun recordFeedback(traceId: String, feedback: String) {
-        updateTraceFeedback(traceId, feedback)
+        val previous = getTraceFeedback(traceId)
+        if (previous == feedback) return
         val atomIds = getInjectedAtomIds(traceId)
-        if (atomIds.isEmpty()) return
-        if (feedback == "HELPFUL") incrementPositiveFeedback(atomIds) else incrementNegativeFeedback(atomIds)
+        if (atomIds.isNotEmpty()) {
+            if (previous == "HELPFUL") decrementPositiveFeedback(atomIds)
+            if (previous == "NOT_HELPFUL") decrementNegativeFeedback(atomIds)
+            if (feedback == "HELPFUL") incrementPositiveFeedback(atomIds) else incrementNegativeFeedback(atomIds)
+        }
+        updateTraceFeedback(traceId, feedback)
     }
 }
