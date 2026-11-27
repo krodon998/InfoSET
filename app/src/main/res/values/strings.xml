@@ -637,6 +637,13 @@
   <string name="search_page_sort_oldest">Oldest first</string>
   <string name="search_page_sort_relevance">Relevance</string>
   <string name="search_page_title">Search Messages</string>
+  <string name="search_page_mode_text">Text</string>
+  <string name="search_page_mode_date">Date</string>
+  <string name="search_page_mode_image">Images</string>
+  <string name="search_page_mode_video">Videos</string>
+  <string name="search_page_mode_file">Files</string>
+  <string name="search_page_mode_link">Links</string>
+  <string name="search_page_date_jump">Date: %1$s</string>
   <string name="search_page_untitled">Untitled</string>
   <string name="search_picker_title">Search Settings</string>
   <string name="search_picker_local_title">Local Search</string>
