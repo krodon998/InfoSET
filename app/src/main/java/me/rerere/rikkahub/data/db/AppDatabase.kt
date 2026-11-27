@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.ManagedFileDAO
 import me.rerere.rikkahub.data.db.dao.MailboxLetterDAO
+import me.rerere.rikkahub.data.db.dao.MemoryAtomDAO
 import me.rerere.rikkahub.data.db.dao.MediaCreationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryConsolidationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
@@ -25,6 +26,9 @@ import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
+import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
+import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
+import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
 import me.rerere.rikkahub.data.db.entity.MediaCreationNodeEntity
 import me.rerere.rikkahub.data.db.entity.MediaCreationRecordEntity
 import me.rerere.rikkahub.data.db.entity.MediaCreationSessionEntity
@@ -57,8 +61,11 @@ import me.rerere.rikkahub.utils.JsonInstant
         TranslationHistoryEntity::class,
         UsageRecordEntity::class,
         MailboxLetterEntity::class,
+        MemoryAtomEntity::class,
+        MemoryRecallTraceEntity::class,
+        MemoryRecallCandidateEntity::class,
     ],
-    version = 36,
+    version = 37,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -114,6 +121,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun usageRecordDao(): UsageRecordDAO
 
     abstract fun mailboxLetterDao(): MailboxLetterDAO
+
+    abstract fun memoryAtomDao(): MemoryAtomDAO
 }
 
 object TokenUsageConverter {

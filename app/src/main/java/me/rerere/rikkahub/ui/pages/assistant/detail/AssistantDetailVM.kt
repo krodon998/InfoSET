@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -26,6 +27,7 @@ import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.AtomicMemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import kotlin.uuid.Uuid
 
@@ -35,6 +37,7 @@ class AssistantDetailVM(
     private val id: String,
     private val settingsStore: SettingsStore,
     private val memoryRepository: MemoryRepository,
+    private val atomicMemoryRepository: AtomicMemoryRepository,
     private val memoryConsolidationScheduler: MemoryConsolidationScheduler,
     private val filesManager: FilesManager,
     private val skillManager: SkillManager,
@@ -76,6 +79,27 @@ class AssistantDetailVM(
         .stateIn(
             scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList()
         )
+
+    val memoryAtoms = assistant
+        .flatMapLatest { currentAssistant ->
+            atomicMemoryRepository.observeAtoms(memoryIdOf(currentAssistant))
+        }
+        .stateIn(
+            scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList()
+        )
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            assistant.flatMapLatest { currentAssistant ->
+                memoryRepository.getFilesFlow(memoryIdOf(currentAssistant)).map { files -> currentAssistant to files }
+            }
+                .collectLatest { (currentAssistant, files) ->
+                    if (files.isNotEmpty()) {
+                        atomicMemoryRepository.importMarkdownFiles(memoryIdOf(currentAssistant), files)
+                    }
+                }
+        }
+    }
 
     val memoryConsolidation: StateFlow<MemoryConsolidationStatus> = assistant
         .flatMapLatest { currentAssistant ->

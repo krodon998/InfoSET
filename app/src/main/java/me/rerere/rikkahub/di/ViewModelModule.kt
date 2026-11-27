@@ -19,6 +19,7 @@ import me.rerere.rikkahub.ui.pages.imggen.ImgGenVM
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsVM
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationVM
 import me.rerere.rikkahub.ui.pages.memory.MemoryFileVM
+import me.rerere.rikkahub.ui.pages.memory.MemoryRecallInspectorVM
 import me.rerere.rikkahub.ui.pages.quickstart.QuickStartVM
 import me.rerere.rikkahub.ui.pages.search.SearchVM
 import me.rerere.rikkahub.ui.pages.setting.SettingVM
@@ -53,6 +54,7 @@ val viewModelModule = module {
             id = it.get(),
             settingsStore = get(),
             memoryRepository = get(),
+            atomicMemoryRepository = get(),
             memoryConsolidationScheduler = get(),
             filesManager = get(),
             skillManager = get(),
@@ -64,6 +66,12 @@ val viewModelModule = module {
             memoryId = it[0],
             path = it[1],
             memoryRepository = get(),
+        )
+    }
+    viewModel<MemoryRecallInspectorVM> {
+        MemoryRecallInspectorVM(
+            memoryId = it.get(),
+            repository = get(),
         )
     }
     viewModelOf(::TranslatorVM)

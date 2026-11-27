@@ -24,6 +24,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ContextBlockSnapshot
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
+import me.rerere.rikkahub.data.ai.prompts.buildAtomicMemoryPrompt
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -48,6 +49,8 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MemoryFile
+import me.rerere.rikkahub.data.model.MemoryRecallResult
+import me.rerere.rikkahub.data.repository.AtomicMemoryRepository
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -73,6 +76,8 @@ class ChatTurnContext(
     val conversationSystemPrompt: String?,
     val workspaceCwd: String?,
     val memories: List<MemoryFile>,
+    val atomicMemoryActive: Boolean,
+    val atomicRecall: MemoryRecallResult?,
     val tools: List<Tool>,
     val currentSharedState: String,
     val contextSegmentId: String,
@@ -85,6 +90,7 @@ class ChatRequestFactory(
     private val usageRecorder: UsageRecorder,
     private val chatToolFactory: ChatToolFactory,
     private val memoryRepository: MemoryRepository,
+    private val atomicMemoryRepository: AtomicMemoryRepository,
     templateTransformer: TemplateTransformer,
     workspaceRepository: WorkspaceRepository,
 ) {
@@ -113,6 +119,29 @@ class ChatRequestFactory(
         val model = settings.getChatModelOf(conversation)
             ?: throw IllegalStateException("No chat model selected")
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
+        val memoryId = assistant.memoryId
+        val legacyMemories = if (assistant.enableMemory) memoryRepository.getFiles(memoryId) else emptyList()
+        val recallQuery = conversation.currentMessages.lastOrNull {
+            it.role == MessageRole.USER && !it.isContextCheckpoint
+        }
+        var atoms = if (assistant.enableMemory) atomicMemoryRepository.getAtoms(memoryId) else emptyList()
+        if (assistant.enableMemory && atoms.isEmpty() && legacyMemories.isNotEmpty()) {
+            atomicMemoryRepository.importMarkdownFiles(memoryId, legacyMemories)
+            atoms = atomicMemoryRepository.getAtoms(memoryId)
+        }
+        val atomicRecall = recallQuery?.takeIf { atoms.isNotEmpty() && it.toText().isNotBlank() }?.let { cue ->
+            val atomicBudget = (
+                assistant.contextRecallTokenBudget -
+                    ContextComposer.estimateTextTokens(buildAtomicMemoryPrompt(""))
+                ).coerceAtLeast(0)
+            atomicMemoryRepository.recall(
+                memoryId = memoryId,
+                query = cue.toText(),
+                tokenBudget = atomicBudget,
+                conversationId = conversation.id.toString(),
+                traceKey = "${conversation.id}:${cue.id}:${conversation.config?.activeSegmentId}",
+            )
+        }
         return ChatTurnContext(
             settings = settings,
             assistant = assistant,
@@ -121,7 +150,9 @@ class ChatRequestFactory(
             conversationId = conversation.id,
             conversationSystemPrompt = conversation.customSystemPrompt,
             workspaceCwd = conversation.workspaceCwd,
-            memories = if (assistant.enableMemory) memoryRepository.getFiles(assistant.memoryId) else emptyList(),
+            memories = legacyMemories,
+            atomicMemoryActive = atoms.isNotEmpty(),
+            atomicRecall = atomicRecall,
             tools = chatToolFactory.createTools(
                 settings = settings,
                 assistant = assistant,
@@ -260,7 +291,11 @@ class ChatRequestFactory(
                 UIMessage.system("[Current Shared State]\n$it").copy(isSynthetic = true)
             }
         val optionalRecall = if (assistant.enableMemory) {
-            buildMemoryPrompt(turn.memories)
+            (if (turn.atomicMemoryActive) {
+                buildAtomicMemoryPrompt(turn.atomicRecall?.injectedContent.orEmpty())
+            } else {
+                buildMemoryPrompt(turn.memories)
+            })
                 .takeIf { it.isNotBlank() }
                 ?.let { UIMessage.system("[Optional Recall]\n$it").copy(isSynthetic = true) }
         } else {

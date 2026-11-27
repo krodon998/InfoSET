@@ -90,6 +90,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().memoryAtomDao()
+    }
+
+    single {
         get<AppDatabase>().memoryConsolidationDao()
     }
 

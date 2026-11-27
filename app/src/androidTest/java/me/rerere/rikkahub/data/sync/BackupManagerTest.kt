@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
+import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -149,6 +150,33 @@ class BackupManagerTest {
         assertEquals("monthly_life_letters", restored.source)
         assertEquals("完整且不可覆盖的生活信正文。", restored.body)
         assertEquals(letter.sourceRef, restored.sourceRef)
+    }
+
+    @Test fun atomicMemoryKeepsStableIdentityAndNullableEventTimeThroughRestore() = runBlocking {
+        val atom = MemoryAtomEntity(
+            id = "memory-stable-across-restore",
+            memoryId = "assistant",
+            statement = "A sparse memory survives a whole-house move",
+            occurredAt = null,
+            importedAt = 1234,
+            sourceKind = "MARKDOWN",
+            sourceRef = "/profile.md",
+            createdAt = 1234,
+            updatedAt = 1234,
+        )
+        liveDatabase.memoryAtomDao().upsertAtom(atom)
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        liveDatabase.close()
+        assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
+        liveDatabase = AppDatabaseFactory.create(context)
+
+        val restored = liveDatabase.memoryAtomDao().getAtom(atom.id)!!
+        assertEquals(atom.id, restored.id)
+        assertEquals(atom.statement, restored.statement)
+        assertEquals(atom.importedAt, restored.importedAt)
+        assertEquals(null, restored.occurredAt)
     }
 
     @Test fun archiveWithoutLaunchCountRestoresItAsZero() = runBlocking {

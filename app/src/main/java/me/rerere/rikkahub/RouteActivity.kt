@@ -101,6 +101,7 @@ import me.rerere.rikkahub.ui.pages.extensions.PromptPage
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesPage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailPage
 import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
+import me.rerere.rikkahub.ui.pages.memory.MemoryRecallInspectorPage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsPage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspacePage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailPage
@@ -496,6 +497,10 @@ class RouteActivity : ComponentActivity() {
                                 MemoryFilePage(memoryId = key.memoryId, path = key.path)
                             }
 
+                            entry<Screen.MemoryRecallInspector> { key ->
+                                MemoryRecallInspectorPage(memoryId = key.memoryId)
+                            }
+
                             entry<Screen.AssistantRequest> { key ->
                                 AssistantRequestPage(key.id)
                             }
@@ -807,6 +812,9 @@ sealed interface Screen : NavKey {
     /** 记忆库 [memoryId] 里的一个文件，[path] 为 null 时新建 */
     @Serializable
     data class MemoryFile(val memoryId: String, val path: String? = null) : Screen
+
+    @Serializable
+    data class MemoryRecallInspector(val memoryId: String) : Screen
 
     @Serializable
     data class AssistantRequest(val id: String) : Screen
