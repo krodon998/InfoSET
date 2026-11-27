@@ -149,6 +149,56 @@ class InfoSetQuestionnaireTest {
     }
 
     @Test
+    fun `question payload drops fields that do not belong to its type`() {
+        val slider = createInfoSetQuestionnaire(
+            issuerLabel = "隐",
+            recipientLabel = "Aire",
+            type = InfoSetQuestionnaireType.SLIDER,
+            question = "困意？",
+            options = listOf(
+                InfoSetQuestionOption("x", "不该保留"),
+                InfoSetQuestionOption("y", "也不该保留"),
+            ),
+            allowOwnAnswer = true,
+            sliderMin = 0.0,
+            sliderMax = 10.0,
+            sliderStep = 1.0,
+        )
+        assertTrue(slider.options.isEmpty())
+        assertFalse(slider.allowOwnAnswer)
+
+        val single = createInfoSetQuestionnaire(
+            issuerLabel = "隐",
+            recipientLabel = "Aire",
+            type = InfoSetQuestionnaireType.SINGLE,
+            question = "选一个",
+            options = listOf(
+                InfoSetQuestionOption("a", "A"),
+                InfoSetQuestionOption("b", "B"),
+            ),
+            sliderMin = 0.0,
+            sliderMax = 10.0,
+            sliderStep = 1.0,
+        )
+        assertEquals(null, single.sliderMin)
+        assertEquals(null, single.sliderMax)
+        assertEquals(null, single.sliderStep)
+
+        val ranking = createInfoSetQuestionnaire(
+            issuerLabel = "隐",
+            recipientLabel = "Aire",
+            type = InfoSetQuestionnaireType.RANKING,
+            question = "排一下",
+            options = listOf(
+                InfoSetQuestionOption("a", "A"),
+                InfoSetQuestionOption("b", "B"),
+            ),
+            allowOwnAnswer = true,
+        )
+        assertFalse(ranking.allowOwnAnswer)
+    }
+
+    @Test
     fun `invalid answer shape is rejected before entering timeline`() {
         val single = choiceQuestion()
 
