@@ -3,12 +3,9 @@ package me.rerere.rikkahub.ui.components.message
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -17,7 +14,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
@@ -27,20 +23,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEach
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.derivedMessageSegments
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.utils.copyMessageToClipboard
+import me.rerere.rikkahub.utils.writeClipboardText
 
 @Composable
-fun ChatMessageCopySheet(
+internal fun ChatMessageCopySheet(
     message: UIMessage,
+    target: MessageBubbleTarget = MessageBubbleTarget(),
+    onEdit: (() -> Unit)? = null,
     onDismissRequest: () -> Unit
 ) {
     val context = LocalContext.current
@@ -72,37 +68,45 @@ fun ChatMessageCopySheet(
                 }
 
                 Text(
-                    text = stringResource(R.string.select_and_copy),
+                    text = "消息预览",
                     style = MaterialTheme.typography.headlineSmall,
                 )
 
-                TextButton(
-                    onClick = {
-                        context.copyMessageToClipboard(
-                            message = message,
-                            messageBreaksEnabled = settings.displaySetting.enableAssistantMessageBreaks,
-                            maxSegments = settings.displaySetting.messageBreakMaxSegments,
-                        )
-                        onDismissRequest()
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(
+                        onClick = {
+                            context.writeClipboardText(
+                                message.textForBubbleTarget(
+                                    target = target,
+                                    breaksEnabled = settings.displaySetting.enableAssistantMessageBreaks,
+                                    maxSegments = settings.displaySetting.messageBreakMaxSegments,
+                                )
+                            )
+                        }
+                    ) {
+                        Icon(HugeIcons.Copy01, contentDescription = stringResource(R.string.copy))
                     }
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Copy01,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.copy_all))
+                    if (onEdit != null) {
+                        IconButton(
+                            onClick = {
+                                onDismissRequest()
+                                onEdit()
+                            }
+                        ) {
+                            Icon(HugeIcons.Edit01, contentDescription = stringResource(R.string.edit))
+                        }
+                    }
                 }
             }
 
             // Content
-            val textParts = message.derivedMessageSegments(
-                enabled = settings.displaySetting.enableAssistantMessageBreaks,
+            val rawText = message.textForBubbleTarget(
+                target = target,
+                breaksEnabled = settings.displaySetting.enableAssistantMessageBreaks,
                 maxSegments = settings.displaySetting.messageBreakMaxSegments,
-            ).map { UIMessagePart.Text(it.text) }
+            )
 
-            if (textParts.isEmpty()) {
+            if (rawText.isBlank()) {
                 // No text content available
                 Column(
                     modifier = Modifier
@@ -126,12 +130,7 @@ fun ChatMessageCopySheet(
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                     ) {
-                        textParts.fastForEach { textPart ->
-                            Text(
-                                text = textPart.text,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
+                        Text(text = rawText, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }

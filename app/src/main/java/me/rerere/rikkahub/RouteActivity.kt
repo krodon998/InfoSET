@@ -77,8 +77,8 @@ import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
-import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.readStringPreference
+import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
 import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
@@ -92,6 +92,7 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
 import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
+import me.rerere.rikkahub.ui.pages.chat.ChatSettingsPage
 import me.rerere.rikkahub.ui.pages.debug.DebugPage
 import me.rerere.rikkahub.ui.pages.desktop.InfoSetDesktopPage
 import me.rerere.rikkahub.ui.pages.desktop.InfoSetLockScreenPage
@@ -324,16 +325,11 @@ class RouteActivity : ComponentActivity() {
         val migrationState by DatabaseMigrationTracker.state.collectAsStateWithLifecycle()
 
         val initialChatScreen = remember {
-            Screen.Chat(
-                id = if (readBooleanPreference("create_new_conversation_on_start", true)) {
-                    Uuid.random().toString()
-                } else {
-                    readStringPreference(
-                        "lastConversationId",
-                        Uuid.random().toString()
-                    ) ?: Uuid.random().toString()
-                }
-            )
+            val primaryChatId = readStringPreference("infoset.primaryConversationId")
+                ?: readStringPreference("lastConversationId")
+                ?: Uuid.random().toString()
+            writeStringPreference("infoset.primaryConversationId", primaryChatId)
+            Screen.Chat(id = primaryChatId)
         }
 
         val backStack = rememberNavBackStack(Screen.LockScreen)
@@ -450,6 +446,10 @@ class RouteActivity : ComponentActivity() {
                                     files = key.files.map { it.toUri() },
                                     nodeId = key.nodeId?.let { Uuid.parse(it) }
                                 )
+                            }
+
+                            entry<Screen.ChatSettings> { key ->
+                                ChatSettingsPage(assistantId = key.assistantId)
                             }
 
                             entry<Screen.ShareHandler> { key ->
@@ -771,6 +771,9 @@ sealed interface Screen : NavKey {
         val files: List<String> = emptyList(),
         val nodeId: String? = null
     ) : Screen
+
+    @Serializable
+    data class ChatSettings(val assistantId: String) : Screen
 
     @Serializable
     data class ShareHandler(val text: String, val streamUri: String? = null) : Screen
