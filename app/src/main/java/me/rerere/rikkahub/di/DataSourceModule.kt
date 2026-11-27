@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.common.http.AcceptLanguageBuilder
 import me.rerere.mediagen.provider.MediaGenerationManager
+import me.rerere.oauth.OAuthHttpClient
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.data.ai.AIRequestInterceptor
@@ -21,6 +22,8 @@ import me.rerere.rikkahub.data.ai.MemoryConsolidator
 import me.rerere.rikkahub.data.ai.RequestLoggingInterceptor
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.UsageRecorder
+import me.rerere.rikkahub.data.ai.account.GitHubAccountManager
+import me.rerere.rikkahub.data.ai.account.GitHubCredentialVault
 import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.transformers.AssistantTemplateLoader
@@ -262,6 +265,18 @@ val dataSourceModule = module {
             settingsStore = get(),
             appScope = get(),
             client = get(),
+        )
+    }
+
+    single { GitHubCredentialVault.create(get()) }
+
+    single {
+        GitHubAccountManager(
+            appScope = get(),
+            httpClient = get(),
+            oauthClient = OAuthHttpClient(get()),
+            vault = get(),
+            clientId = BuildConfig.GITHUB_OAUTH_CLIENT_ID,
         )
     }
 
