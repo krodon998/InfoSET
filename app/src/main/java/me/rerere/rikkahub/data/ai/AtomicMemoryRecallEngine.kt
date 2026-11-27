@@ -28,19 +28,21 @@ object AtomicMemoryRecallEngine {
             val feedbackTotal = atom.positiveFeedbackCount + atom.negativeFeedbackCount
             val feedback = if (feedbackTotal == 0) 0.5 else atom.positiveFeedbackCount.toDouble() / feedbackTotal
             val total = lexical * 0.65 + activation * 0.12 + importance * 0.08 +
-                stability * 0.05 + confidence * 0.05 + feedback * 0.05
+                stability * 0.05 + confidence * 0.05 + feedback * 0.05 + if (atom.pinned) 0.75 else 0.0
             Scored(atom, total, lexical, activation, importance)
         }.sortedWith(compareByDescending<Scored> { it.total }.thenBy { it.atom.id })
 
-        var remaining = tokenBudget.coerceAtLeast(0)
+        val wrapperTokens = ContextComposer.estimateTextTokens("<atomic_memory_recall>\n</atomic_memory_recall>")
+        var remaining = (tokenBudget - wrapperTokens).coerceAtLeast(0)
         val topics = mutableMapOf<String, Int>()
         val candidates = ranked.mapIndexed { index, scored ->
             val topic = scored.atom.topic?.trim()?.lowercase().orEmpty()
             val line = scored.atom.injectionLine()
             val tokens = ContextComposer.estimateTextTokens(line)
             val reason = when {
-                scored.lexical <= 0.0 -> MemoryRecallFilterReason.NO_LEXICAL_MATCH
-                scored.atom.state == MemoryAtomState.DORMANT && scored.lexical < DORMANT_WAKE_THRESHOLD ->
+                scored.lexical <= 0.0 && !scored.atom.pinned -> MemoryRecallFilterReason.NO_LEXICAL_MATCH
+                scored.atom.state == MemoryAtomState.DORMANT && !scored.atom.pinned &&
+                    scored.lexical < DORMANT_WAKE_THRESHOLD ->
                     MemoryRecallFilterReason.DORMANT_WEAK_CUE
                 topic.isNotEmpty() && topics.getOrDefault(topic, 0) >= MAX_PER_TOPIC ->
                     MemoryRecallFilterReason.DIVERSITY_LIMIT

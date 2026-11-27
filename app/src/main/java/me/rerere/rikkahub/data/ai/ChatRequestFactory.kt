@@ -24,6 +24,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ContextBlockSnapshot
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
+import me.rerere.rikkahub.data.ai.prompts.buildAtomicMemoryPrompt
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -286,7 +287,11 @@ class ChatRequestFactory(
                 UIMessage.system("[Current Shared State]\n$it").copy(isSynthetic = true)
             }
         val optionalRecall = if (assistant.enableMemory) {
-            (if (turn.atomicMemoryActive) turn.atomicRecall?.injectedContent.orEmpty() else buildMemoryPrompt(turn.memories))
+            (if (turn.atomicMemoryActive) {
+                buildAtomicMemoryPrompt(turn.atomicRecall?.injectedContent.orEmpty())
+            } else {
+                buildMemoryPrompt(turn.memories)
+            })
                 .takeIf { it.isNotBlank() }
                 ?.let { UIMessage.system("[Optional Recall]\n$it").copy(isSynthetic = true) }
         } else {
