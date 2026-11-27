@@ -1,13 +1,9 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -44,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
@@ -51,6 +49,8 @@ import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -66,6 +66,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
@@ -87,7 +88,6 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
@@ -95,11 +95,9 @@ import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
-import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
-import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
@@ -108,9 +106,9 @@ import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
+import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.ui.charts.ChartCard
 import me.rerere.ui.charts.ChartSpec
-import me.rerere.ui.webview.WebViewContentCache
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -165,11 +163,10 @@ fun ChatMessage(
         lineHeight = LocalTextStyle.current.lineHeight * settings.fontSizeRatio,
         fontFamily = chatFontFamily
     )
-    var showActionsSheet by remember { mutableStateOf(false) }
-    var showSelectCopySheet by remember { mutableStateOf(false) }
-    val navController = LocalNavController.current
+    var actionTarget by remember { mutableStateOf<MessageBubbleTarget?>(null) }
+    var previewTarget by remember { mutableStateOf<MessageBubbleTarget?>(null) }
+    var showTranslateDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val colorScheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
@@ -212,44 +209,15 @@ fun ChatMessage(
                 model = model,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
-                onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                onBubbleLongPress = { actionTarget = it },
+                onBubbleDoubleClick = { previewTarget = it },
+                onBubbleSwipeReply = { target -> onReply(target.partIndex, target.segmentIndex) },
             )
 
             message.translation?.let { translation ->
                 CollapsibleTranslationText(
                     content = translation,
                     onClickCitation = {}
-                )
-            }
-        }
-
-        val showActions = if (lastMessage) {
-            !loading
-        } else {
-            message.parts.isEmptyUIMessage().not()
-        }
-
-        val motionScheme = MaterialTheme.motionScheme
-        AnimatedVisibility(
-            visible = showActions,
-            enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
-                fadeIn(motionScheme.defaultEffectsSpec()),
-            exit = slideOutVertically(motionScheme.fastSpatialSpec()) { it / 2 } +
-                fadeOut(motionScheme.fastEffectsSpec())
-        ) {
-            Column(
-                modifier = Modifier.animateContentSize()
-            ) {
-                ChatMessageActionButtons(
-                    message = message,
-                    onRegenerate = onRegenerate,
-                    node = node,
-                    onUpdate = onUpdate,
-                    onOpenActionSheet = {
-                        showActionsSheet = true
-                    },
-                    onTranslate = onTranslate,
-                    onClearTranslation = onClearTranslation
                 )
             }
         }
@@ -264,47 +232,51 @@ fun ChatMessage(
         }
 
     }
-    if (showActionsSheet) {
-        ChatMessageActionsSheet(
+    actionTarget?.let { target ->
+        ChatMessageContextMenu(
             message = message,
+            target = target,
+            isFavorite = isFavorite,
+            onCopy = {
+                context.writeClipboardText(
+                    message.textForBubbleTarget(
+                        target = target,
+                        breaksEnabled = settings.enableAssistantMessageBreaks,
+                        maxSegments = settings.messageBreakMaxSegments,
+                    )
+                )
+            },
+            onToggleFavorite = onToggleFavorite,
+            onRegenerate = onRegenerate,
+            onReply = { onReply(target.partIndex, target.segmentIndex) },
+            onTranslate = onTranslate?.let { { showTranslateDialog = true } },
             onEdit = onEdit,
             onDelete = onDelete,
-            onShare = onShare,
             onFork = onFork,
-            onReply = onReply,
-            model = model,
-            onSelectAndCopy = {
-                showSelectCopySheet = true
-            },
-            isFavorite = isFavorite,
-            onToggleFavorite = onToggleFavorite,
-            onWebViewPreview = {
-                val textContent = message.parts
-                    .filterIsInstance<UIMessagePart.Text>()
-                    .joinToString("\n\n") { it.text }
-                    .trim()
-                if (textContent.isNotBlank()) {
-                    val htmlContent = buildMarkdownPreviewHtml(
-                        context = context,
-                        markdown = textContent,
-                        colorScheme = colorScheme
-                    )
-                    val contentId = WebViewContentCache.store(context.cacheDir, htmlContent)
-                    navController.navigate(Screen.WebView(contentId = contentId))
-                }
-            },
-            onDismissRequest = {
-                showActionsSheet = false
-            }
+            onDismissRequest = { actionTarget = null },
         )
     }
 
-    if (showSelectCopySheet) {
+    previewTarget?.let { target ->
         ChatMessageCopySheet(
             message = message,
-            onDismissRequest = {
-                showSelectCopySheet = false
-            }
+            target = target,
+            onEdit = onEdit,
+            onDismissRequest = { previewTarget = null },
+        )
+    }
+
+    if (showTranslateDialog && onTranslate != null) {
+        LanguageSelectionDialog(
+            onLanguageSelected = { language ->
+                showTranslateDialog = false
+                onTranslate(message, language)
+            },
+            onClearTranslation = {
+                showTranslateDialog = false
+                onClearTranslation(message)
+            },
+            onDismissRequest = { showTranslateDialog = false },
         )
     }
 }
@@ -322,7 +294,9 @@ private fun MessagePartsBlock(
     loading: Boolean,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
-    onUserMessageClick: (() -> Unit)? = null,
+    onBubbleLongPress: (MessageBubbleTarget) -> Unit,
+    onBubbleDoubleClick: (MessageBubbleTarget) -> Unit,
+    onBubbleSwipeReply: (MessageBubbleTarget) -> Unit,
 ) {
     val role = message.role
     val parts = message.parts
@@ -442,6 +416,7 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
+                        val bubbleTarget = MessageBubbleTarget(partIndex = block.index)
                         // 只有正在生成的最后一段文字可能停在没写完的语法上
                         val streamingText = loading && block.index == parts.lastIndex
                         val textContent = @Composable {
@@ -449,7 +424,9 @@ private fun MessagePartsBlock(
                                 ChatMessageBubble(
                                     role = role,
                                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity),
-                                    onClick = { onUserMessageClick?.invoke() },
+                                    onLongClick = { onBubbleLongPress(bubbleTarget) },
+                                    onDoubleClick = { onBubbleDoubleClick(bubbleTarget) },
+                                    onSwipeReply = { onBubbleSwipeReply(bubbleTarget) },
                                     // 用户气泡不占满整行，和助手的回复错开
                                     modifier = Modifier
                                         .padding(start = 24.dp)
@@ -466,8 +443,7 @@ private fun MessagePartsBlock(
                                 }
                             } else {
                                 val segments = messageSegments.filter { it.sourcePartIndex == block.index }
-                                val showBubbles = settings.displaySetting.showAssistantBubble || segments.size > 1
-                                if (showBubbles) {
+                                if (segments.isNotEmpty()) {
                                     Column(
                                         verticalArrangement = Arrangement.spacedBy(4.dp),
                                         modifier = Modifier.semantics {
@@ -476,9 +452,16 @@ private fun MessagePartsBlock(
                                     ) {
                                         segments.fastForEach { segment ->
                                             key(segment.id) {
+                                                val segmentTarget = MessageBubbleTarget(
+                                                    partIndex = block.index,
+                                                    segmentIndex = segment.index,
+                                                )
                                                 ChatMessageBubble(
                                                     role = role,
                                                     color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                                    onLongClick = { onBubbleLongPress(segmentTarget) },
+                                                    onDoubleClick = { onBubbleDoubleClick(segmentTarget) },
+                                                    onSwipeReply = { onBubbleSwipeReply(segmentTarget) },
                                                     modifier = Modifier
                                                         .animateContentSize()
                                                         .semantics {
@@ -654,10 +637,19 @@ private fun ChatMessageBubble(
     color: Color,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    onDoubleClick: (() -> Unit)? = null,
+    onSwipeReply: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressProgress by animatePressProgress(interactionSource)
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val haptic = LocalHapticFeedback.current
+    val replyThresholdPx = with(density) { configuration.screenWidthDp.dp.toPx() / 4f }
+    var horizontalDrag by remember { mutableFloatStateOf(0f) }
+    var thresholdHapticSent by remember { mutableStateOf(false) }
     val corner = lerp(BubbleCorner, BubblePressedCorner, pressProgress)
     val shape = if (role == MessageRole.USER) {
         RoundedCornerShape(topStart = corner, topEnd = BubbleTailCorner, bottomEnd = corner, bottomStart = corner)
@@ -667,11 +659,51 @@ private fun ChatMessageBubble(
     val contentColor = contentColorFor(color)
     Box(
         modifier = modifier
+            .graphicsLayer {
+                translationX = horizontalDrag.coerceIn(-replyThresholdPx, 0f)
+            }
+            .then(
+                if (onSwipeReply != null) {
+                    Modifier.pointerInput(onSwipeReply, replyThresholdPx) {
+                        detectHorizontalDragGestures(
+                            onDragStart = {
+                                horizontalDrag = 0f
+                                thresholdHapticSent = false
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                horizontalDrag = (horizontalDrag + dragAmount).coerceAtMost(0f)
+                                if (-horizontalDrag >= replyThresholdPx && !thresholdHapticSent) {
+                                    thresholdHapticSent = true
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                            },
+                            onDragEnd = {
+                                if (-horizontalDrag >= replyThresholdPx) onSwipeReply()
+                                horizontalDrag = 0f
+                                thresholdHapticSent = false
+                            },
+                            onDragCancel = {
+                                horizontalDrag = 0f
+                                thresholdHapticSent = false
+                            },
+                        )
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .clipDrawing(shape)
             .background(color)
             .then(
-                if (onClick != null) {
-                    Modifier.clickable(interactionSource = interactionSource, indication = ripple(), onClick = onClick)
+                if (onClick != null || onLongClick != null || onDoubleClick != null) {
+                    Modifier.combinedClickable(
+                        interactionSource = interactionSource,
+                        indication = ripple(),
+                        onClick = onClick ?: {},
+                        onLongClick = onLongClick,
+                        onDoubleClick = onDoubleClick,
+                    )
                 } else {
                     Modifier
                 },

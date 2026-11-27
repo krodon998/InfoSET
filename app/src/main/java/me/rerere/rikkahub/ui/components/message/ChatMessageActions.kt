@@ -4,9 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -17,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
@@ -34,6 +38,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.coroutines.delay
 import kotlinx.datetime.toJavaLocalDateTime
@@ -266,6 +272,132 @@ private class MessageSheetAction(
     val destructive: Boolean = false,
     val onClick: () -> Unit,
 )
+
+internal data class MessageBubbleTarget(
+    val partIndex: Int? = null,
+    val segmentIndex: Int? = null,
+)
+
+internal fun UIMessage.textForBubbleTarget(
+    target: MessageBubbleTarget,
+    breaksEnabled: Boolean,
+    maxSegments: Int,
+): String {
+    target.segmentIndex?.let { segmentIndex ->
+        return derivedMessageSegments(enabled = breaksEnabled, maxSegments = maxSegments)
+            .firstOrNull { it.index == segmentIndex }
+            ?.text
+            .orEmpty()
+    }
+    target.partIndex?.let { partIndex ->
+        return (parts.getOrNull(partIndex) as? UIMessagePart.Text)?.text.orEmpty()
+    }
+    return messageBreakDisplayText(enabled = breaksEnabled, maxSegments = maxSegments)
+}
+
+/** Compact context menu used by the QQ-style timeline. */
+@Composable
+fun ChatMessageContextMenu(
+    message: UIMessage,
+    target: MessageBubbleTarget,
+    isFavorite: Boolean,
+    onCopy: () -> Unit,
+    onToggleFavorite: (() -> Unit)?,
+    onRegenerate: () -> Unit,
+    onReply: () -> Unit,
+    onTranslate: (() -> Unit)?,
+    onEdit: () -> Unit,
+    onFork: () -> Unit,
+    onDelete: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    @Composable
+    fun QuickAction(
+        icon: ImageVector,
+        label: String,
+        modifier: Modifier = Modifier,
+        onClick: () -> Unit,
+    ) {
+        Column(
+            modifier = modifier
+                .clickable {
+                    onDismissRequest()
+                    onClick()
+                }
+                .padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(22.dp))
+            Text(text = label, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+
+    @Composable
+    fun ListAction(icon: ImageVector, label: String, destructive: Boolean = false, onClick: () -> Unit) {
+        val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onDismissRequest()
+                    onClick()
+                }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            Text(text = label, color = color, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.width(300.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 8.dp,
+        ) {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                ) {
+                    QuickAction(
+                        HugeIcons.Copy01,
+                        stringResource(R.string.copy),
+                        Modifier.weight(1f),
+                        onCopy,
+                    )
+                    QuickAction(
+                        HugeIcons.FavouriteCircle,
+                        if (isFavorite) "取消收藏" else "收藏",
+                        Modifier.weight(1f),
+                        onToggleFavorite ?: {},
+                    )
+                    QuickAction(
+                        HugeIcons.Refresh03,
+                        stringResource(R.string.regenerate),
+                        Modifier.weight(1f),
+                        onRegenerate,
+                    )
+                }
+                ListAction(HugeIcons.MessageAdd01, "引用", onClick = onReply)
+                if (onTranslate != null) {
+                    ListAction(HugeIcons.Translate, stringResource(R.string.translate), onClick = onTranslate)
+                }
+                ListAction(HugeIcons.Edit01, stringResource(R.string.edit), onClick = onEdit)
+                ListAction(HugeIcons.GitFork, stringResource(R.string.create_fork), onClick = onFork)
+                ListAction(HugeIcons.Delete01, stringResource(R.string.delete), destructive = true, onClick = onDelete)
+            }
+        }
+    }
+}
 
 @Composable
 fun ChatMessageActionsSheet(

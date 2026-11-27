@@ -2,41 +2,23 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DrawerState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberBottomSheetState
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -44,21 +26,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -73,13 +50,7 @@ import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.partIdAt
 import me.rerere.ai.ui.stickerMetadata
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Delete01
-import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
-import me.rerere.hugeicons.stroke.MessageAdd01
-import me.rerere.hugeicons.stroke.MoreVertical
-import me.rerere.hugeicons.stroke.Share04
-import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
@@ -105,8 +76,6 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.ui.hooks.EditStateContent
-import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
@@ -139,37 +108,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     LaunchedEffect(selectedFolderId) {
         vm.updateDraftFolder(selectedFolderId)
-    }
-
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val softwareKeyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-
-    // Handle back press when drawer is open
-    BackHandler(enabled = drawerState.isOpen) {
-        scope.launch {
-            drawerState.close()
-        }
-    }
-
-    // Clear input focus so popup transitions cannot reopen the keyboard.
-    LaunchedEffect(drawerState.isOpen) {
-        if (drawerState.isOpen) {
-            focusManager.clearFocus(force = true)
-            softwareKeyboardController?.hide()
-        }
-    }
-
-    val windowAdaptiveInfo = currentWindowDpSize()
-    val isBigScreen =
-        windowAdaptiveInfo.width > windowAdaptiveInfo.height && windowAdaptiveInfo.width >= 1100.dp
-
-    // 进入大屏（永久抽屉）模式时重置抽屉状态为关闭，
-    // 避免从横屏旋转回竖屏后，模态抽屉残留为打开状态且无法关闭（#1304）
-    LaunchedEffect(isBigScreen) {
-        if (isBigScreen && drawerState.isOpen) {
-            drawerState.close()
-        }
     }
 
     val startVoiceMode = rememberVoiceModeStarter(vm, setting)
@@ -219,75 +157,22 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         }
     }
 
-    when {
-        isBigScreen -> {
-            PermanentNavigationDrawer(
-                drawerContent = {
-                    ChatDrawerContent(
-                        navController = navController,
-                        current = conversation,
-                        vm = vm,
-                        settings = setting
-                    )
-                }
-            ) {
-                ChatPageContent(
-                    onStartVoiceMode = startVoiceMode,
-                    inputState = inputState,
-                    loadingJob = loadingJob,
-                    processingStatus = processingStatus,
-                    setting = setting,
-                    conversation = conversation,
-                    drawerState = drawerState,
-                    navController = navController,
-                    vm = vm,
-                    chatListState = chatListState,
-                    assistant = assistant,
-                    currentChatModel = currentChatModel,
-                    bigScreen = true,
-                    errors = errors,
-                    onDismissError = { vm.dismissError(it) },
-                    onClearAllErrors = { vm.clearAllErrors() },
-                )
-            }
-        }
-
-        else -> {
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
-                    ChatDrawerContent(
-                        navController = navController,
-                        current = conversation,
-                        vm = vm,
-                        settings = setting
-                    )
-                }
-            ) {
-                ChatPageContent(
-                    onStartVoiceMode = startVoiceMode,
-                    inputState = inputState,
-                    loadingJob = loadingJob,
-                    processingStatus = processingStatus,
-                    setting = setting,
-                    conversation = conversation,
-                    drawerState = drawerState,
-                    navController = navController,
-                    vm = vm,
-                    chatListState = chatListState,
-                    assistant = assistant,
-                    currentChatModel = currentChatModel,
-                    bigScreen = false,
-                    errors = errors,
-                    onDismissError = { vm.dismissError(it) },
-                    onClearAllErrors = { vm.clearAllErrors() },
-                )
-            }
-            BackHandler(drawerState.isOpen) {
-                scope.launch { drawerState.close() }
-            }
-        }
-    }
+    ChatPageContent(
+        onStartVoiceMode = startVoiceMode,
+        inputState = inputState,
+        loadingJob = loadingJob,
+        processingStatus = processingStatus,
+        setting = setting,
+        conversation = conversation,
+        navController = navController,
+        vm = vm,
+        chatListState = chatListState,
+        assistant = assistant,
+        currentChatModel = currentChatModel,
+        errors = errors,
+        onDismissError = { vm.dismissError(it) },
+        onClearAllErrors = { vm.clearAllErrors() },
+    )
 }
 
 @Composable
@@ -297,9 +182,7 @@ private fun ChatPageContent(
     loadingJob: Job?,
     processingStatus: String? = null,
     setting: Settings,
-    bigScreen: Boolean,
     conversation: Conversation,
-    drawerState: DrawerState,
     navController: Navigator,
     vm: ChatVM,
     chatListState: LazyListState,
@@ -315,9 +198,7 @@ private fun ChatPageContent(
     val filesManager: FilesManager = koinInject()
     val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
 
-    var previewMode by rememberSaveable { mutableStateOf(false) }
     val selectionState = rememberChatSelectionState()
-    var showDeleteConfirm by remember { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
     var showStickersSheet by remember { mutableStateOf(false) }
@@ -341,20 +222,11 @@ private fun ChatPageContent(
         }.orEmpty()
     }
 
-    // 列表滚到标题栏下面时才显示胶囊背景，空页面或在顶部时按钮直接浮在背景上
-    // 概览页有自己的列表，切过去后跟着它判断
-    val previewListState = rememberLazyListState()
-    val listScrolledUnderTopBar by remember(chatListState, previewListState) {
-        derivedStateOf {
-            if (previewMode) previewListState.canScrollBackward else chatListState.canScrollBackward
-        }
+    val listScrolledUnderTopBar by remember(chatListState) {
+        derivedStateOf { chatListState.canScrollBackward }
     }
 
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
-
-    BackHandler(previewMode) {
-        previewMode = false
-    }
 
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -366,30 +238,13 @@ private fun ChatPageContent(
                 TopBar(
                     settings = setting,
                     assistant = assistant,
-                    chatModel = currentChatModel,
-                    conversation = conversation,
-                    bigScreen = bigScreen,
-                    drawerState = drawerState,
                     hazeState = hazeState,
                     showCapsuleBackground = listScrolledUnderTopBar,
-                    onNewChat = {
-                        navigateToChatPage(navController)
+                    loading = loadingJob != null,
+                    processingStatus = processingStatus,
+                    onOpenSettings = {
+                        navController.navigate(Screen.ChatSettings(assistant.id.toString()))
                     },
-                    onShowOverview = {
-                        selectionState.selecting = false
-                        previewMode = true
-                    },
-                    onExport = {
-                        // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
-                        previewMode = false
-                        selectionState.start(conversation.messageNodes.map { it.id })
-                    },
-                    onDelete = {
-                        showDeleteConfirm = true
-                    },
-                    onUpdateTitle = {
-                        vm.updateTitle(it)
-                    }
                 )
             },
             bottomBar = {
@@ -481,13 +336,10 @@ private fun ChatPageContent(
                 innerPadding = innerPadding,
                 conversation = conversation,
                 state = chatListState,
-                previewListState = previewListState,
                 selectionState = selectionState,
                 loading = loadingJob != null,
                 compressing = sessionActivity == SessionActivity.Compressing,
                 processingStatus = processingStatus,
-                previewMode = previewMode,
-                onPreviewModeChange = { previewMode = it },
                 settings = setting,
                 hazeState = hazeState,
                 errors = errors,
@@ -555,12 +407,6 @@ private fun ChatPageContent(
                 onClearTranslation = { message ->
                     vm.clearTranslationField(message.id)
                 },
-                onJumpToMessage = { index ->
-                    previewMode = false
-                    scope.launch {
-                        chatListState.requestScrollToItem(index)
-                    }
-                },
                 onToolApproval = { toolCallId, approved, reason ->
                     vm.handleToolApproval(toolCallId, approved, reason)
                 },
@@ -575,22 +421,6 @@ private fun ChatPageContent(
                 },
             )
         }
-
-        RikkaConfirmDialog(
-            show = showDeleteConfirm,
-            title = stringResource(R.string.confirm_delete),
-            confirmText = stringResource(R.string.delete),
-            dismissText = stringResource(R.string.cancel),
-            onConfirm = {
-                showDeleteConfirm = false
-                scope.launch {
-                    vm.deleteConversation(conversation).join()
-                    navigateToChatPage(navController)
-                }
-            },
-            onDismiss = { showDeleteConfirm = false },
-            text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
-        )
 
         if (showFilesSheet) {
             ChatFilesPickerSheet(
@@ -705,75 +535,31 @@ private fun ChatFilesPickerSheet(
 private fun TopBar(
     settings: Settings,
     assistant: Assistant,
-    chatModel: Model?,
-    conversation: Conversation,
-    drawerState: DrawerState,
-    bigScreen: Boolean,
     hazeState: HazeState,
     showCapsuleBackground: Boolean,
-    onNewChat: () -> Unit,
-    onShowOverview: () -> Unit,
-    onExport: () -> Unit,
-    onDelete: () -> Unit,
-    onUpdateTitle: (String) -> Unit
+    loading: Boolean,
+    processingStatus: String?,
+    onOpenSettings: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-    val toaster = LocalToaster.current
-    val titleState = useEditState<String> {
-        onUpdateTitle(it)
-    }
-
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        navigationIcon = {
-            if (!bigScreen) {
-                ChatTopBarCapsule(
-                    hazeState = hazeState,
-                    displaySetting = settings.displaySetting,
-                    showBackground = showCapsuleBackground,
-                    modifier = Modifier.padding(start = 8.dp, end = 4.dp),
-                ) {
-                    IconButton(
-                        onClick = {
-                            scope.launch { drawerState.open() }
-                        }
-                    ) {
-                        Icon(HugeIcons.Menu03, "Messages")
-                    }
-                }
-            }
-        },
         title = {
-            val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
-            Surface(
-                onClick = {
-                    if (conversation.messageNodes.isNotEmpty()) {
-                        titleState.open(conversation.title)
-                    } else {
-                        toaster.show(editTitleWarning, type = ToastType.Warning)
-                    }
-                },
-                color = Color.Transparent,
-            ) {
-                Column {
-                    val provider = chatModel?.findProvider(providers = settings.providers, checkOverwrite = false)
+            Column {
+                Text(
+                    text = assistant.name.ifBlank { "Aire" },
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleMedium,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val status = processingStatus ?: if (loading) "正在输入…" else ""
+                if (status.isNotEmpty()) {
                     Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                        text = status,
                         maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = LocalContentColor.current.copy(alpha = 0.62f),
+                        style = MaterialTheme.typography.labelSmall,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (chatModel != null && provider != null) {
-                        Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${chatModel.displayName} (${provider.name})",
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            )
-                        )
-                    }
                 }
             }
         },
@@ -785,131 +571,11 @@ private fun TopBar(
                 modifier = Modifier.padding(start = 4.dp, end = 8.dp),
             ) {
                 IconButton(
-                    onClick = {
-                        onNewChat()
-                    }
+                    onClick = onOpenSettings,
                 ) {
-                    Icon(HugeIcons.MessageAdd01, "New Message")
+                    Icon(HugeIcons.Menu03, "聊天设置")
                 }
-                ChatPageMenu(
-                    enabled = conversation.messageNodes.isNotEmpty(),
-                    onShowOverview = onShowOverview,
-                    onExport = onExport,
-                    onDelete = onDelete,
-                )
             }
         },
     )
-    titleState.EditStateContent { title, onUpdate ->
-        AlertDialog(
-            onDismissRequest = {
-                titleState.dismiss()
-            },
-            title = {
-                Text(stringResource(R.string.chat_page_edit_title))
-            },
-            text = {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = onUpdate,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        titleState.confirm()
-                    }
-                ) {
-                    Text(stringResource(R.string.chat_page_save))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        titleState.dismiss()
-                    }
-                ) {
-                    Text(stringResource(R.string.chat_page_cancel))
-                }
-            }
-        )
-    }
-}
-
-// 顶栏右侧的会话菜单；空对话没有内容可概览、导出或删除，菜单项全部置灰
-@Composable
-private fun ChatPageMenu(
-    enabled: Boolean,
-    onShowOverview: () -> Unit,
-    onExport: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    @Composable
-    fun MenuItem(
-        text: String,
-        icon: ImageVector,
-        index: Int,
-        count: Int,
-        destructive: Boolean = false,
-        onClick: () -> Unit,
-    ) {
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-                expanded = false
-                onClick()
-            },
-            shape = MenuDefaults.itemShape(index = index, count = count).shape,
-            leadingIcon = { Icon(icon, contentDescription = null) },
-            enabled = enabled,
-            colors = if (destructive) {
-                val errorColor = MaterialTheme.colorScheme.error
-                MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
-            } else {
-                MenuDefaults.itemColors()
-            },
-        )
-    }
-
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(HugeIcons.MoreVertical, stringResource(R.string.more_options))
-        }
-        DropdownMenuPopup(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
-                MenuItem(
-                    text = stringResource(R.string.chat_page_conversation_map),
-                    icon = HugeIcons.LeftToRightListBullet,
-                    index = 0,
-                    count = 2,
-                    onClick = onShowOverview,
-                )
-                MenuItem(
-                    text = stringResource(R.string.export_title),
-                    icon = HugeIcons.Share04,
-                    index = 1,
-                    count = 2,
-                    onClick = onExport,
-                )
-            }
-            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
-                MenuItem(
-                    text = stringResource(R.string.delete),
-                    icon = HugeIcons.Delete01,
-                    index = 0,
-                    count = 1,
-                    destructive = true,
-                    onClick = onDelete,
-                )
-            }
-        }
-    }
 }

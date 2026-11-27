@@ -24,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -44,11 +42,10 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalScrollCaptureInProgress
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -82,13 +79,10 @@ fun ChatList(
     innerPadding: PaddingValues,
     conversation: Conversation,
     state: LazyListState,
-    previewListState: LazyListState,
     selectionState: ChatSelectionState,
     loading: Boolean,
     compressing: Boolean = false,
     processingStatus: String? = null,
-    previewMode: Boolean,
-    onPreviewModeChange: (Boolean) -> Unit,
     settings: Settings,
     hazeState: HazeState,
     errors: List<ChatError> = emptyList(),
@@ -104,98 +98,39 @@ fun ChatList(
     onClickSuggestion: (String) -> Unit = {},
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
-    onJumpToMessage: (Int) -> Unit = {},
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
     onConversationSystemPromptChange: ((String?) -> Unit)? = null,
 ) {
-    val previewProgress = rememberPreviewSwipeProgress(previewMode)
-    val scope = rememberCoroutineScope()
-    val currentPreviewMode by rememberUpdatedState(previewMode)
-    val currentOnPreviewModeChange by rememberUpdatedState(onPreviewModeChange)
-    val currentConversation by rememberUpdatedState(conversation)
-    val layoutDirection = LocalLayoutDirection.current
-    val layoutDirectionSign = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f
-    // 概览页只在露出来的时候组合，平时不占资源
-    val showPreview by remember { derivedStateOf { previewProgress.value > 0f } }
-    val showNormal by remember { derivedStateOf { previewProgress.value < 1f } }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clipToBounds()
-            .previewSwipeGesture(
-                progress = previewProgress,
-                scope = scope,
-                layoutDirection = layoutDirection,
-                canEnterPreview = { currentConversation.messageNodes.isNotEmpty() },
-                isPreviewMode = { currentPreviewMode },
-                onPreviewModeChange = { currentOnPreviewModeChange(it) },
-            ),
-    ) {
-        // 两页像翻页一样整体平移：聊天页向左滑出，概览页从右侧跟进
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    val p = previewProgress.value
-                    translationX = -p * size.width * layoutDirectionSign
-                    alpha = if (showNormal) 1f - p * 0.4f else 0f
-                },
-        ) {
-            ChatListNormal(
-                innerPadding = innerPadding,
-                conversation = conversation,
-                state = state,
-                loading = loading,
-                compressing = compressing,
-                processingStatus = processingStatus,
-                settings = settings,
-                hazeState = hazeState,
-                errors = errors,
-                onDismissError = onDismissError,
-                onClearAllErrors = onClearAllErrors,
-                onRegenerate = onRegenerate,
-                onEdit = onEdit,
-                onForkMessage = onForkMessage,
-                onDelete = onDelete,
-                onReply = onReply,
-                onOpenReplyReference = onOpenReplyReference,
-                onUpdateMessage = onUpdateMessage,
-                onClickSuggestion = onClickSuggestion,
-                onTranslate = onTranslate,
-                onClearTranslation = onClearTranslation,
-                onToolApproval = onToolApproval,
-                onToolAnswer = onToolAnswer,
-                onToggleFavorite = onToggleFavorite,
-                onConversationSystemPromptChange = onConversationSystemPromptChange,
-                selectionState = selectionState,
-            )
-        }
-
-        if (showPreview) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val p = previewProgress.value
-                        translationX = (1f - p) * size.width * layoutDirectionSign
-                        alpha = 0.4f + p * 0.6f
-                    },
-            ) {
-                ChatListPreview(
-                    innerPadding = innerPadding,
-                    conversation = conversation,
-                    chatListState = state,
-                    listState = previewListState,
-                    settings = settings,
-                    hazeState = hazeState,
-                    onJumpToMessage = onJumpToMessage,
-                )
-            }
-        }
-    }
+    ChatListNormal(
+        innerPadding = innerPadding,
+        conversation = conversation,
+        state = state,
+        loading = loading,
+        compressing = compressing,
+        processingStatus = processingStatus,
+        settings = settings,
+        hazeState = hazeState,
+        errors = errors,
+        onDismissError = onDismissError,
+        onClearAllErrors = onClearAllErrors,
+        onRegenerate = onRegenerate,
+        onEdit = onEdit,
+        onForkMessage = onForkMessage,
+        onDelete = onDelete,
+        onReply = onReply,
+        onOpenReplyReference = onOpenReplyReference,
+        onUpdateMessage = onUpdateMessage,
+        onClickSuggestion = onClickSuggestion,
+        onTranslate = onTranslate,
+        onClearTranslation = onClearTranslation,
+        onToolApproval = onToolApproval,
+        onToolAnswer = onToolAnswer,
+        onToggleFavorite = onToggleFavorite,
+        onConversationSystemPromptChange = onConversationSystemPromptChange,
+        selectionState = selectionState,
+    )
 }
 
 // 顶部渐隐：消息滚到标题栏下面时逐渐透明，从状态栏一直淡出到标题栏下沿之外，保证标题可读。
@@ -360,6 +295,21 @@ private fun ChatListNormal(
                 key = { index, item -> item.id },
             ) { index, node ->
                 Column {
+                    val previousTime = conversation.messageNodes
+                        .getOrNull(index - 1)
+                        ?.currentMessage
+                        ?.createdAt
+                    if (shouldShowChatTimeSeparator(previousTime, node.currentMessage.createdAt)) {
+                        Text(
+                            text = formatChatTimelineTime(node.currentMessage.createdAt),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
+                        )
+                    }
                     ListSelectableItem(
                         key = node.id,
                         onSelectChange = {

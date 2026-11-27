@@ -4,9 +4,11 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -38,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -76,11 +80,14 @@ import me.rerere.rikkahub.ui.components.ui.permission.NotificationPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.rememberLocalNetworkPermissionState
 import me.rerere.rikkahub.ui.components.ui.permission.rememberNotificationPermissionState
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.hooks.readStringPreference
+import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SettingPage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -91,9 +98,23 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val notificationPermission = rememberNotificationPermissionState()
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
+    var searchActive by remember { mutableStateOf(false) }
+    var recentSearchIds by remember {
+        mutableStateOf(
+            context.readStringPreference(SETTING_RECENT_SEARCH_PREF)
+                .orEmpty()
+                .split('|')
+                .filter(String::isNotBlank)
+                .take(6)
+        )
+    }
+    val recentSearchEntries = recentSearchIds.mapNotNull { id -> SettingCatalog.entries.find { it.id == id } }
     val searchResults = SettingCatalog.search(searchQuery) { context.getString(it) }
 
-    fun open(destination: SettingDestination) {
+    fun open(entry: SettingSearchEntry) {
+        recentSearchIds = (listOf(entry.id) + recentSearchIds.filterNot { it == entry.id }).take(6)
+        context.writeStringPreference(SETTING_RECENT_SEARCH_PREF, recentSearchIds.joinToString("|"))
+        val destination = entry.destination
         if (destination == SettingDestination.ROOT) {
             searchQuery = ""
         } else {
@@ -122,11 +143,18 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item("settingsSearch") {
+            stickyHeader("settingsSearch") {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { state ->
+                            searchActive = state.isFocused
+                            if (state.isFocused) {
+                                scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+                            }
+                        },
                     placeholder = { Text(stringResource(R.string.setting_search_placeholder)) },
                     leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
                     trailingIcon = if (searchQuery.isNotEmpty()) {
@@ -144,6 +172,29 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     singleLine = true,
                     shape = MaterialTheme.shapes.extraLarge,
                 )
+            }
+
+            if (searchActive && searchQuery.isBlank() && recentSearchEntries.isNotEmpty()) {
+                item("settingsRecentSearches") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "最近搜索",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            recentSearchEntries.forEach { entry ->
+                                AssistChip(
+                                    onClick = { open(entry) },
+                                    label = { Text(stringResource(entry.titleRes)) },
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             if (searchQuery.isNotBlank()) {
@@ -164,7 +215,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 } else {
                     items(searchResults, key = { "settingSearch:${it.id}" }) { result ->
                         Surface(
-                            onClick = { open(result.destination) },
+                            onClick = { open(result) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
                             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -453,6 +504,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 }
 
 private const val SHOW_LEGACY_SETTINGS_GROUPS = false
+private const val SETTING_RECENT_SEARCH_PREF = "settings.recentSearchEntries"
 
 private val SettingDestination.screen: Screen
     get() = when (this) {
