@@ -125,11 +125,19 @@ class LifeSurfaceRepository(
         limit: Int = 100,
     ): Flow<List<LifeSurfaceItemEntity>> = dao.observeBoard(targetActorId, now, limit)
 
+    suspend fun getItem(itemId: String): LifeSurfaceItemEntity? = dao.getItem(itemId)
+
     fun observeObjects(itemId: String): Flow<List<LifeSurfaceObjectEntity>> =
         dao.observeObjects(itemId)
 
     fun observeInteractions(itemId: String): Flow<List<LifeSurfaceInteractionEntity>> =
         dao.observeInteractions(itemId)
+
+    suspend fun hasLiked(itemId: String, actorId: String): Boolean =
+        dao.hasReaction(itemId, actorId, LIFE_INTERACTION_LIKE)
+
+    suspend fun hasFavorited(itemId: String, actorId: String): Boolean =
+        dao.hasReaction(itemId, actorId, LIFE_INTERACTION_FAVORITE)
 
     suspend fun addComment(
         itemId: String,
