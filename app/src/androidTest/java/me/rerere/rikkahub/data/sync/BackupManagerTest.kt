@@ -15,6 +15,8 @@ import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
+import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
+import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -164,7 +166,34 @@ class BackupManagerTest {
             createdAt = 1234,
             updatedAt = 1234,
         )
-        liveDatabase.memoryAtomDao().upsertAtom(atom)
+        val trace = MemoryRecallTraceEntity(
+            id = "trace-stable-across-restore",
+            memoryId = atom.memoryId,
+            conversationId = "conversation",
+            query = "whole-house move",
+            createdAt = 2000,
+            tokenBudget = 128,
+            injectedContent = atom.statement,
+            injectedTokens = 12,
+            destination = "OPTIONAL_RECALL",
+            feedback = "HELPFUL",
+        )
+        val candidate = MemoryRecallCandidateEntity(
+            traceId = trace.id,
+            atomId = atom.id,
+            rank = 1,
+            statement = atom.statement,
+            sourceSummary = atom.sourceRef,
+            totalScore = 0.9,
+            lexicalScore = 0.8,
+            activationScore = 1.0,
+            importanceScore = 0.5,
+            injected = true,
+            tokenCost = 12,
+        )
+        val memoryDao = liveDatabase.memoryAtomDao()
+        memoryDao.upsertAtom(atom)
+        memoryDao.recordRecall(trace, listOf(candidate), listOf(atom.id))
 
         val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
         manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
@@ -172,11 +201,15 @@ class BackupManagerTest {
         assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
         liveDatabase = AppDatabaseFactory.create(context)
 
-        val restored = liveDatabase.memoryAtomDao().getAtom(atom.id)!!
+        val restoredDao = liveDatabase.memoryAtomDao()
+        val restored = restoredDao.getAtom(atom.id)!!
         assertEquals(atom.id, restored.id)
         assertEquals(atom.statement, restored.statement)
         assertEquals(atom.importedAt, restored.importedAt)
         assertEquals(null, restored.occurredAt)
+        assertEquals(1, restored.recallCount)
+        assertEquals(trace.id, restoredDao.observeRecentTraces(atom.memoryId).first().single().id)
+        assertEquals(candidate.atomId, restoredDao.getCandidates(trace.id).single().atomId)
     }
 
     @Test fun archiveWithoutLaunchCountRestoresItAsZero() = runBlocking {
