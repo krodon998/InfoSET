@@ -103,6 +103,7 @@ jobs:
             --tests me.rerere.ai.core.UsageCostTest \
             --tests me.rerere.ai.ui.UIMessageSerializationTest \
             --tests me.rerere.ai.ui.InfoSetLifeEventTest \
+            --tests me.rerere.ai.ui.InfoSetQuestionnaireTest \
             --tests me.rerere.ai.provider.providers.openai.ChatCompletionsUsageParsingTest \
             --tests me.rerere.ai.provider.providers.chatgpt.ChatGPTProviderTest \
             --tests me.rerere.ai.provider.QuotaQueryRunnerTest
