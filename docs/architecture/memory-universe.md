@@ -81,6 +81,45 @@ Aire can therefore receive a few simple facts without tool-like retrieval on eve
 still having a deliberate recall mechanism for questions such as "what happened that day?" or
 "find the original wording".
 
+## Implementation correction: surfacing is not recall
+
+The first Room v37 node currently calls `AtomicMemoryRecallEngine` automatically from
+`ChatRequestFactory` on the newest user message and injects the selected atoms into the request.
+Under the product terminology above, this behavior is **passive surfacing**, even though the
+prototype class, database tables, inspector, and `[Optional Recall]` block still use `recall` names.
+
+This naming mismatch should be corrected without discarding the working v37 data path:
+
+1. Treat the existing automatic selection path as the prototype for passive surfacing.
+2. Keep its output tiny: preferably a handful of short atom statements or directory-like hints,
+   not expanded source prose.
+3. Introduce a separate model-invoked active-recall capability that can search atoms, exact text,
+   dates, conversation IDs, and then expand into canonical archive/source text.
+4. Only active retrieval should count as a deliberate recall/use event. Passive surfacing needs
+   separate delivery statistics so 'the system showed it' does not mean 'Aire chose to remember it'.
+5. Rename UI and internal labels incrementally after migration compatibility is defined; do not
+   break Room v37 backups merely to fix terminology.
+
+### Re-read design references (2026-11-28)
+
+- **Paramecium** gives the clearest two-stage analogue: every turn may receive a ~150-token
+  relevant-memory directory; appearing in that directory does not increment access. The model
+  calls `recall` only when it chooses to fetch L1 details or L0 verbatim conversation windows.
+- **Latent · 显影** explicitly separates Passive Recall from `latent_search`: the host injects
+  passive material between the user message and the first model request, while deliberate search
+  remains a model action. Passive recall is intentionally a hidden host path, not a normal tool.
+- **Underwater Traces** separates recall eligibility from context injection and allows
+  low-probability revisits; 'not recalling' is a valid state and a fish need not surface every turn.
+- **Ellivien MemFrags** is a simpler trigger-based automatic injection layer: only fragments
+  matching the newest user message are inserted, showing that lightweight surfacing can remain
+  independent from full-library retrieval.
+- **Ellivien Three-Tier Context** reinforces budget separation: recent context is always cheap,
+  wider recall is triggered only when looking back is needed, and full-thread recall is reserved
+  for explicit intent.
+
+InfoSET keeps its own archive, atoms, provenance, and UI; these projects are mechanism references,
+not schemas to copy.
+
 ## Dreaming and workers
 
 Dreaming is the existing memory-consolidation pipeline presented as an observable maintenance job.
