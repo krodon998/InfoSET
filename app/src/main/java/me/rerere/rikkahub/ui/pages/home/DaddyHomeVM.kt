@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.account.GitHubAccountManager
 import me.rerere.rikkahub.data.ai.account.GitHubAccountStatus
+import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.isOfficialGitHubMcp
 import me.rerere.rikkahub.data.ai.mcp.withOfficialGitHubMcp
@@ -28,9 +30,11 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.activityRange
 import me.rerere.rikkahub.data.repository.previousActivityRange
 import java.time.LocalDate
+import kotlin.uuid.Uuid
 
 class DaddyHomeVM(
     private val accountManager: GitHubAccountManager,
+    private val providerAccountManager: ProviderAccountManager,
     private val repository: DaddyHomeRepository,
     private val githubGateway: GitHubHomeGateway,
     private val settingsStore: SettingsStore,
@@ -49,11 +53,32 @@ class DaddyHomeVM(
     val githubMcpEnabled = settingsStore.settingsFlow
         .map { settings -> settings.mcpServers.any { it.isOfficialGitHubMcp() && it.commonOptions.enable } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val chatGPTProvider = settingsStore.settingsFlow
+        .map { settings -> settings.providers.filterIsInstance<ProviderSetting.ChatGPT>().firstOrNull() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val providerLoginStatus = providerAccountManager.loginStatus
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages = _messages.asSharedFlow()
 
     fun startLogin(context: Context) = accountManager.startLogin(context)
+
+    fun startChatGPTLogin(context: Context) {
+        viewModelScope.launch {
+            val provider = chatGPTProvider.value ?: ProviderSetting.ChatGPT(name = "ChatGPT / Codex").also { created ->
+                settingsStore.update { it.copy(providers = it.providers + created) }
+            }
+            providerAccountManager.startLogin(provider.id, context)
+        }
+    }
+
+    fun logoutChatGPT() {
+        chatGPTProvider.value?.let { provider ->
+            viewModelScope.launch { providerAccountManager.logout(provider.id) }
+        }
+    }
+
+    fun cancelProviderLogin(providerId: Uuid) = providerAccountManager.cancelLogin(providerId)
 
     fun cancelLogin() = accountManager.cancelLogin()
 

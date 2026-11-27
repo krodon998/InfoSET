@@ -25,6 +25,7 @@ import me.rerere.rikkahub.data.ai.UsageRecorder
 import me.rerere.rikkahub.data.ai.account.GitHubAccountManager
 import me.rerere.rikkahub.data.ai.account.GitHubCredentialVault
 import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
+import me.rerere.rikkahub.data.ai.account.ProviderCredentialVault
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.transformers.AssistantTemplateLoader
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
@@ -281,9 +282,11 @@ val dataSourceModule = module {
             settingsStore = get(),
             appScope = get(),
             client = get(),
+            credentialVault = get(),
         )
     }
 
+    single { ProviderCredentialVault.create(get()) }
     single { GitHubCredentialVault.create(get()) }
 
     single {

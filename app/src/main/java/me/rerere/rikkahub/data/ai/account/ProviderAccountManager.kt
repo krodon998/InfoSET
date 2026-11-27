@@ -29,6 +29,7 @@ import me.rerere.rikkahub.utils.JsonInstant
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
@@ -56,6 +57,7 @@ class ProviderAccountManager(
     private val settingsStore: SettingsStore,
     private val appScope: AppScope,
     private val client: OkHttpClient,
+    private val credentialVault: ProviderCredentialVault,
 ) : AccountCredentialProvider {
     // 走应用的 OkHttpClient，授权和刷新请求也能用上设置里的代理
     private val oauthClient = OAuthHttpClient(client)
@@ -70,17 +72,33 @@ class ProviderAccountManager(
     private val _loginStatus = MutableStateFlow<Map<Uuid, AccountLoginStatus>>(emptyMap())
     val loginStatus: StateFlow<Map<Uuid, AccountLoginStatus>> = _loginStatus.asStateFlow()
 
+    init {
+        // One-way migration for releases that stored account tokens in Settings JSON.
+        appScope.launch(Dispatchers.IO) { migrateLegacyCredentials() }
+    }
+
     fun startLogin(providerId: Uuid, context: Context) {
         val provider = findAccount(providerId) ?: return
         loginJobs.remove(providerId)?.cancel()
         setStatus(providerId, AccountLoginStatus.Authorizing)
         val job = appScope.launch {
             try {
-                val credential = when (provider) {
-                    is ProviderSetting.ChatGPT -> loginChatGPT(context.applicationContext)
-                    is ProviderSetting.Grok -> loginGrok(providerId, context.applicationContext)
+                when (provider) {
+                    is ProviderSetting.ChatGPT -> {
+                        val result = loginChatGPT(provider, context.applicationContext)
+                        persistCredential(
+                            providerId = providerId,
+                            credential = result.credential,
+                            chatGPTClientId = result.clientId,
+                            chatGPTHostId = result.hostId,
+                        )
+                    }
+
+                    is ProviderSetting.Grok -> persistCredential(
+                        providerId,
+                        loginGrok(providerId, context.applicationContext),
+                    )
                 }
-                persistCredential(providerId, credential)
                 setStatus(providerId, null)
             } catch (e: CancellationException) {
                 throw e
@@ -114,8 +132,10 @@ class ProviderAccountManager(
         setting: ProviderSetting.Account,
         rejectedAccessToken: String?,
     ): OAuthCredential {
+        val latest = findAccount(setting.id) ?: setting
+        if (latest.credential == null) error("${latest.name}: not signed in")
         // 绝大多数请求的 token 都还有效，直接返回，不用切线程排队拿锁
-        findAccount(setting.id)?.credential
+        credentialVault.read(setting.id)
             ?.takeUnless { it.needsRefresh(rejectedAccessToken) }
             ?.let { return it }
         return appScope.async(Dispatchers.IO) {
@@ -133,7 +153,9 @@ class ProviderAccountManager(
         val lock = refreshLocks.computeIfAbsent(setting.id) { Mutex() }
         return lock.withLock {
             val latest = findAccount(setting.id) ?: setting
-            val credential = latest.credential ?: error("${latest.name}: not signed in")
+            val credential = credentialVault.read(setting.id)
+                ?: migrateLegacyCredential(latest)
+                ?: error("${latest.name}: not signed in")
             if (!credential.needsRefresh(rejectedAccessToken)) return@withLock credential
 
             val refreshToken = credential.refreshToken
@@ -141,7 +163,13 @@ class ProviderAccountManager(
             val refreshed = try {
                 when (latest) {
                     is ProviderSetting.ChatGPT -> ChatGPTAuth.toCredential(
-                        token = oauthClient.refreshToken(ChatGPTAuth.refreshRequest(refreshToken)),
+                        token = oauthClient.refreshToken(
+                            ChatGPTAuth.refreshRequest(
+                                refreshToken = refreshToken,
+                                clientId = latest.oauthClientId
+                                    ?: error("${latest.name}: OAuth registration missing, please sign in again"),
+                            )
+                        ),
                         previous = credential,
                     )
 
@@ -166,17 +194,32 @@ class ProviderAccountManager(
         }
     }
 
-    private suspend fun loginChatGPT(context: Context): OAuthCredential =
+    private data class ChatGPTLoginResult(
+        val credential: OAuthCredential,
+        val clientId: String,
+        val hostId: String,
+    )
+
+    private suspend fun loginChatGPT(
+        provider: ProviderSetting.ChatGPT,
+        context: Context,
+    ): ChatGPTLoginResult =
         withContext(Dispatchers.IO) {
             val pkce = oauthClient.generatePkce()
             val state = oauthClient.generateState()
+            val nonce = oauthClient.generateState()
+            val hostId = provider.oauthHostId ?: "urn:uuid:${UUID.randomUUID()}"
+            val requestedClientId = provider.oauthClientId ?: ChatGPTAuth.DYNAMIC_CLIENT_ID
             val session = chatGPTCallbackServer.openSession(context, state)
             try {
                 val authorizationUrl = oauthClient.buildAuthorizationUrl(
                     ChatGPTAuth.authorizationRequest(
                         pkce = pkce,
                         state = state,
-                        redirectUri = session.redirectUri
+                        redirectUri = session.redirectUri,
+                        clientId = requestedClientId,
+                        hostId = hostId,
+                        nonce = nonce,
                     )
                 )
                 withContext(Dispatchers.Main) {
@@ -188,16 +231,26 @@ class ProviderAccountManager(
                     error(listOfNotNull(code, callback.errorDescription).joinToString(": "))
                 }
                 val code = callback.code ?: error("No authorization code returned")
+                val issuedClientId = callback.clientId ?: requestedClientId
                 val token = oauthClient.exchangeAuthorizationCode(
-                    OAuthHttpClient.AuthorizationCodeTokenRequest(
-                        tokenEndpoint = ChatGPTAuth.TOKEN_ENDPOINT,
-                        clientId = ChatGPTAuth.CLIENT_ID,
+                    ChatGPTAuth.tokenRequest(
+                        clientId = issuedClientId,
                         code = code,
                         codeVerifier = pkce.verifier,
                         redirectUri = session.redirectUri,
                     )
                 )
-                ChatGPTAuth.toCredential(token, previous = null)
+                ChatGPTAuth.requireValidIdToken(
+                    idToken = token.idToken,
+                    clientId = issuedClientId,
+                    nonce = nonce,
+                    nowSeconds = System.currentTimeMillis() / 1_000,
+                )
+                ChatGPTLoginResult(
+                    credential = ChatGPTAuth.toCredential(token, previous = null),
+                    clientId = issuedClientId,
+                    hostId = hostId,
+                )
             } finally {
                 withContext(NonCancellable) { session.close() }
             }
@@ -236,12 +289,26 @@ class ProviderAccountManager(
         }
     }.onFailure { Log.w(TAG, "Failed to fetch Grok userinfo", it) }.getOrNull()
 
-    private suspend fun persistCredential(providerId: Uuid, credential: OAuthCredential?) {
+    private suspend fun persistCredential(
+        providerId: Uuid,
+        credential: OAuthCredential?,
+        chatGPTClientId: String? = null,
+        chatGPTHostId: String? = null,
+    ) {
+        if (credential == null) credentialVault.remove(providerId) else credentialVault.write(providerId, credential)
         settingsStore.update { old ->
             old.copy(
                 providers = old.providers.map { provider ->
                     if (provider.id == providerId && provider is ProviderSetting.Account) {
-                        provider.withCredential(credential)
+                        val updated = provider.withCredential(credential?.redacted())
+                        if (updated is ProviderSetting.ChatGPT) {
+                            updated.copy(
+                                oauthClientId = chatGPTClientId ?: updated.oauthClientId,
+                                oauthHostId = chatGPTHostId ?: updated.oauthHostId,
+                            )
+                        } else {
+                            updated
+                        }
                     } else {
                         provider
                     }
@@ -256,22 +323,59 @@ class ProviderAccountManager(
         expected: OAuthCredential,
         credential: OAuthCredential,
     ): Boolean {
+        if (credentialVault.read(providerId) != expected) return false
+        credentialVault.write(providerId, credential)
         var replaced = false
         settingsStore.update { old ->
             old.copy(
                 providers = old.providers.map { provider ->
                     if (provider.id == providerId && provider is ProviderSetting.Account &&
-                        provider.credential == expected) {
+                        provider.credential != null) {
                         replaced = true
-                        provider.withCredential(credential)
+                        provider.withCredential(credential.redacted())
                     } else {
                         provider
                     }
                 }
             )
         }
+        if (!replaced && credentialVault.read(providerId) == credential) {
+            credentialVault.remove(providerId)
+        }
         return replaced
     }
+
+    private suspend fun migrateLegacyCredentials() {
+        settingsStore.awaitLoaded()
+        settingsStore.settingsFlow.value.providers
+            .filterIsInstance<ProviderSetting.Account>()
+            .forEach { migrateLegacyCredential(it) }
+    }
+
+    private suspend fun migrateLegacyCredential(provider: ProviderSetting.Account): OAuthCredential? {
+        credentialVault.read(provider.id)?.let { return it }
+        val legacy = provider.credential?.takeIf { it.accessToken.isNotBlank() } ?: return null
+        credentialVault.write(provider.id, legacy)
+        var migrated = false
+        settingsStore.update { old ->
+            old.copy(
+                providers = old.providers.map {
+                    if (it.id == provider.id && it is ProviderSetting.Account && it.credential == legacy) {
+                        migrated = true
+                        it.withCredential(legacy.redacted())
+                    } else {
+                        it
+                    }
+                }
+            )
+        }
+        if (!migrated && credentialVault.read(provider.id) == legacy) {
+            credentialVault.remove(provider.id)
+        }
+        return legacy.takeIf { migrated }
+    }
+
+    private fun OAuthCredential.redacted() = copy(accessToken = "", refreshToken = null)
 
     // 刚被服务端拒绝，或者快过期了
     private fun OAuthCredential.needsRefresh(rejectedAccessToken: String?): Boolean =

@@ -257,6 +257,10 @@ sealed class ProviderSetting {
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override val credential: OAuthCredential? = null,
+        /** Dynamic Sign in with ChatGPT registration; safe metadata, never a bearer credential. */
+        val oauthClientId: String? = null,
+        /** Stable per-install host identity sent during OpenAI dynamic client registration. */
+        val oauthHostId: String? = null,
     ) : Account() {
         override fun withCredential(credential: OAuthCredential?): Account = copy(credential = credential)
 

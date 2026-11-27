@@ -47,6 +47,7 @@ import me.rerere.hugeicons.stroke.Github
 import me.rerere.hugeicons.stroke.Link01
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.account.GitHubAccountStatus
+import me.rerere.rikkahub.data.ai.account.AccountLoginStatus
 import me.rerere.rikkahub.data.db.entity.ActivityJournalEntity
 import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
 import me.rerere.rikkahub.data.db.entity.GitHubRepositoryBindingEntity
@@ -80,6 +81,8 @@ fun DaddyHomePage(vm: DaddyHomeVM = koinViewModel()) {
     val previewTitle by vm.previewTitle.collectAsStateWithLifecycle()
     val previewText by vm.previewText.collectAsStateWithLifecycle()
     val githubMcpEnabled by vm.githubMcpEnabled.collectAsStateWithLifecycle()
+    val chatGPTProvider by vm.chatGPTProvider.collectAsStateWithLifecycle()
+    val providerLoginStatus by vm.providerLoginStatus.collectAsStateWithLifecycle()
     var owner by remember { mutableStateOf("") }
     var repository by remember { mutableStateOf("") }
     var pathPrefix by remember { mutableStateOf("") }
@@ -143,6 +146,46 @@ fun DaddyHomePage(vm: DaddyHomeVM = koinViewModel()) {
                             headlineContent = { Text(capability.label) },
                             supportingContent = { Text(capability.description) },
                         )
+                    }
+                }
+            }
+
+            item("chatgpt-account") {
+                val provider = chatGPTProvider
+                val loginStatus = provider?.let { providerLoginStatus[it.id] }
+                val signedIn = provider?.credential != null
+                SectionTitle("ChatGPT / Codex")
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            if (signedIn) provider?.credential?.email ?: "ChatGPT 已连接" else "用 ChatGPT 账号登录",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "官方 Responses API · Codex 模型 · 凭证仅存 Keystore no-backup 区",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        when {
+                            signedIn -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = {
+                                    navController.navigate(Screen.SettingProviderDetail(provider!!.id.toString()))
+                                }) { Text("模型与设置") }
+                                TextButton(onClick = vm::logoutChatGPT) { Text("退出") }
+                            }
+
+                            loginStatus == AccountLoginStatus.Authorizing -> OutlinedButton(
+                                onClick = { provider?.let { vm.cancelProviderLogin(it.id) } },
+                            ) { Text("取消登录") }
+
+                            else -> Button(onClick = { vm.startChatGPTLogin(context) }) {
+                                Text("登录 ChatGPT")
+                            }
+                        }
                     }
                 }
             }
@@ -278,9 +321,16 @@ fun DaddyHomePage(vm: DaddyHomeVM = koinViewModel()) {
                         color = MaterialTheme.colorScheme.surfaceContainer,
                     ) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("${event.action} · ${event.result}", fontWeight = FontWeight.SemiBold)
                             Text(
-                                listOfNotNull(event.capability, event.targetRef, event.detail).joinToString(" · "),
+                                "${auditActionLabel(event.action)} · ${auditResultLabel(event.result)}",
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                listOfNotNull(
+                                    event.capability?.let(::auditCapabilityLabel),
+                                    event.targetRef,
+                                    event.detail,
+                                ).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -681,3 +731,46 @@ private val REPOSITORY_CAPABILITIES = listOf(
     DaddyCapability.BUILD_AND_PR,
     DaddyCapability.GITHUB_DIRECT_MAIN,
 )
+
+internal fun auditActionLabel(action: String): String = when (action) {
+    "GRANT" -> "授予权限"
+    "REVOKE" -> "撤回权限"
+    "BIND_REPOSITORY" -> "加入受控仓库"
+    "UNBIND_REPOSITORY" -> "移除受控仓库"
+    "GITHUB_REPOSITORY_INSPECT" -> "核对 GitHub 仓库"
+    "GITHUB_FILE_READ" -> "读取 GitHub 文件"
+    "GITHUB_FILE_WRITE" -> "写入 GitHub 文件"
+    "GITHUB_FILE_COPY_TO_WORKSPACE" -> "搬运文件到工作区"
+    "WORKSPACE_COMMAND" -> "执行工作区命令"
+    else -> if (action.startsWith("GITHUB_MCP_")) {
+        "GitHub MCP · ${auditToolLabel(action.removePrefix("GITHUB_MCP_"))}"
+    } else {
+        action.replace('_', ' ')
+    }
+}
+
+internal fun auditResultLabel(result: String): String = when (result) {
+    "SUCCEEDED" -> "成功"
+    "FAILED" -> "失败"
+    "DENIED" -> "已拒绝"
+    "CANCELLED" -> "已取消"
+    "NO_OP" -> "无需变更"
+    "RUNNING" -> "执行中"
+    else -> result.replace('_', ' ')
+}
+
+internal fun auditCapabilityLabel(capability: String): String =
+    DaddyCapability.entries.firstOrNull { it.name == capability }?.label ?: capability.replace('_', ' ')
+
+private fun auditToolLabel(tool: String): String = when (tool) {
+    "GET_FILE_CONTENTS", "GET_CONTENTS" -> "读取文件"
+    "CREATE_OR_UPDATE_FILE" -> "创建或更新文件"
+    "PUSH_FILES" -> "推送文件"
+    "CREATE_BRANCH" -> "创建分支"
+    "CREATE_PULL_REQUEST" -> "创建 PR"
+    "GET_PULL_REQUEST", "PULL_REQUEST_READ" -> "读取 PR"
+    "LIST_PULL_REQUESTS" -> "列出 PR"
+    "SEARCH_CODE" -> "搜索代码"
+    "SEARCH_REPOSITORIES" -> "搜索仓库"
+    else -> tool.lowercase().replace('_', ' ')
+}

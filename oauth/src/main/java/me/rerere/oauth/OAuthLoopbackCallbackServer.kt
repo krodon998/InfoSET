@@ -28,6 +28,9 @@ data class OAuthCallback(
     val state: String,
     val error: String?,
     val errorDescription: String?,
+    /** Dynamic OpenAI clients return the issued client id on the callback. */
+    val clientId: String? = null,
+    val scope: String? = null,
 )
 
 /**
@@ -171,6 +174,8 @@ class OAuthLoopbackCallbackServer(
             state = state,
             error = error,
             errorDescription = call.request.queryParameters["error_description"],
+            clientId = call.request.queryParameters["client_id"],
+            scope = call.request.queryParameters["scope"],
         )
         val responseHtml = if (error == null) successHtml() else errorHtml()
         if (!registration.claimed.compareAndSet(false, true)) {

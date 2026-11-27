@@ -1,47 +1,83 @@
 package me.rerere.rikkahub.data.ai.account
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import me.rerere.ai.provider.OAuthCredential
 import me.rerere.oauth.OAuthHttpClient
 
 /**
- * ChatGPT 账号登录的协议参数，与 openai/codex（codex-rs/login）保持一致。
- *
- * client_id 和回调地址是 Codex CLI 在 OpenAI 授权服务器上注册的，回调地址必须原样使用。
+ * Official Sign in with ChatGPT protocol for third-party agents.
  */
 internal object ChatGPTAuth {
     private const val ISSUER = "https://auth.openai.com"
-    const val CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
-    const val TOKEN_ENDPOINT = "$ISSUER/oauth/token"
+    const val DYNAMIC_CLIENT_ID = "dynamic_agent_client"
+    const val AUTHORIZATION_ENDPOINT = "$ISSUER/api/accounts/authorize"
+    const val TOKEN_ENDPOINT = "$ISSUER/api/accounts/oauth/token"
+    const val RESOURCE = "https://api.openai.com/v1"
+    const val SCOPE = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
+    const val AGENT_NAME = "InfoSET Daddy Home"
     const val CALLBACK_PORT = 1455
     const val CALLBACK_PATH = "/auth/callback"
-    const val CALLBACK_HOST = "127.0.0.1"
+    const val CALLBACK_HOST = "localhost"
 
     fun authorizationRequest(
         pkce: OAuthHttpClient.Pkce,
         state: String,
         redirectUri: String,
+        clientId: String,
+        hostId: String,
+        nonce: String,
     ) = OAuthHttpClient.AuthorizationRequest(
-        authorizationEndpoint = "$ISSUER/oauth/authorize",
-        clientId = CLIENT_ID,
+        authorizationEndpoint = AUTHORIZATION_ENDPOINT,
+        clientId = clientId,
         redirectUri = redirectUri,
         pkce = pkce,
         state = state,
-        scope = "openid profile email offline_access",
+        scope = SCOPE,
+        resources = listOf(RESOURCE),
         additionalParameters = mapOf(
-            "id_token_add_organizations" to "true",
-            "codex_cli_simplified_flow" to "true",
-            "originator" to "codex_cli_rs",
+            "nonce" to nonce,
+            "ext_agent_host_id" to hostId,
+            "agent_name_hint" to AGENT_NAME,
         ),
     )
 
-    /** ChatGPT 的刷新接口只接受 JSON 请求体 */
-    fun refreshRequest(refreshToken: String) = OAuthHttpClient.RefreshTokenRequest(
+    fun tokenRequest(
+        clientId: String,
+        code: String,
+        codeVerifier: String,
+        redirectUri: String,
+    ) = OAuthHttpClient.AuthorizationCodeTokenRequest(
         tokenEndpoint = TOKEN_ENDPOINT,
-        clientId = CLIENT_ID,
-        refreshToken = refreshToken,
-        encoding = OAuthHttpClient.TokenEncoding.JSON,
+        clientId = clientId,
+        code = code,
+        codeVerifier = codeVerifier,
+        redirectUri = redirectUri,
+        resources = listOf(RESOURCE),
     )
+
+    fun refreshRequest(refreshToken: String, clientId: String) = OAuthHttpClient.RefreshTokenRequest(
+        tokenEndpoint = TOKEN_ENDPOINT,
+        clientId = clientId,
+        refreshToken = refreshToken,
+        scope = SCOPE,
+        resources = listOf(RESOURCE),
+    )
+
+    fun requireValidIdToken(idToken: String?, clientId: String, nonce: String, nowSeconds: Long) {
+        val claims = idToken?.let(::decodeJwtPayload) ?: error("OpenAI did not return a valid ID token")
+        require(claims.claimString("iss") == ISSUER) { "Unexpected OpenAI ID token issuer" }
+        val audiences = runCatching { claims["aud"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } }
+            .getOrNull() ?: listOfNotNull(claims.claimString("aud"))
+        require(clientId in audiences) { "OpenAI ID token audience mismatch" }
+        require(claims.claimString("nonce") == nonce) { "OpenAI ID token nonce mismatch" }
+        val expiresAt = claims["exp"]?.jsonPrimitive?.longOrNull ?: error("OpenAI ID token has no expiry")
+        require(expiresAt > nowSeconds) { "OpenAI ID token expired" }
+        require(!claims.claimString("sub").isNullOrBlank()) { "OpenAI ID token has no subject" }
+    }
 
     /**
      * 把令牌响应转成凭据。刷新响应可能不带 id_token 或 refresh_token，此时沿用 [previous] 里的值。

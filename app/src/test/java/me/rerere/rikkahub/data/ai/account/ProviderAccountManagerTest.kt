@@ -6,8 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -77,6 +76,13 @@ class ProviderAccountManagerTest {
             expiresAt = 1L, // 早已过期，一取凭据就会刷新
             accountId = "account",
         ),
+        oauthClientId = "issued-client",
+    )
+
+    private fun createVault() = ProviderCredentialVault(
+        root = File(temp.root, "no-backup"),
+        encryptor = ProviderSecretCipher { "sealed:${it.reversed()}" },
+        decryptor = ProviderSecretDecryptor { it.removePrefix("sealed:").reversed() },
     )
 
     private suspend fun createStore(): SettingsStore {
@@ -95,7 +101,8 @@ class ProviderAccountManagerTest {
     @Test
     fun `refresh that already started is saved even if the caller is cancelled`() = runBlocking {
         val store = createStore()
-        val manager = ProviderAccountManager(store, appScope, client)
+        val vault = createVault()
+        val manager = ProviderAccountManager(store, appScope, client, vault)
 
         val caller = launch(Dispatchers.Default) { manager.getCredential(provider, rejectedAccessToken = null) }
         assertTrue(withContext(Dispatchers.IO) { requestArrived.await(10, TimeUnit.SECONDS) })
@@ -103,21 +110,21 @@ class ProviderAccountManagerTest {
         caller.cancelAndJoin()
         release.countDown()
 
-        val saved = withTimeout(10_000) {
-            store.settingsFlow
-                .map { settings ->
-                    (settings.providers.find { it.id == provider.id } as ProviderSetting.ChatGPT).credential
-                }
-                .first { it?.refreshToken == "new-refresh" }
+        withTimeout(10_000) {
+            while (vault.read(provider.id)?.refreshToken != "new-refresh") delay(10)
         }
-        assertEquals("new-access", saved?.accessToken)
+        val saved = store.credential()
+        assertEquals("", saved?.accessToken)
         assertEquals("account", saved?.accountId)
+        assertEquals("new-access", vault.read(provider.id)?.accessToken)
+        assertEquals("new-refresh", vault.read(provider.id)?.refreshToken)
     }
 
     @Test
     fun `refresh result is dropped if the user signs out meanwhile`() = runBlocking {
         val store = createStore()
-        val manager = ProviderAccountManager(store, appScope, client)
+        val vault = createVault()
+        val manager = ProviderAccountManager(store, appScope, client, vault)
 
         val caller = async(Dispatchers.Default) {
             runCatching { manager.getCredential(provider, rejectedAccessToken = null) }
@@ -128,5 +135,6 @@ class ProviderAccountManagerTest {
 
         assertTrue(caller.await().isFailure)
         assertNull(store.credential())
+        assertNull(vault.read(provider.id))
     }
 }
