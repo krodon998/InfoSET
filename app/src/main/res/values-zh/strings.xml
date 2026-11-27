@@ -109,6 +109,9 @@
   <string name="memory_universe_worker">Aire 维护入口</string>
   <string name="memory_universe_worker_desc">整理器可以提出改动并测试；原始记录保持完整，工作记忆的变化始终可编辑。</string>
   <string name="memory_recall_inspector">召回检查器</string>
+  <string name="memory_access_passive_surface">浮现</string>
+  <string name="memory_access_active_recall">主动召回</string>
+  <string name="memory_access_legacy_recall">旧版召回</string>
   <string name="memory_recall_inspector_desc">查看候选分数、来源、过滤原因、实际注入、token 成本和反馈。</string>
   <string name="memory_recall_test_cue">测试消息或召回线索</string>
   <string name="memory_recall_run">运行召回</string>
