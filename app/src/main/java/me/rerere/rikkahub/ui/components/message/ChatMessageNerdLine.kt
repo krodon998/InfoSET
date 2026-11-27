@@ -38,6 +38,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
@@ -284,14 +286,23 @@ private fun ContextUsageBar(
 private fun UsageDetailRow(label: String, value: String) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.Start),
+        verticalAlignment = Alignment.Top,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
             text = label,
             color = LocalContentColor.current.copy(alpha = 0.7f),
             modifier = Modifier.weight(1f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
-        Text(text = value)
+        Text(
+            text = value,
+            modifier = Modifier.weight(1.35f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
+        )
     }
 }
 
