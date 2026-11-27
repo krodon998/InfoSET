@@ -79,6 +79,7 @@ jobs:
             --tests me.rerere.rikkahub.data.model.ConversationConfigTest \
             --tests me.rerere.rikkahub.data.model.ConversationForkTest \
             --tests me.rerere.rikkahub.data.model.ConversationMessagesTest \
+            --tests me.rerere.rikkahub.data.model.AssistantSettingsPolicyTest \
             --tests me.rerere.rikkahub.data.model.StickerMessageLifecycleTest \
             --tests me.rerere.rikkahub.data.sync.BackupAttachmentFoldersTest \
             --tests me.rerere.rikkahub.data.ai.transformers.ReplyReferenceTransformerTest \
