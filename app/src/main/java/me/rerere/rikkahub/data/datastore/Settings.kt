@@ -195,6 +195,7 @@ data class InfoOsNotificationPreference(
 
 private fun defaultInfoOsNotifications() = mapOf(
     "chat" to InfoOsNotificationPreference(),
+    "memory" to InfoOsNotificationPreference(),
     "mailbox" to InfoOsNotificationPreference(),
     "settings" to InfoOsNotificationPreference(),
 )

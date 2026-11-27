@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.InfoOsSettings
@@ -56,6 +57,7 @@ private val DesktopInk = Color(0xFF327F9E)
 
 private enum class InfoSetSurface(val id: String) {
     Chat("chat"),
+    Memory("memory"),
     Mailbox("mailbox"),
     Settings("settings"),
 }
@@ -64,6 +66,7 @@ private enum class InfoSetSurface(val id: String) {
 fun InfoSetDesktopPage(
     infoOsSettings: InfoOsSettings,
     onOpenChat: () -> Unit,
+    onOpenMemory: () -> Unit,
     onOpenMailbox: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -75,6 +78,7 @@ fun InfoSetDesktopPage(
 
     fun actionFor(surface: InfoSetSurface): () -> Unit = when (surface) {
         InfoSetSurface.Chat -> onOpenChat
+        InfoSetSurface.Memory -> onOpenMemory
         InfoSetSurface.Mailbox -> onOpenMailbox
         InfoSetSurface.Settings -> onOpenSettings
     }
@@ -151,6 +155,7 @@ fun InfoSetDesktopPage(
                 items(InfoSetSurface.entries.filterNot { it.id in assignedApps }, key = { it.name }) { surface ->
                     val label = when (surface) {
                         InfoSetSurface.Chat -> stringResource(R.string.infoset_desktop_chat)
+                        InfoSetSurface.Memory -> stringResource(R.string.infoset_desktop_memory)
                         InfoSetSurface.Mailbox -> stringResource(R.string.infoset_desktop_mailbox)
                         InfoSetSurface.Settings -> stringResource(R.string.infoset_desktop_settings)
                     }
@@ -206,10 +211,15 @@ fun InfoSetDesktopPage(
                                         .clickable(onClick = action),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    if (surface == InfoSetSurface.Settings) {
-                                        Icon(HugeIcons.Settings03, null, tint = DesktopInk)
-                                    } else {
-                                        MailboxGlyph(Modifier.size(25.dp), DesktopInk)
+                                    when (surface) {
+                                        InfoSetSurface.Chat -> Image(
+                                            painter = painterResource(R.drawable.infoset_launcher_foreground),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                        InfoSetSurface.Memory -> Icon(HugeIcons.Brain02, null, tint = DesktopInk)
+                                        InfoSetSurface.Mailbox -> MailboxGlyph(Modifier.size(25.dp), DesktopInk)
+                                        InfoSetSurface.Settings -> Icon(HugeIcons.Settings03, null, tint = DesktopInk)
                                     }
                                 }
                             }
@@ -261,6 +271,7 @@ fun InfoSetDesktopPage(
                                 surface = surface,
                                 label = when (surface) {
                                     InfoSetSurface.Chat -> stringResource(R.string.infoset_desktop_chat)
+                                    InfoSetSurface.Memory -> stringResource(R.string.infoset_desktop_memory)
                                     InfoSetSurface.Mailbox -> stringResource(R.string.infoset_desktop_mailbox)
                                     InfoSetSurface.Settings -> stringResource(R.string.infoset_desktop_settings)
                                 },
@@ -294,6 +305,7 @@ private fun DesktopFolderIcon(
                 text = folder.appIds.take(4).joinToString(" ") {
                     when (it) {
                         "chat" -> "●"
+                        "memory" -> "◉"
                         "mailbox" -> "✉"
                         else -> "⚙"
                     }
@@ -334,6 +346,13 @@ private fun DesktopSurfaceIcon(
                     painter = painterResource(R.drawable.infoset_launcher_foreground),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
+                )
+
+                InfoSetSurface.Memory -> Icon(
+                    imageVector = HugeIcons.Brain02,
+                    contentDescription = null,
+                    modifier = Modifier.size(38.dp),
+                    tint = DesktopInk,
                 )
 
                 InfoSetSurface.Mailbox -> MailboxGlyph(
