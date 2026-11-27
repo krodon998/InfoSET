@@ -4,6 +4,8 @@ import kotlinx.serialization.json.Json
 import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -63,8 +65,10 @@ class UIMessageSerializationTest {
 
     @Test
     fun `reply reference and split parts survive serialization`() {
+        val targetPartId = Uuid.random()
         val reference = UIMessageAnnotation.ReplyReference(
             targetMessageId = Uuid.random(),
+            targetPartId = targetPartId,
             targetPartIndex = 1,
             targetRole = MessageRole.ASSISTANT,
             speakerSnapshot = "Aire",
@@ -84,5 +88,48 @@ class UIMessageSerializationTest {
 
         assertEquals(message.parts, restored.parts)
         assertEquals(listOf(reference), restored.annotations)
+        assertEquals(targetPartId, restored.annotations.filterIsInstance<UIMessageAnnotation.ReplyReference>().single().targetPartId)
+    }
+
+    @Test
+    fun `part identities survive serialization including nested tool output`() {
+        val message = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("answer"),
+                UIMessagePart.Tool(
+                    toolCallId = "call-1",
+                    toolName = "test",
+                    input = "{}",
+                    output = listOf(UIMessagePart.Text("result")),
+                ),
+            ),
+        ).withStablePartIds()
+
+        val restored = Json.decodeFromString<UIMessage>(Json.encodeToString(message))
+
+        assertNotNull(restored.parts[0].partId)
+        assertEquals(message.parts[0].partId, restored.parts[0].partId)
+        assertEquals(
+            (message.parts[1] as UIMessagePart.Tool).output.single().partId,
+            (restored.parts[1] as UIMessagePart.Tool).output.single().partId,
+        )
+    }
+
+    @Test
+    fun `legacy parts receive deterministic identities before migrated save`() {
+        val messageId = Uuid.parse("00000000-0000-0000-0000-000000000123")
+        val legacy = UIMessage(
+            id = messageId,
+            role = MessageRole.USER,
+            parts = listOf(UIMessagePart.Text("legacy"), UIMessagePart.Image("file:///legacy.png")),
+        )
+
+        val first = legacy.withStablePartIds()
+        val second = Json.decodeFromString<UIMessage>(Json.encodeToString(legacy)).withStablePartIds()
+
+        assertEquals(first.parts.map { it.partId }, second.parts.map { it.partId })
+        assertNotNull(first.partIdAt(0))
+        assertNotEquals(first.partIdAt(0), first.partIdAt(1))
     }
 }

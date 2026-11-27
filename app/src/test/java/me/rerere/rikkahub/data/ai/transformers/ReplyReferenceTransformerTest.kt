@@ -4,6 +4,8 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.partIdAt
+import me.rerere.ai.ui.withStablePartIds
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -38,6 +40,29 @@ class ReplyReferenceTransformerTest {
     }
 
     @Test
+    fun `part id wins when a persisted target moves to another index`() {
+        val original = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(UIMessagePart.Text("一"), UIMessagePart.Text("二"), UIMessagePart.Text("三")),
+        ).withStablePartIds()
+        val targetPartId = original.partIdAt(1)!!
+        val reordered = original.copy(parts = listOf(original.parts[1], original.parts[0], original.parts[2]))
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = reordered.id,
+            targetPartId = targetPartId,
+            targetPartIndex = 1,
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "snapshot",
+        )
+        val reply = UIMessage.user("仍然回复二").copy(annotations = listOf(reference))
+
+        val prefix = projectReplyReferences(listOf(reordered, reply)).last().parts.first() as UIMessagePart.Text
+
+        assertEquals("[Replying to Aire: \"二\"]", prefix.text)
+    }
+
+    @Test
     fun `deleted target falls back to persisted snapshot deterministically`() {
         val reference = UIMessageAnnotation.ReplyReference(
             targetMessageId = Uuid.random(),
@@ -59,6 +84,7 @@ class ReplyReferenceTransformerTest {
     private fun replyTo(target: UIMessage, partIndex: Int?, snapshot: String) =
         UIMessageAnnotation.ReplyReference(
             targetMessageId = target.id,
+            targetPartId = partIndex?.let(target::partIdAt),
             targetPartIndex = partIndex,
             targetRole = target.role,
             speakerSnapshot = "Aire",

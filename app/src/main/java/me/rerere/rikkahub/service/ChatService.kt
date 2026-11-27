@@ -64,6 +64,7 @@ import me.rerere.rikkahub.data.model.cancelInterruptedTools
 import me.rerere.rikkahub.data.model.deleteMessage
 import me.rerere.rikkahub.data.model.editMessage
 import me.rerere.rikkahub.data.model.fillModelSnapshots
+import me.rerere.rikkahub.data.model.fillPartIds
 import me.rerere.rikkahub.data.model.fork
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
@@ -158,7 +159,7 @@ class ChatService(
         override suspend fun prepareWrite(): (Conversation) -> Conversation {
             // 会话落库即视为开始，此时把助手的配置固定到会话上
             val settings = settingsStore.awaitLoaded()
-            return { it.bindConfig(settings).fillModelSnapshots(settings) }
+            return { it.bindConfig(settings).fillModelSnapshots(settings).fillPartIds() }
         }
 
         override suspend fun write(previous: Conversation?, current: Conversation) {

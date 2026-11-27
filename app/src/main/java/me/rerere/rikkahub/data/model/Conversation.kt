@@ -9,6 +9,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.ModelSnapshot
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.withStablePartIds
 import me.rerere.ai.util.InstantSerializer
 import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANT_ID
 import me.rerere.rikkahub.data.datastore.Settings
@@ -216,6 +217,20 @@ fun Conversation.fillModelSnapshots(settings: Settings): Conversation {
     val models = settings.providers.flatMap { it.models }.associateBy { it.id }
     val nodes = messageNodes.map { node ->
         val messages = node.messages.map { it.fillModelSnapshot(models) }
+        if (messages == node.messages) node else node.copy(messages = messages)
+    }
+    return if (nodes == messageNodes) this else copy(messageNodes = nodes)
+}
+
+/**
+ * Give every message part a durable identity before the conversation is persisted.
+ *
+ * Existing IDs survive edits, tool updates and backups. Legacy messages receive deterministic IDs derived from
+ * message ID and part path, so old references are stable before and after the first migrated save.
+ */
+fun Conversation.fillPartIds(): Conversation {
+    val nodes = messageNodes.map { node ->
+        val messages = node.messages.map(UIMessage::withStablePartIds)
         if (messages == node.messages) node else node.copy(messages = messages)
     }
     return if (nodes == messageNodes) this else copy(messageNodes = nodes)
