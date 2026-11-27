@@ -106,7 +106,6 @@ import me.rerere.ui.charts.ChartSpec
 import me.rerere.ui.webview.WebViewContentCache
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.uuid.Uuid
 
 @Composable
 fun ChatMessage(
@@ -122,7 +121,7 @@ fun ChatMessage(
     onShare: () -> Unit,
     onDelete: () -> Unit,
     onReply: (Int?) -> Unit,
-    onOpenReplyReference: (Uuid) -> Unit,
+    onOpenReplyReference: (UIMessageAnnotation.ReplyReference) -> Unit,
     onUpdate: (MessageNode) -> Unit,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -196,7 +195,7 @@ fun ChatMessage(
             LocalWorkspaceId provides assistant?.workspaceId?.toString(),
         ) {
             message.annotations.filterIsInstance<UIMessageAnnotation.ReplyReference>().firstOrNull()?.let { reference ->
-                ChatReplyReferenceBlock(reference = reference, onClick = { onOpenReplyReference(reference.targetMessageId) })
+                ChatReplyReferenceBlock(reference = reference, onClick = { onOpenReplyReference(reference) })
             }
             MessagePartsBlock(
                 assistant = assistant,

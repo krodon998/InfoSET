@@ -122,6 +122,50 @@ class ConversationMessagesTest {
     }
 
     @Test
+    fun `reply target locator finds an inactive branch and stable part`() {
+        val intro = UIMessage.user("intro")
+        val target = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(UIMessagePart.Text("one"), UIMessagePart.Text("two")),
+        ).withStablePartIds()
+        val targetPartId = target.partIdAt(1)
+        val reorderedTarget = target.copy(parts = listOf(target.parts[1], target.parts[0]))
+        val activeBranch = UIMessage.assistant("other branch")
+        val targetNode = MessageNode(
+            messages = listOf(reorderedTarget, activeBranch),
+            selectIndex = 1,
+        )
+        val conversation = conversationOf(intro.toMessageNode(), targetNode)
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = target.id,
+            targetPartId = targetPartId,
+            targetPartIndex = 1,
+            targetRole = target.role,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "two",
+        )
+
+        val location = conversation.locateReplyTarget(reference)!!
+
+        assertEquals(1, location.nodeIndex)
+        assertEquals(targetNode.id, location.nodeId)
+        assertEquals(0, location.branchIndex)
+        assertEquals(0, location.partIndex)
+    }
+
+    @Test
+    fun `reply target locator returns null after target deletion`() {
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = Uuid.random(),
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = "snapshot",
+        )
+
+        assertNull(conversationOf(UIMessage.user("reply").toMessageNode()).locateReplyTarget(reference))
+    }
+
+    @Test
     fun `translation is set on the matching message without switching branches`() {
         val first = UIMessage.assistant("first")
         val second = UIMessage.assistant("second")

@@ -2,11 +2,43 @@ package me.rerere.rikkahub.data.model
 
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.finishPendingTools
+import me.rerere.ai.ui.partIndexOf
 import me.rerere.ai.ui.withoutPartIds
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
+
+data class ReplyTargetLocation(
+    val nodeIndex: Int,
+    val nodeId: Uuid,
+    val branchIndex: Int,
+    val messageId: Uuid,
+    val partIndex: Int?,
+)
+
+/** Resolve a reply target across every branch in the loaded conversation. */
+fun Conversation.locateReplyTarget(
+    reference: UIMessageAnnotation.ReplyReference,
+): ReplyTargetLocation? {
+    messageNodes.forEachIndexed { nodeIndex, node ->
+        val branchIndex = node.messages.indexOfFirst { it.id == reference.targetMessageId }
+        if (branchIndex == -1) return@forEachIndexed
+        val message = node.messages[branchIndex]
+        val partIndex = reference.targetPartId
+            ?.let(message::partIndexOf)
+            ?: reference.targetPartIndex?.takeIf { it in message.parts.indices }
+        return ReplyTargetLocation(
+            nodeIndex = nodeIndex,
+            nodeId = node.id,
+            branchIndex = branchIndex,
+            messageId = message.id,
+            partIndex = partIndex,
+        )
+    }
+    return null
+}
 
 /**
  * 删除一条消息：节点里没有别的分支时整个节点一起删掉，否则选中的分支向前收拢。
