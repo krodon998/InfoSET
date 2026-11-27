@@ -164,7 +164,7 @@ jobs:
             -camera-back none -camera-front none
           script: >-
             ./gradlew connectedGithubDebugAndroidTest
-            -Pandroid.testInstrumentationRunnerArguments.class=me.rerere.rikkahub.data.db.dao.MemoryAtomDAOTest,me.rerere.rikkahub.data.db.migrations.Migration_34_37_Test,me.rerere.rikkahub.data.sync.BackupManagerTest
+            -Pandroid.testInstrumentationRunnerArguments.class=me.rerere.rikkahub.data.memory.MemoryInstrumentationSuite
 
       - name: Upload instrumentation reports
         if: always()
