@@ -1,11 +1,11 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import java.time.LocalDate
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import kotlinx.datetime.LocalDateTime
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class ChatTimelineTimeTest {
     @Test
