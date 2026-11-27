@@ -50,6 +50,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.MemoryRecallResult
+import me.rerere.rikkahub.data.model.effectiveContextTokenBudget
 import me.rerere.rikkahub.data.repository.AtomicMemoryRepository
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
@@ -314,7 +315,7 @@ class ChatRequestFactory(
             optionalRecall = optionalRecall,
             toolContract = toolPrompt,
             recentRaw = messages.withContinuationHint(),
-            totalTokenBudget = contextTokenBudgetOverride ?: assistant.contextTokenBudget,
+            totalTokenBudget = contextTokenBudgetOverride ?: assistant.effectiveContextTokenBudget(),
             recallTokenBudget = assistant.contextRecallTokenBudget,
             minimumRecentTurns = assistant.contextMinimumRecentTurns,
             legacyMessageLimit = assistant.contextMessageLimit,
@@ -333,7 +334,8 @@ class ChatRequestFactory(
             model = turn.model,
             temperature = assistant.temperature,
             topP = assistant.topP,
-            maxTokens = assistant.maxTokens,
+            // 旧 Assistant maxTokens 先兼容；新设置从 Provider/Model 高级页覆盖
+            maxTokens = assistant.maxTokens ?: turn.model.maxOutputTokens,
             tools = turn.tools,
             reasoningLevel = assistant.reasoningLevel,
             customHeaders = buildList {
