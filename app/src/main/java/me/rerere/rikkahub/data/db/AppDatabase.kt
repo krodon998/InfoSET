@@ -13,6 +13,7 @@ import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.ManagedFileDAO
 import me.rerere.rikkahub.data.db.dao.MailboxLetterDAO
+import me.rerere.rikkahub.data.db.dao.LifeSurfaceDAO
 import me.rerere.rikkahub.data.db.dao.MemoryAtomDAO
 import me.rerere.rikkahub.data.db.dao.MediaCreationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryConsolidationDAO
@@ -32,6 +33,9 @@ import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.GitHubRepositoryBindingEntity
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
+import me.rerere.rikkahub.data.db.entity.LifeSurfaceInteractionEntity
+import me.rerere.rikkahub.data.db.entity.LifeSurfaceItemEntity
+import me.rerere.rikkahub.data.db.entity.LifeSurfaceObjectEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
@@ -76,8 +80,11 @@ import me.rerere.rikkahub.utils.JsonInstant
         GitHubRepositoryBindingEntity::class,
         ActivityJournalEntity::class,
         MoodEventEntity::class,
+        LifeSurfaceItemEntity::class,
+        LifeSurfaceObjectEntity::class,
+        LifeSurfaceInteractionEntity::class,
     ],
-    version = 40,
+    version = 41,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -106,6 +113,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 37, to = 38),
         AutoMigration(from = 39, to = 40),
+        AutoMigration(from = 40, to = 41),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -141,6 +149,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun daddyHomeDao(): DaddyHomeDAO
 
     abstract fun moodDao(): MoodDAO
+
+    abstract fun lifeSurfaceDao(): LifeSurfaceDAO
 }
 
 object TokenUsageConverter {
