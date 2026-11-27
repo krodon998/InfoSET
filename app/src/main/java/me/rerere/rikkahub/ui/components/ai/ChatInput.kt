@@ -63,8 +63,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -351,7 +349,6 @@ private fun ModelHoldPickerButton(
     val popupWidthPx = with(density) { ReasoningHoldPopupWidth.toPx() }
     val gapPx = with(density) { HoldTargetGap.toPx() }
     val popupHeightPx = rowHeightPx * reasoningHoldChoices.size
-    var anchorPosition by remember { mutableStateOf(IntOffset.Zero) }
     var holding by remember { mutableStateOf(false) }
     var highlightedIndex by remember { mutableStateOf<Int?>(null) }
 
@@ -359,10 +356,6 @@ private fun ModelHoldPickerButton(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(buttonSize)
-            .onGloballyPositioned { coordinates ->
-                val position = coordinates.positionInWindow()
-                anchorPosition = IntOffset(position.x.roundToInt(), position.y.roundToInt())
-            }
             .clip(CircleShape)
             .pointerInput(reasoningEnabled) {
                 awaitEachGesture {
@@ -443,53 +436,54 @@ private fun ModelHoldPickerButton(
                 modifier = Modifier.size(20.dp),
             )
         }
-    }
-
-    if (holding) {
-        Popup(
-            alignment = Alignment.TopStart,
-            offset = IntOffset(
-                x = anchorPosition.x,
-                y = anchorPosition.y - popupHeightPx.roundToInt() - gapPx.roundToInt(),
-            ),
-            properties = PopupProperties(
-                focusable = false,
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false,
-            ),
-        ) {
-            Surface(
-                modifier = Modifier.widthIn(min = ReasoningHoldPopupWidth, max = ReasoningHoldPopupWidth),
-                shape = MaterialTheme.shapes.large,
-                tonalElevation = 6.dp,
-                shadowElevation = 6.dp,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        // Popup offsets are parent-relative. Keep it inside the anchor Box so the
+        // visual rows and the pointer's local coordinates share the same origin.
+        if (holding) {
+            Popup(
+                alignment = Alignment.TopStart,
+                offset = IntOffset(
+                    x = 0,
+                    y = holdPopupTop(popupHeightPx, gapPx).roundToInt(),
+                ),
+                properties = PopupProperties(
+                    focusable = false,
+                    dismissOnBackPress = false,
+                    dismissOnClickOutside = false,
+                ),
             ) {
-                Column {
-                    reasoningHoldChoices.forEachIndexed { index, level ->
-                        Surface(
-                            color = if (highlightedIndex == index) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                Color.Transparent
-                            },
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = ReasoningHoldRowHeight)
-                                    .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                Surface(
+                    modifier = Modifier.widthIn(min = ReasoningHoldPopupWidth, max = ReasoningHoldPopupWidth),
+                    shape = MaterialTheme.shapes.large,
+                    tonalElevation = 6.dp,
+                    shadowElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Column {
+                        reasoningHoldChoices.forEachIndexed { index, level ->
+                            Surface(
+                                color = if (highlightedIndex == index) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    Color.Transparent
+                                },
                             ) {
-                                Text(
-                                    text = reasoningHoldLabel(level),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (level == reasoningLevel) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    },
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = ReasoningHoldRowHeight)
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = reasoningHoldLabel(level),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (level == reasoningLevel) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
@@ -527,7 +521,6 @@ private fun SendButton(
     val canSend = showStop || !empty
     var pressed by remember { mutableStateOf(false) }
     var selectedTarget by remember { mutableStateOf(SendHoldTarget.NONE) }
-    var anchorPosition by remember { mutableStateOf(IntOffset.Zero) }
     val containerColor = when {
         showStop -> MaterialTheme.colorScheme.errorContainer
         empty -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -543,10 +536,6 @@ private fun SendButton(
         modifier = modifier
             .size(buttonSize)
             .testTag("chat_send_button")
-            .onGloballyPositioned { coordinates ->
-                val position = coordinates.positionInWindow()
-                anchorPosition = IntOffset(position.x.roundToInt(), position.y.roundToInt())
-            }
             .clip(CircleShape)
             .pointerInput(canSend, showStop) {
                 if (!canSend) return@pointerInput
@@ -601,43 +590,44 @@ private fun SendButton(
             tint = contentColor,
             modifier = Modifier.size(18.dp)
         )
-    }
-
-    if (pressed && !showStop) {
-        Popup(
-            alignment = Alignment.TopStart,
-            offset = IntOffset(
-                x = anchorPosition.x,
-                y = anchorPosition.y - buttonSizePx.roundToInt() - gapPx.roundToInt(),
-            ),
-            properties = PopupProperties(
-                focusable = false,
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false,
-            ),
-        ) {
-            Surface(
-                modifier = Modifier.size(buttonSize),
-                shape = CircleShape,
-                color = if (selectedTarget == SendHoldTarget.QUEUE) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                },
-                contentColor = if (selectedTarget == SendHoldTarget.QUEUE) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                tonalElevation = 6.dp,
-                shadowElevation = 6.dp,
+        // Keep the clock Popup anchored to this button Box. Using a window
+        // position as a parent-relative offset double-counts IME/layout movement.
+        if (pressed && !showStop) {
+            Popup(
+                alignment = Alignment.TopStart,
+                offset = IntOffset(
+                    x = 0,
+                    y = holdPopupTop(buttonSizePx, gapPx).roundToInt(),
+                ),
+                properties = PopupProperties(
+                    focusable = false,
+                    dismissOnBackPress = false,
+                    dismissOnClickOutside = false,
+                ),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = HugeIcons.Clock01,
-                        contentDescription = "暂存气泡，暂不请求模型",
-                        modifier = Modifier.size(18.dp),
-                    )
+                Surface(
+                    modifier = Modifier.size(buttonSize),
+                    shape = CircleShape,
+                    color = if (selectedTarget == SendHoldTarget.QUEUE) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
+                    contentColor = if (selectedTarget == SendHoldTarget.QUEUE) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    tonalElevation = 6.dp,
+                    shadowElevation = 6.dp,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = HugeIcons.Clock01,
+                            contentDescription = "暂存气泡，暂不请求模型",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
         }
@@ -645,6 +635,8 @@ private fun SendButton(
 }
 
 internal enum class SendHoldTarget { SEND, QUEUE, NONE }
+
+internal fun holdPopupTop(contentHeight: Float, gap: Float): Float = -contentHeight - gap
 
 internal fun resolveSendHoldTarget(
     x: Float,
@@ -654,7 +646,7 @@ internal fun resolveSendHoldTarget(
     queueVisible: Boolean,
 ): SendHoldTarget {
     if (x in 0f..buttonSize && y in 0f..buttonSize) return SendHoldTarget.SEND
-    val queueTop = -buttonSize - gap
+    val queueTop = holdPopupTop(buttonSize, gap)
     if (queueVisible && x in 0f..buttonSize && y in queueTop..(queueTop + buttonSize)) {
         return SendHoldTarget.QUEUE
     }
@@ -670,7 +662,7 @@ internal fun resolveReasoningHoldIndex(
     gap: Float,
 ): Int? {
     if (x !in 0f..popupWidth || choiceCount <= 0) return null
-    val popupTop = -(rowHeight * choiceCount) - gap
+    val popupTop = holdPopupTop(rowHeight * choiceCount, gap)
     if (y !in popupTop..-gap) return null
     return ((y - popupTop) / rowHeight).toInt().coerceIn(0, choiceCount - 1)
 }

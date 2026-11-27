@@ -21,9 +21,31 @@ class ReplyReferenceTransformerTest {
 
         val projected = projectReplyReferences(archive)
 
-        assertEquals("[Replying to Aire: \"真实原文\"]", (projected.last().parts.first() as UIMessagePart.Text).text)
+        assertEquals("[Replying to Aire | whole message: \"真实原文\"]", (projected.last().parts.first() as UIMessagePart.Text).text)
         assertEquals("宝宝写的正文", reply.toText())
         assertEquals(listOf(UIMessagePart.Text("宝宝写的正文")), reply.parts)
+    }
+
+    @Test
+    fun `whole-message reply labels its scope and keeps a grapheme-safe excerpt`() {
+        val longTail = "尾".repeat(140)
+        val target = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("第一颗气泡\n保留换行"),
+                UIMessagePart.Text("第二颗气泡 $longTail"),
+            ),
+        )
+        val reply = UIMessage.user("整条回复").copy(
+            annotations = listOf(replyTo(target, partIndex = null, snapshot = "旧快照")),
+        )
+
+        val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
+
+        assertEquals(
+            "[Replying to Aire | whole message: \"第一颗气泡 保留换行 第二颗气泡 尾尾尾尾尾尾尾尾…\"]",
+            prefix.text,
+        )
     }
 
     @Test
@@ -36,7 +58,21 @@ class ReplyReferenceTransformerTest {
 
         val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
 
-        assertEquals("[Replying to Aire: \"二\"]", prefix.text)
+        assertEquals("[Replying to Aire | bubble 2: \"二\"]", prefix.text)
+    }
+
+    @Test
+    fun `part reply labels its bubble and keeps a grapheme-safe excerpt`() {
+        val selected = "  单颗气泡第一行\n单颗气泡第二行 😀🎵 ${"密封的信".repeat(30)}\n  "
+        val target = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(UIMessagePart.Text("一"), UIMessagePart.Text(selected), UIMessagePart.Text("三")),
+        )
+        val reply = UIMessage.user("只回第二颗").copy(annotations = listOf(replyTo(target, 1, "旧快照")))
+
+        val prefix = projectReplyReferences(listOf(target, reply)).last().parts.first() as UIMessagePart.Text
+
+        assertEquals("[Replying to Aire | bubble 2: \"单颗气泡第一行 单颗气泡第二行 😀🎵 密封的信密封…\"]", prefix.text)
     }
 
     @Test
@@ -59,7 +95,7 @@ class ReplyReferenceTransformerTest {
 
         val prefix = projectReplyReferences(listOf(reordered, reply)).last().parts.first() as UIMessagePart.Text
 
-        assertEquals("[Replying to Aire: \"二\"]", prefix.text)
+        assertEquals("[Replying to Aire | bubble 1: \"二\"]", prefix.text)
     }
 
     @Test
@@ -77,8 +113,25 @@ class ReplyReferenceTransformerTest {
         val second = projectReplyReferences(listOf(reply)).single()
 
         assertEquals(first, second)
-        assertEquals("[Replying to 隐: \"已经删除的原句\"]", (first.parts.first() as UIMessagePart.Text).text)
+        assertEquals("[Replying to 隐 | bubble 3: \"已经删除的原句\"]", (first.parts.first() as UIMessagePart.Text).text)
         assertFalse(reply.toText().contains("Replying to"))
+    }
+
+    @Test
+    fun `legacy fallback snapshot is clipped without splitting an emoji`() {
+        val snapshot = "字".repeat(24) + "😀" + "尾巴"
+        val reference = UIMessageAnnotation.ReplyReference(
+            targetMessageId = Uuid.random(),
+            targetPartIndex = null,
+            targetRole = MessageRole.ASSISTANT,
+            speakerSnapshot = "Aire",
+            previewSnapshot = snapshot,
+        )
+        val reply = UIMessage.user("继续聊").copy(annotations = listOf(reference))
+
+        val prefix = projectReplyReferences(listOf(reply)).single().parts.first() as UIMessagePart.Text
+
+        assertEquals("[Replying to Aire | whole message: \"${"字".repeat(24)}😀…\"]", prefix.text)
     }
 
     private fun replyTo(target: UIMessage, partIndex: Int?, snapshot: String) =

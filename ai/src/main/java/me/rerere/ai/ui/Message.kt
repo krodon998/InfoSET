@@ -12,6 +12,8 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.util.json
 import java.nio.charset.StandardCharsets
+import java.text.BreakIterator
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -79,20 +81,19 @@ data class UIMessage(
 
     fun getTools() = parts.filterIsInstance<UIMessagePart.Tool>()
 
-    /** A short, deterministic description suitable for a persisted reply reference. */
-    fun replyPreview(partIndex: Int? = null, maxLength: Int = 120): String {
+    /** A compact, grapheme-safe excerpt suitable for a persisted reply-reference snapshot. */
+    fun replyPreview(partIndex: Int? = null): String {
         val selected = partIndex?.let(parts::getOrNull)?.let(::listOf) ?: parts
-        val preview = selected.firstNotNullOfOrNull { part ->
+        return selected.mapNotNull { part ->
             when (part) {
-                is UIMessagePart.Text -> part.text.trim().takeIf { it.isNotEmpty() }
+                is UIMessagePart.Text -> part.text.takeIf { it.isNotBlank() }
                 is UIMessagePart.Image -> if (part.isSticker()) "表情包" else "图片"
                 is UIMessagePart.Document -> part.fileName.ifBlank { "文件" }
                 is UIMessagePart.Video -> "视频"
                 is UIMessagePart.Audio -> "音频"
                 else -> null
             }
-        }.orEmpty().replace(Regex("\\s+"), " ").trim()
-        return if (preview.length <= maxLength) preview else preview.take(maxLength - 1).trimEnd() + "…"
+        }.joinToString(separator = "\n").asReplyReferenceExcerpt()
     }
 
     fun isValidToUpload() = parts.any { part ->
@@ -153,6 +154,28 @@ data class UIMessage(
             role = MessageRole.ASSISTANT,
             parts = listOf(UIMessagePart.Text(prompt))
         )
+    }
+}
+
+private const val REPLY_PREVIEW_GRAPHEME_LIMIT = 25
+
+fun String.asReplyReferenceExcerpt(): String =
+    replace(Regex("\\s+"), " ").trim().truncateGraphemes(REPLY_PREVIEW_GRAPHEME_LIMIT)
+
+private fun String.truncateGraphemes(maxGraphemes: Int): String {
+    if (isEmpty() || maxGraphemes <= 0) return ""
+    val iterator = BreakIterator.getCharacterInstance(Locale.ROOT).apply { setText(this@truncateGraphemes) }
+    var end = iterator.first()
+    repeat(maxGraphemes) {
+        val next = iterator.next()
+        if (next == BreakIterator.DONE) return this
+        end = next
+    }
+    val next = iterator.next()
+    return when {
+        next == BreakIterator.DONE -> this
+        substring(end) == "…" -> this
+        else -> substring(0, end).trimEnd() + "…"
     }
 }
 

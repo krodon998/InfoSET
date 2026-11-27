@@ -65,6 +65,7 @@ import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.PaintBoard
 import me.rerere.hugeicons.stroke.Settings02
+import me.rerere.hugeicons.stroke.Smile
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
@@ -204,7 +205,7 @@ internal fun FilesPicker(
                     actions = buildList {
                         add(AttachmentAction(HugeIcons.Camera01, R.string.take_picture, onTakePic))
                         add(AttachmentAction(HugeIcons.Image02, R.string.photo, onPickImage))
-                        add(AttachmentAction(HugeIcons.Image02, R.string.chat_page_stickers, onOpenStickers))
+                        add(AttachmentAction(HugeIcons.Smile, R.string.chat_page_stickers, onOpenStickers))
                         add(AttachmentAction(HugeIcons.PaintBoard, R.string.sketch, onSketch))
                         if (provider != null && provider is ProviderSetting.Google) {
                             add(AttachmentAction(HugeIcons.Video01, R.string.video, onPickVideo))

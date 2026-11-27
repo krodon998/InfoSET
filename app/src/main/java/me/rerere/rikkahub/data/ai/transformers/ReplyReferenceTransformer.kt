@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.transformers
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.asReplyReferenceExcerpt
 import me.rerere.ai.ui.partIndexOf
 
 /** Adds deterministic reply context to the provider projection without changing stored messages. */
@@ -21,16 +22,17 @@ internal fun projectReplyReferences(messages: List<UIMessage>): List<UIMessage> 
         val target = targets[reference.targetMessageId]
         val targetPartIndex = target?.let { messageTarget ->
             reference.targetPartId?.let(messageTarget::partIndexOf) ?: reference.targetPartIndex
-        }
+        } ?: reference.targetPartIndex
         val preview = target
             ?.replyPreview(targetPartIndex)
             ?.takeIf { it.isNotBlank() }
             ?: reference.previewSnapshot
-        val stablePreview = preview.replace(Regex("\\s+"), " ").trim().take(120)
+        val stablePreview = preview.asReplyReferenceExcerpt()
         val speaker = reference.speakerSnapshot.replace(Regex("\\s+"), " ").trim().ifBlank {
             reference.targetRole.name.lowercase()
         }
-        val prefix = "[Replying to $speaker: \"${stablePreview.replace("\\", "\\\\").replace("\"", "\\\"")}\"]"
+        val targetLabel = targetPartIndex?.let { "bubble ${it + 1}" } ?: "whole message"
+        val prefix = "[Replying to $speaker | $targetLabel: \"${stablePreview.replace("\\", "\\\\").replace("\"", "\\\"")}\"]"
         message.copy(parts = listOf(UIMessagePart.Text(prefix)) + message.parts)
     }
 }
