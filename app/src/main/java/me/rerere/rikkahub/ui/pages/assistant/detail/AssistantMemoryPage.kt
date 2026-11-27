@@ -95,6 +95,7 @@ fun AssistantMemoryPage(id: String) {
     )
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val memories by vm.memories.collectAsStateWithLifecycle()
+    val memoryAtoms by vm.memoryAtoms.collectAsStateWithLifecycle()
     val consolidation by vm.memoryConsolidation.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -145,11 +146,15 @@ fun AssistantMemoryPage(id: String) {
                 when (MemoryTab.entries[page]) {
                     MemoryTab.OVERVIEW -> MemoryOverviewTab(
                         assistant = assistant,
+                        atomCount = memoryAtoms.size,
                         memoryCount = memories.size,
                         consolidation = consolidation.takeIf { assistant.enableMemory },
                         onOpenArchive = { navController.navigate(Screen.History) },
                         onOpenFiles = {
                             scope.launch { pagerState.animateScrollToPage(MemoryTab.FILES.ordinal) }
+                        },
+                        onOpenRecall = {
+                            navController.navigate(Screen.MemoryRecallInspector(vm.memoryId))
                         },
                         onOpenSettings = {
                             scope.launch { pagerState.animateScrollToPage(MemoryTab.SETTINGS.ordinal) }
@@ -181,10 +186,12 @@ fun AssistantMemoryPage(id: String) {
 @Composable
 private fun MemoryOverviewTab(
     assistant: Assistant,
+    atomCount: Int,
     memoryCount: Int,
     consolidation: MemoryConsolidationStatus?,
     onOpenArchive: () -> Unit,
     onOpenFiles: () -> Unit,
+    onOpenRecall: () -> Unit,
     onOpenSettings: () -> Unit,
     onOrganizeMemory: () -> Unit,
 ) {
@@ -205,12 +212,24 @@ private fun MemoryOverviewTab(
                 trailingContent = { Text(stringResource(R.string.memory_universe_open)) },
             )
             item(
-                onClick = onOpenFiles,
+                onClick = onOpenRecall,
                 headlineContent = { Text(stringResource(R.string.memory_universe_working)) },
                 supportingContent = { Text(stringResource(R.string.memory_universe_working_desc)) },
                 trailingContent = {
-                    Text(stringResource(R.string.memory_universe_entry_count, memoryCount))
+                    Text(stringResource(R.string.memory_universe_entry_count, atomCount))
                 },
+            )
+            item(
+                onClick = onOpenFiles,
+                headlineContent = { Text(stringResource(R.string.memory_universe_documents)) },
+                supportingContent = { Text(stringResource(R.string.memory_universe_documents_desc)) },
+                trailingContent = { Text(stringResource(R.string.memory_universe_entry_count, memoryCount)) },
+            )
+            item(
+                onClick = onOpenRecall,
+                headlineContent = { Text(stringResource(R.string.memory_recall_inspector)) },
+                supportingContent = { Text(stringResource(R.string.memory_recall_inspector_desc)) },
+                trailingContent = { Text(stringResource(R.string.memory_universe_open)) },
             )
             item(
                 headlineContent = { Text(stringResource(R.string.memory_universe_context)) },

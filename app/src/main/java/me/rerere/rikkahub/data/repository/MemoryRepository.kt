@@ -25,7 +25,10 @@ sealed interface MemoryWriteResult {
  * 写操作都带 ifVersion 做乐观锁：传 [NEW_FILE_VERSION] 表示新建，传版本号表示基于该版本修改，
  * 传 null 则不校验（用户在界面里直接编辑）。
  */
-class MemoryRepository(private val memoryDAO: MemoryDAO) {
+class MemoryRepository(
+    private val memoryDAO: MemoryDAO,
+    private val atomicMemoryRepository: AtomicMemoryRepository? = null,
+) {
     companion object {
         const val GLOBAL_MEMORY_ID = "__global__"
         const val NEW_FILE_VERSION = "new"
@@ -96,17 +99,23 @@ class MemoryRepository(private val memoryDAO: MemoryDAO) {
             return MemoryWriteResult.Conflict(current)
         }
         memoryDAO.deleteFile(assistantId, normalized)
+        atomicMemoryRepository?.deleteMarkdownSource(assistantId, normalized)
         MemoryWriteResult.Success(null)
     }
 
     suspend fun deleteFilesOfAssistant(assistantId: String) {
         memoryDAO.deleteFilesOfAssistant(assistantId)
+        atomicMemoryRepository?.deleteAll(assistantId)
     }
 
     suspend fun copyFiles(fromAssistantId: String, toAssistantId: String) {
         val files = memoryDAO.getFilesOfAssistant(fromAssistantId)
-        if (files.isEmpty()) return
-        memoryDAO.upsertFiles(files.map { it.copy(assistantId = toAssistantId) })
+        if (files.isNotEmpty()) {
+            val copies = files.map { it.copy(assistantId = toAssistantId) }
+            memoryDAO.upsertFiles(copies)
+            copies.forEach { atomicMemoryRepository?.syncMarkdownFile(toAssistantId, it.toMemoryFile()) }
+        }
+        atomicMemoryRepository?.copyNonMarkdown(fromAssistantId, toAssistantId)
     }
 
     private sealed interface Edit {
@@ -149,6 +158,7 @@ class MemoryRepository(private val memoryDAO: MemoryDAO) {
             updatedAt = System.currentTimeMillis(),
         )
         memoryDAO.upsertFile(entity)
+        atomicMemoryRepository?.syncMarkdownFile(assistantId, entity.toMemoryFile())
         MemoryWriteResult.Success(entity.toMemoryFile())
     }
 
