@@ -1,5 +1,6 @@
 package me.rerere.ai.ui
 
+import android.util.Log
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.JsonObject
@@ -60,6 +61,7 @@ class StreamChunkHandler(private val model: Model? = null) {
     private val reasoningPartIndexes = mutableMapOf<String, Int>()
     private val imagePartIndexes = mutableMapOf<String, Int>()
     private val serverToolInputBuffers = mutableMapOf<String, StringBuilder>()
+    private val messageBreakChunkTrackers = mutableMapOf<String, MessageBreakChunkTracker>()
 
     /**
      * 将一个 [chunk] 合并进消息列表末尾的助手消息，并返回新的消息列表。
@@ -90,6 +92,9 @@ class StreamChunkHandler(private val model: Model? = null) {
                 }
             }
             is StreamChunk.TextDelta -> {
+                if (messageBreakChunkTrackers.getOrPut(chunk.id, ::MessageBreakChunkTracker).append(chunk.text)) {
+                    MessageBreakTelemetry.recordCrossChunk()
+                }
                 val index = textPartIndexes[chunk.id]
                 // 容忍 Provider 未发送 Start：首次收到 Delta 时直接创建对应 part。
                 if (index == null || parts.getOrNull(index) !is UIMessagePart.Text) {
@@ -110,7 +115,10 @@ class StreamChunkHandler(private val model: Model? = null) {
                 }
             }
 
-            is StreamChunk.TextEnd -> this.also { textPartIndexes.remove(chunk.id) }
+            is StreamChunk.TextEnd -> this.also {
+                textPartIndexes.remove(chunk.id)
+                messageBreakChunkTrackers.remove(chunk.id)
+            }
             is StreamChunk.ReasoningStart -> {
                 if (chunk.id in reasoningPartIndexes) {
                     this
@@ -317,12 +325,14 @@ class StreamChunkHandler(private val model: Model? = null) {
             is StreamChunk.Usage -> copy(usage = usage.merge(chunk.usage))
             is StreamChunk.Finish -> copy(
                 finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-            ).finishReasoning().also {
+            ).finishReasoning().also { finished ->
+                recordMessageBreakMetrics(finished)
                 // Finish 同时结束尚未显式结束的 reasoning，并释放本次响应流的索引状态。
                 textPartIndexes.clear()
                 reasoningPartIndexes.clear()
                 imagePartIndexes.clear()
                 serverToolInputBuffers.clear()
+                messageBreakChunkTrackers.clear()
             }
         }
     }
@@ -354,7 +364,7 @@ fun List<UIMessage>.handleTextGenerationResult(
         modelId = model?.id,
         usage = result.usage,
         finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
-    ).finishReasoning()
+    ).finishReasoning().also(::recordMessageBreakMetrics)
     return if (last().role != incoming.role) {
         this + incoming
     } else {
@@ -363,6 +373,19 @@ fun List<UIMessage>.handleTextGenerationResult(
             usage = last().usage.merge(result.usage ?: TokenUsage()),
             finishedAt = incoming.finishedAt,
         ).finishReasoning()
+    }
+}
+
+private fun recordMessageBreakMetrics(message: UIMessage) {
+    message.parts.filterIsInstance<UIMessagePart.Text>().forEach { part ->
+        val result = parseMessageBreaks(part.text)
+        MessageBreakTelemetry.recordFinal(result)
+        result.warnings.forEach { warning ->
+            Log.w(
+                "MessageBreakParser",
+                "Ignored message break: code=${warning.code}, line=${warning.line}",
+            )
+        }
     }
 }
 

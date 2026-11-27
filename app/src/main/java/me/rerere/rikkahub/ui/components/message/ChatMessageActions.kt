@@ -41,6 +41,8 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.derivedMessageSegments
+import me.rerere.ai.ui.messageBreakDisplayText
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
@@ -65,6 +67,7 @@ import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.removeBracketedContent
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.utils.toMessageTimeString
+import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.ui.components.RikkaConfirmDialog
 import java.util.Locale
 
@@ -98,7 +101,13 @@ fun ColumnScope.ChatMessageActionButtons(
         ChatMessageActionButton(
             icon = HugeIcons.Copy01,
             contentDescription = stringResource(R.string.copy),
-            onClick = { context.copyMessageToClipboard(message) },
+            onClick = {
+                context.copyMessageToClipboard(
+                    message = message,
+                    messageBreaksEnabled = settings.displaySetting.enableAssistantMessageBreaks,
+                    maxSegments = settings.displaySetting.messageBreakMaxSegments,
+                )
+            },
         )
 
         ChatMessageActionButton(
@@ -123,7 +132,10 @@ fun ColumnScope.ChatMessageActionButtons(
                     checked = isSpeaking,
                     onCheckedChange = { speak ->
                         if (speak) {
-                            val text = message.toText()
+                            val text = message.messageBreakDisplayText(
+                                enabled = settings.displaySetting.enableAssistantMessageBreaks,
+                                maxSegments = settings.displaySetting.messageBreakMaxSegments,
+                            )
                             var textToSpeak = text
                             if (settings.displaySetting.ttsOnlyReadQuoted) {
                                 textToSpeak = textToSpeak.extractQuotedContentAsText() ?: textToSpeak
@@ -263,13 +275,15 @@ fun ChatMessageActionsSheet(
     onEdit: () -> Unit,
     onShare: () -> Unit,
     onFork: () -> Unit,
-    onReply: (Int?) -> Unit,
+    onReply: (partIndex: Int?, segmentIndex: Int?) -> Unit,
     onSelectAndCopy: () -> Unit,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onWebViewPreview: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val context = LocalContext.current
+    val settings = LocalSettings.current
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
@@ -277,24 +291,56 @@ fun ChatMessageActionsSheet(
         // WebView Preview (only show if message has text content)
         val hasTextContent = message.parts.filterIsInstance<UIMessagePart.Text>()
             .any { it.text.isNotBlank() }
+        val derivedSegments = message.derivedMessageSegments(
+            enabled = settings.displaySetting.enableAssistantMessageBreaks,
+            maxSegments = settings.displaySetting.messageBreakMaxSegments,
+        )
         val actions = buildList {
             add(
                 MessageSheetAction(
                     HugeIcons.MessageAdd01,
                     stringResource(R.string.chat_page_reply_whole),
-                    onClick = { onReply(null) },
+                    onClick = { onReply(null, null) },
                 )
             )
-            val textPartIndices = message.parts.indices.filter { message.parts[it] is UIMessagePart.Text }
-            if (textPartIndices.size > 1) {
-                textPartIndices.forEachIndexed { bubbleIndex, partIndex ->
+            if (message.role == MessageRole.ASSISTANT && derivedSegments.size > 1) {
+                derivedSegments.forEach { segment ->
                     add(
                         MessageSheetAction(
                             HugeIcons.MessageAdd01,
-                            stringResource(R.string.chat_page_reply_part, bubbleIndex + 1),
-                            onClick = { onReply(partIndex) },
+                            stringResource(R.string.chat_page_reply_part, segment.index + 1),
+                            onClick = { onReply(null, segment.index) },
                         )
                     )
+                    add(
+                        MessageSheetAction(
+                            HugeIcons.Copy01,
+                            stringResource(R.string.chat_page_copy_part, segment.index + 1),
+                            onClick = { context.writeClipboardText(segment.text) },
+                        )
+                    )
+                }
+            } else {
+                val textPartIndices = message.parts.indices.filter { message.parts[it] is UIMessagePart.Text }
+                if (textPartIndices.size > 1) {
+                    textPartIndices.forEachIndexed { bubbleIndex, partIndex ->
+                        add(
+                            MessageSheetAction(
+                                HugeIcons.MessageAdd01,
+                                stringResource(R.string.chat_page_reply_part, bubbleIndex + 1),
+                                onClick = { onReply(partIndex, null) },
+                            )
+                        )
+                        add(
+                            MessageSheetAction(
+                                HugeIcons.Copy01,
+                                stringResource(R.string.chat_page_copy_part, bubbleIndex + 1),
+                                onClick = {
+                                    context.writeClipboardText((message.parts[partIndex] as UIMessagePart.Text).text)
+                                },
+                            )
+                        )
+                    }
                 }
             }
             add(MessageSheetAction(HugeIcons.TextSelection, stringResource(R.string.select_and_copy), onClick = onSelectAndCopy))

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.messageBreakDisplayText
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.Navigator
 import kotlin.uuid.Uuid
@@ -28,8 +29,12 @@ fun navigateToChatPage(
     )
 }
 
-fun Context.copyMessageToClipboard(message: UIMessage) {
-    this.writeClipboardText(message.toText())
+fun Context.copyMessageToClipboard(
+    message: UIMessage,
+    messageBreaksEnabled: Boolean = true,
+    maxSegments: Int = 3,
+) {
+    writeClipboardText(message.messageBreakDisplayText(messageBreaksEnabled, maxSegments))
 }
 
 private val ALLOWED_MIME_TYPES = setOf(

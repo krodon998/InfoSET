@@ -30,10 +30,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.derivedMessageSegments
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 
 @Composable
@@ -42,6 +44,7 @@ fun ChatMessageCopySheet(
     onDismissRequest: () -> Unit
 ) {
     val context = LocalContext.current
+    val settings = LocalSettings.current
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
@@ -75,7 +78,11 @@ fun ChatMessageCopySheet(
 
                 TextButton(
                     onClick = {
-                        context.copyMessageToClipboard(message)
+                        context.copyMessageToClipboard(
+                            message = message,
+                            messageBreaksEnabled = settings.displaySetting.enableAssistantMessageBreaks,
+                            maxSegments = settings.displaySetting.messageBreakMaxSegments,
+                        )
                         onDismissRequest()
                     }
                 ) {
@@ -90,8 +97,10 @@ fun ChatMessageCopySheet(
             }
 
             // Content
-            val textParts =
-                message.parts.filterIsInstance<UIMessagePart.Text>().filter { it.text.isNotBlank() }
+            val textParts = message.derivedMessageSegments(
+                enabled = settings.displaySetting.enableAssistantMessageBreaks,
+                maxSegments = settings.displaySetting.messageBreakMaxSegments,
+            ).map { UIMessagePart.Text(it.text) }
 
             if (textParts.isEmpty()) {
                 // No text content available

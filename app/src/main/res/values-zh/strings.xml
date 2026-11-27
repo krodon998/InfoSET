@@ -1871,6 +1871,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_tool_phone_use_wait">等待 %1$s 秒</string>
   <string name="setting_display_page_split_assistant_bubble_title">按段落拆分气泡</string>
   <string name="setting_display_page_split_assistant_bubble_desc">将助手回复的每个段落显示在独立气泡中</string>
+  <string name="setting_display_page_message_break_title">模型主动分气泡</string>
+  <string name="setting_display_page_message_break_desc">只按明确的 &lt;message_break/&gt; 标记拆分；关闭后整条原样显示</string>
+  <string name="setting_display_page_message_break_limit">每条回复最多气泡数</string>
+  <string name="chat_page_copy_part">复制第 %1$d 个气泡</string>
   <string name="workspace_detail_storage_title">外部存储</string>
   <string name="workspace_detail_storage_desc">将设备共享存储中的文件夹挂载到 Rootfs 中的相同路径。更改后，请重新打开所有已打开的终端，以使更改生效。</string>
   <string name="workspace_detail_storage_permission_missing">未授予所有文件访问权限</string>
