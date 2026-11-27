@@ -373,7 +373,6 @@ private fun MemorySettingsTab(
                 )
             }
             item(
-                onClick = { /* Inspector lives in the overview; this row documents the setting owner. */ },
                 headlineContent = { Text(stringResource(R.string.memory_recall_inspector)) },
                 supportingContent = { Text(stringResource(R.string.memory_recall_inspector_desc)) },
             )
