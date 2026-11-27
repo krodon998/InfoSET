@@ -51,30 +51,26 @@ class Migration_34_37_Test {
 
     @Test
     fun directMigrationPreservesMarkdownAndStartsAtomicProjectionEmpty() {
-        helper.createDatabase(directTestDb, 36).use { db ->
+        helper.createDatabase(directTestDb, 34).use { db ->
+            Migration_34_35.migrate(db)
+            Migration_35_36.migrate(db)
             db.execSQL(
                 "INSERT INTO memory_file (assistant_id, path, content, updated_at) " +
                     "VALUES ('assistant', '/profile.md', '# Profile\\nA remembered sentence', 123)"
             )
-        }
+            Migration_36_37.migrate(db)
 
-        val db = helper.runMigrationsAndValidate(
-            directTestDb,
-            37,
-            true,
-            Migration_36_37,
-        )
-        db.query("SELECT assistant_id, path, content, updated_at FROM memory_file").use { cursor ->
-            cursor.moveToFirst()
-            assertEquals("assistant", cursor.getString(0))
-            assertEquals("/profile.md", cursor.getString(1))
-            assertEquals("# Profile\\nA remembered sentence", cursor.getString(2))
-            assertEquals(123L, cursor.getLong(3))
+            db.query("SELECT assistant_id, path, content, updated_at FROM memory_file").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals("assistant", cursor.getString(0))
+                assertEquals("/profile.md", cursor.getString(1))
+                assertEquals("# Profile\\nA remembered sentence", cursor.getString(2))
+                assertEquals(123L, cursor.getLong(3))
+            }
+            db.query("SELECT COUNT(*) FROM memory_atom").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(0L, cursor.getLong(0))
+            }
         }
-        db.query("SELECT COUNT(*) FROM memory_atom").use { cursor ->
-            cursor.moveToFirst()
-            assertEquals(0L, cursor.getLong(0))
-        }
-        db.close()
     }
 }

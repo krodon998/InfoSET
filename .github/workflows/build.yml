@@ -166,6 +166,28 @@ jobs:
             ./gradlew connectedGithubDebugAndroidTest
             -Pandroid.testInstrumentationRunnerArguments.class=me.rerere.rikkahub.data.memory.MemoryInstrumentationSuite
 
+      - name: Verify memory instrumentation result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          reports = list(Path("app/build/outputs/androidTest-results/connected").rglob("TEST-*.xml"))
+          if not reports:
+              raise SystemExit("memory instrumentation produced no XML report")
+
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          for report in reports:
+              root = ElementTree.parse(report).getroot()
+              for key in totals:
+                  totals[key] += int(root.attrib.get(key, 0))
+
+          print("memory instrumentation:", ", ".join(f"{key}={value}" for key, value in totals.items()))
+          if totals != {"tests": 11, "failures": 0, "errors": 0, "skipped": 0}:
+              raise SystemExit("memory instrumentation did not execute the complete green suite")
+          PY
+
       - name: Upload instrumentation reports
         if: always()
         uses: actions/upload-artifact@v4
