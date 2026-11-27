@@ -15,6 +15,7 @@ data class MessageSearchResult(
     val nodeId: String,
     val messageId: String,
     val conversationId: String,
+    val partId: String? = null,
     val title: String,
     val updateAt: Instant,
     val snippet: String,
