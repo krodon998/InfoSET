@@ -15,6 +15,9 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceSshEditorVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
 import me.rerere.rikkahub.ui.pages.favorite.FavoriteVM
 import me.rerere.rikkahub.ui.pages.history.HistoryVM
+import me.rerere.rikkahub.ui.pages.home.ActivityDetailVM
+import me.rerere.rikkahub.ui.pages.home.ActivityJournalVM
+import me.rerere.rikkahub.ui.pages.home.DaddyHomeVM
 import me.rerere.rikkahub.ui.pages.imggen.ImgGenVM
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsVM
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationVM
@@ -48,6 +51,14 @@ val viewModelModule = module {
     viewModelOf(::SettingVM)
     viewModelOf(::DebugVM)
     viewModelOf(::HistoryVM)
+    viewModelOf(::DaddyHomeVM)
+    viewModelOf(::ActivityJournalVM)
+    viewModel<ActivityDetailVM> {
+        ActivityDetailVM(
+            activityId = it.get(),
+            repository = get(),
+        )
+    }
     viewModelOf(::AssistantVM)
     viewModel<AssistantDetailVM> {
         AssistantDetailVM(
