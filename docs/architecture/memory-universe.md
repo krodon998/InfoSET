@@ -51,34 +51,35 @@ A dormant memory can surface again when a strong cue appears. Every recalled ite
 references, score explanation, request destination, and token cost. Injection is budgeted by layer:
 core identity first, current state second, recalled working memory third, then recent raw dialogue.
 
-## Human-facing resurfacing
+## Passive surfacing versus active recall
 
-Model recall and human-visible resurfacing are separate events.
+InfoSET distinguishes two ways a memory can reach Aire:
 
-- **Recall** means an atom was selected for model context or internal reasoning. It updates recall
-  counters and recall traces even when the user never sees the memory.
-- **Resurfacing** means an atom was intentionally shown to the human in a Surface such as Memory
-  Universe, 此刻, a daily card, or a nostalgic "this reminded me of..." moment.
+- **Passive surfacing（浮现）** is automatic, lightweight delivery. The memory system continuously
+  scores a small number of compact atomic memories against the current conversation and quietly
+  attaches only the strongest few to the next model context. Aire does not issue a memory lookup
+  call to obtain them. This should feel like a simple fact or fragment "coming to mind".
+- **Active recall（召回）** is deliberate retrieval. Aire explicitly asks the memory system to search
+  for a topic, person, event, phrase, project, or older context when the passive set is insufficient
+  or when exact provenance/details are needed. Active recall can spend a larger search/token budget
+  and may use lexical, semantic/vector, relation, and source-text expansion.
 
-A future `memory_surface_event` projection should record at least:
+These paths must be observable separately:
 
-- atom ID and the source Surface;
-- `surfacedAt`;
-- whether it was actually opened/expanded;
-- optional dwell/acknowledgement state;
-- reaction, like, comment, reply, or dismissal references when available.
+- `surfaceCount`, `lastSurfacedAt`, passive score, and the exact atoms delivered automatically;
+- `recallCount`, `lastRecalledAt`, explicit query/cue, candidates, source expansion, and result use.
 
-This produces independent fields such as `surfaceCount`, `lastSurfacedAt`, and the exact prior
-surface-event history without corrupting model-recall statistics.
+Passive surfacing should prefer tiny atom statements rather than whole documents. It may combine
+lexical/semantic similarity, activation, recency, importance, relationship stability, and diversity
+penalties, while suppressing recently surfaced duplicates unless the cue is especially strong.
 
-The resurfacing selector may use lexical/semantic retrieval, activation, current context, and
-diversity, then apply **exposure-aware ranking**: recently shown atoms receive a repetition penalty;
-unseen or long-unseen atoms receive a novelty boost; explicitly loved/pinned memories may reappear
-more often. The full event history remains inspectable so the UI can answer questions such as
-"how many times have I already seen 海边的豹豹, and on which dates?"
+Active recall is the "go look it up" path. It may start from atoms/index hits and then expand to the
+canonical source text, conversation archive, attachments, or document ranges. Vector indexes remain
+replaceable projections and never become memory truth.
 
-Semantic/vector search remains a replaceable index over atoms and source text. It proposes
-candidates; it never becomes the memory truth.
+Aire can therefore receive a few simple facts without tool-like retrieval on every turn, while
+still having a deliberate recall mechanism for questions such as "what happened that day?" or
+"find the original wording".
 
 ## Dreaming and workers
 
