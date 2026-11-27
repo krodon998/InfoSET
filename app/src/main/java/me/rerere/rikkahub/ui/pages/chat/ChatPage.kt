@@ -153,7 +153,9 @@ fun ChatPage(
 
     val chatListState = rememberLazyListState()
     LaunchedEffect(nodeId, messageId, partId, conversation.messageNodes.size) {
-        if (!vm.chatListInitialized && conversation.messageNodes.isNotEmpty()) {
+        if (conversation.messageNodes.isEmpty()) return@LaunchedEffect
+        val hasExplicitTarget = messageId != null || nodeId != null
+        if (hasExplicitTarget || !vm.chatListInitialized) {
             val target = when {
                 messageId != null -> conversation.messageNodes.mapIndexedNotNull { index, node ->
                     val branchIndex = node.messages.indexOfFirst { it.id == messageId }
@@ -172,12 +174,10 @@ fun ChatPage(
                 if (node.selectIndex != branchIndex) {
                     vm.selectMessageNode(node.id, branchIndex)
                 }
-                // Resolve the part identity now so legacy messages use their deterministic stable part id.
-                if (partId != null) {
-                    node.messages[branchIndex].partIndexOf(partId)
-                }
+                // partIndexOf also resolves deterministic IDs for legacy messages that predate persisted part IDs.
+                partId?.let { node.messages[branchIndex].partIndexOf(it) }
                 chatListState.scrollToItem(index)
-            } else {
+            } else if (!hasExplicitTarget) {
                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
             }
             vm.chatListInitialized = true
