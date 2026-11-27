@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Settings03
 import androidx.compose.foundation.layout.Arrangement
@@ -72,11 +73,12 @@ import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-// 记忆文件放第一页：从侧边栏的整理入口进来时能直接看到整理状态
+// 总览先把原文档案、工作记忆和请求上下文分开；文件页继续负责直接编辑工作记忆。
 private enum class MemoryTab(
     override val icon: ImageVector,
     @param:StringRes private val labelRes: Int,
 ) : PagerTab {
+    OVERVIEW(HugeIcons.Database02, R.string.memory_universe_overview),
     FILES(HugeIcons.Brain02, R.string.assistant_page_manage_memory_title),
     SETTINGS(HugeIcons.Settings03, R.string.settings);
 
@@ -103,7 +105,7 @@ fun AssistantMemoryPage(id: String) {
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(stringResource(R.string.assistant_page_tab_memory))
+                    Text(stringResource(R.string.memory_universe_title))
                 },
                 navigationIcon = {
                     BackButton()
@@ -141,6 +143,20 @@ fun AssistantMemoryPage(id: String) {
                     .weight(1f),
             ) { page ->
                 when (MemoryTab.entries[page]) {
+                    MemoryTab.OVERVIEW -> MemoryOverviewTab(
+                        assistant = assistant,
+                        memoryCount = memories.size,
+                        consolidation = consolidation.takeIf { assistant.enableMemory },
+                        onOpenArchive = { navController.navigate(Screen.History) },
+                        onOpenFiles = {
+                            scope.launch { pagerState.animateScrollToPage(MemoryTab.FILES.ordinal) }
+                        },
+                        onOpenSettings = {
+                            scope.launch { pagerState.animateScrollToPage(MemoryTab.SETTINGS.ordinal) }
+                        },
+                        onOrganizeMemory = { vm.organizeMemory() },
+                    )
+
                     MemoryTab.FILES -> MemoryFilesTab(
                         memories = memories,
                         consolidation = consolidation.takeIf { assistant.enableMemory },
@@ -158,6 +174,78 @@ fun AssistantMemoryPage(id: String) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MemoryOverviewTab(
+    assistant: Assistant,
+    memoryCount: Int,
+    consolidation: MemoryConsolidationStatus?,
+    onOpenArchive: () -> Unit,
+    onOpenFiles: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOrganizeMemory: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        CardGroup(
+            title = { Text(stringResource(R.string.memory_universe_for_assistant, assistant.name)) },
+        ) {
+            item(
+                onClick = onOpenArchive,
+                headlineContent = { Text(stringResource(R.string.memory_universe_archive)) },
+                supportingContent = { Text(stringResource(R.string.memory_universe_archive_desc)) },
+                trailingContent = { Text(stringResource(R.string.memory_universe_open)) },
+            )
+            item(
+                onClick = onOpenFiles,
+                headlineContent = { Text(stringResource(R.string.memory_universe_working)) },
+                supportingContent = { Text(stringResource(R.string.memory_universe_working_desc)) },
+                trailingContent = {
+                    Text(stringResource(R.string.memory_universe_entry_count, memoryCount))
+                },
+            )
+            item(
+                headlineContent = { Text(stringResource(R.string.memory_universe_context)) },
+                supportingContent = { Text(stringResource(R.string.memory_universe_context_desc)) },
+                trailingContent = { Text(stringResource(R.string.memory_universe_follows_chat)) },
+            )
+        }
+
+        if (consolidation != null) {
+            MemoryConsolidationSection(
+                status = consolidation,
+                onOrganize = onOrganizeMemory,
+            )
+        } else {
+            CardGroup {
+                item(
+                    onClick = onOpenSettings,
+                    headlineContent = { Text(stringResource(R.string.memory_dream_title)) },
+                    supportingContent = { Text(stringResource(R.string.memory_universe_memory_disabled)) },
+                    trailingContent = { Text(stringResource(R.string.settings)) },
+                )
+            }
+        }
+
+        CardGroup(
+            title = { Text(stringResource(R.string.memory_universe_rules_title)) },
+        ) {
+            item(
+                headlineContent = { Text(stringResource(R.string.memory_universe_unknown_time)) },
+                supportingContent = { Text(stringResource(R.string.memory_universe_unknown_time_desc)) },
+            )
+            item(
+                headlineContent = { Text(stringResource(R.string.memory_universe_worker)) },
+                supportingContent = { Text(stringResource(R.string.memory_universe_worker_desc)) },
+            )
         }
     }
 }

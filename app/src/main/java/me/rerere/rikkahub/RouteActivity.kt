@@ -413,6 +413,11 @@ class RouteActivity : ComponentActivity() {
                                             backStack.add(initialChatScreen)
                                         }
                                     },
+                                    onOpenMemory = {
+                                        if (backStack.lastOrNull() == Screen.Desktop) {
+                                            backStack.add(Screen.AssistantMemory(settings.assistantId.toString()))
+                                        }
+                                    },
                                     onOpenMailbox = {
                                         if (backStack.lastOrNull() == Screen.Desktop) {
                                             backStack.add(Screen.Mailbox)

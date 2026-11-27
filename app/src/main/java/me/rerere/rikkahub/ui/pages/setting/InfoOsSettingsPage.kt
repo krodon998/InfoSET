@@ -803,7 +803,7 @@ fun InfoOsSettingsPage(
                                         CardGroupValue("${folder.expandedGrid.columns} × ${folder.expandedGrid.rows}")
                                     },
                                 )
-                                listOf("chat", "mailbox", "settings").forEach { appId ->
+                                listOf("chat", "memory", "mailbox", "settings").forEach { appId ->
                                     switchItem(
                                         checked = appId in folder.appIds,
                                         onCheckedChange = { checked ->
@@ -941,7 +941,7 @@ fun InfoOsSettingsPage(
                             supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_desc)) },
                             trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                         )
-                        listOf("chat", "mailbox", "settings").forEach { appId ->
+                        listOf("chat", "memory", "mailbox", "settings").forEach { appId ->
                             item(
                                 onClick = { navigate(InfoOsSettingSection.APP_NOTIFICATION, appId) },
                                 headlineContent = { Text(stringResource(appId.notificationTitleRes())) },
@@ -1384,6 +1384,7 @@ private fun InfoOsSettingSection.titleRes(detail: String): Int = when (this) {
 }
 
 private fun String.notificationTitleRes(): Int = when (this) {
+    "memory" -> R.string.infoset_desktop_memory
     "mailbox" -> R.string.infoos_settings_mailbox
     "settings" -> R.string.infoos_settings_settings_app
     else -> R.string.infoos_settings_chat
