@@ -51,6 +51,35 @@ A dormant memory can surface again when a strong cue appears. Every recalled ite
 references, score explanation, request destination, and token cost. Injection is budgeted by layer:
 core identity first, current state second, recalled working memory third, then recent raw dialogue.
 
+## Human-facing resurfacing
+
+Model recall and human-visible resurfacing are separate events.
+
+- **Recall** means an atom was selected for model context or internal reasoning. It updates recall
+  counters and recall traces even when the user never sees the memory.
+- **Resurfacing** means an atom was intentionally shown to the human in a Surface such as Memory
+  Universe, 此刻, a daily card, or a nostalgic "this reminded me of..." moment.
+
+A future `memory_surface_event` projection should record at least:
+
+- atom ID and the source Surface;
+- `surfacedAt`;
+- whether it was actually opened/expanded;
+- optional dwell/acknowledgement state;
+- reaction, like, comment, reply, or dismissal references when available.
+
+This produces independent fields such as `surfaceCount`, `lastSurfacedAt`, and the exact prior
+surface-event history without corrupting model-recall statistics.
+
+The resurfacing selector may use lexical/semantic retrieval, activation, current context, and
+diversity, then apply **exposure-aware ranking**: recently shown atoms receive a repetition penalty;
+unseen or long-unseen atoms receive a novelty boost; explicitly loved/pinned memories may reappear
+more often. The full event history remains inspectable so the UI can answer questions such as
+"how many times have I already seen 海边的豹豹, and on which dates?"
+
+Semantic/vector search remains a replaceable index over atoms and source text. It proposes
+candidates; it never becomes the memory truth.
+
 ## Dreaming and workers
 
 Dreaming is the existing memory-consolidation pipeline presented as an observable maintenance job.
