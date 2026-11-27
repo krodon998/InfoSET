@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.time.Instant
@@ -143,7 +144,7 @@ class InfoSetQuestionnaireTest {
             .infoSetQuestionnaireMemoryCandidateText()!!
 
         assertEquals(listOf("code"), answer.selectedOptionIds)
-        assertEquals(null, answer.sliderValue)
+        assertNull(answer.sliderValue)
         assertTrue(text.contains("写代码 + 自定义：再抱一会"))
     }
 
