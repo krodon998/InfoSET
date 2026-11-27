@@ -95,4 +95,5 @@ class MemoryAtomDAOTest {
         assertEquals("HELPFUL", dao.getTrace(activeTrace.id)!!.feedback)
         assertEquals(MemoryAccessMode.PASSIVE_SURFACE.name, dao.getTrace(passiveTrace.id)!!.mode)
         assertEquals(activeCandidate.statement, dao.getCandidates(activeTrace.id).single().statement)
-    }}
+    }
+}
