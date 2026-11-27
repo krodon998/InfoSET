@@ -90,7 +90,7 @@ class MoodRepository(
             .groupBy { it.actorId }
             .mapNotNull { (_, rows) -> rows.maxByOrNull { it.startedAt } }
             .filter { it.actorId == assistantActorId || it.visibleToPartner }
-            .sortedWith(compareBy<MoodEventEntity> { it.actorId != INFOSET_USER_ACTOR_ID }.thenBy { it.actorId })
+            .sortedWith(compareBy<MoodEventEntity> { if (it.actorId == INFOSET_USER_ACTOR_ID) 0 else 1 }.thenBy { it.actorId })
 
         if (moods.isEmpty()) return ""
         return buildString {
