@@ -77,7 +77,7 @@ class ChatTurnContext(
     val workspaceCwd: String?,
     val memories: List<MemoryFile>,
     val atomicMemoryActive: Boolean,
-    val atomicRecall: MemoryRecallResult?,
+    val passiveSurface: MemoryRecallResult?,
     val tools: List<Tool>,
     val currentSharedState: String,
     val contextSegmentId: String,
@@ -129,12 +129,12 @@ class ChatRequestFactory(
             atomicMemoryRepository.importMarkdownFiles(memoryId, legacyMemories)
             atoms = atomicMemoryRepository.getAtoms(memoryId)
         }
-        val atomicRecall = recallQuery?.takeIf { atoms.isNotEmpty() && it.toText().isNotBlank() }?.let { cue ->
+        val passiveSurface = recallQuery?.takeIf { atoms.isNotEmpty() && it.toText().isNotBlank() }?.let { cue ->
             val atomicBudget = (
                 assistant.contextRecallTokenBudget -
                     ContextComposer.estimateTextTokens(buildAtomicMemoryPrompt(""))
                 ).coerceAtLeast(0)
-            atomicMemoryRepository.recall(
+            atomicMemoryRepository.passiveSurface(
                 memoryId = memoryId,
                 query = cue.toText(),
                 tokenBudget = atomicBudget,
@@ -152,7 +152,7 @@ class ChatRequestFactory(
             workspaceCwd = conversation.workspaceCwd,
             memories = legacyMemories,
             atomicMemoryActive = atoms.isNotEmpty(),
-            atomicRecall = atomicRecall,
+            passiveSurface = passiveSurface,
             tools = chatToolFactory.createTools(
                 settings = settings,
                 assistant = assistant,
@@ -292,12 +292,12 @@ class ChatRequestFactory(
             }
         val optionalRecall = if (assistant.enableMemory) {
             (if (turn.atomicMemoryActive) {
-                buildAtomicMemoryPrompt(turn.atomicRecall?.injectedContent.orEmpty())
+                buildAtomicMemoryPrompt(turn.passiveSurface?.injectedContent.orEmpty())
             } else {
                 buildMemoryPrompt(turn.memories)
             })
                 .takeIf { it.isNotBlank() }
-                ?.let { UIMessage.system("[Optional Recall]\n$it").copy(isSynthetic = true) }
+                ?.let { UIMessage.system("[Passive Memory Surface]\n$it").copy(isSynthetic = true) }
         } else {
             null
         }
