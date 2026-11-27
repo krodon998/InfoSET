@@ -117,18 +117,28 @@ fun createInfoSetQuestionnaireAnswer(
     sliderValue: Double? = null,
     freeText: String? = null,
     answeredAt: Instant = Clock.System.now(),
-): InfoSetQuestionnaireAnswer = InfoSetQuestionnaireAnswer(
-    questionnaireId = questionnaire.id,
-    respondentId = respondentId,
-    respondentLabel = respondentLabel,
-    questionSnapshot = questionnaire.question,
-    optionLabelsSnapshot = questionnaire.options.associate { it.id to it.label },
-    selectedOptionIds = selectedOptionIds,
-    rankedOptionIds = rankedOptionIds,
-    sliderValue = sliderValue,
-    freeText = freeText?.trim()?.takeIf { it.isNotEmpty() },
-    answeredAt = answeredAt.toString(),
-).also { it.validateAgainst(questionnaire) }
+): InfoSetQuestionnaireAnswer {
+    val normalizedFreeText = freeText?.trim()?.takeIf { it.isNotEmpty() }
+    return InfoSetQuestionnaireAnswer(
+        questionnaireId = questionnaire.id,
+        respondentId = respondentId,
+        respondentLabel = respondentLabel,
+        questionSnapshot = questionnaire.question,
+        optionLabelsSnapshot = questionnaire.options.associate { it.id to it.label },
+        selectedOptionIds = when (questionnaire.type) {
+            InfoSetQuestionnaireType.SINGLE, InfoSetQuestionnaireType.MULTI -> selectedOptionIds
+            else -> emptyList()
+        },
+        rankedOptionIds = rankedOptionIds.takeIf {
+            questionnaire.type == InfoSetQuestionnaireType.RANKING
+        }.orEmpty(),
+        sliderValue = sliderValue.takeIf { questionnaire.type == InfoSetQuestionnaireType.SLIDER },
+        freeText = normalizedFreeText.takeIf {
+            questionnaire.type == InfoSetQuestionnaireType.FREE_TEXT || questionnaire.allowOwnAnswer
+        },
+        answeredAt = answeredAt.toString(),
+    ).also { it.validateAgainst(questionnaire) }
+}
 
 fun infoSetQuestionnaireNotice(questionnaire: InfoSetQuestionnaire): UIMessagePart.Notice {
     questionnaire.validate()
