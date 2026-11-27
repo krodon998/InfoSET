@@ -329,6 +329,8 @@ private fun InfoSetQuestionnaireAnswer.summary(): String {
 
     return when {
         rankedOptionIds.isNotEmpty() -> labels(rankedOptionIds)
+        selectedOptionIds.isNotEmpty() && !freeText.isNullOrBlank() ->
+            labels(selectedOptionIds) + " + 自定义：" + freeText
         selectedOptionIds.isNotEmpty() -> labels(selectedOptionIds)
         sliderValue != null -> sliderValue.toString()
         !freeText.isNullOrBlank() -> freeText
