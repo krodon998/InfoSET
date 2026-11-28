@@ -148,7 +148,7 @@ val dataSourceModule = module {
     }
 
     single {
-        get<AppDatabase>().moodDao()
+        get<AppDatabase>().sharedStateDao()
     }
 
     single { DaddyHomeRepository(dao = get()) }
