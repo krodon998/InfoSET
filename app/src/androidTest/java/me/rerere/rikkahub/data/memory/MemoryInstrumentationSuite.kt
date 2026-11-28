@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.data.memory
 
 import me.rerere.rikkahub.data.db.dao.MemoryAtomDAOTest
-import me.rerere.rikkahub.data.db.dao.MoodDAOTest
+import me.rerere.rikkahub.data.db.dao.SharedStateDAOTest
 import me.rerere.rikkahub.data.db.dao.DaddyHomeDAOTest
 import me.rerere.rikkahub.data.db.migrations.Migration_34_37_Test
 import me.rerere.rikkahub.data.db.migrations.Migration_38_39_Test
@@ -13,7 +13,7 @@ import org.junit.runners.Suite
 @RunWith(Suite::class)
 @Suite.SuiteClasses(
     MemoryAtomDAOTest::class,
-    MoodDAOTest::class,
+    SharedStateDAOTest::class,
     DaddyHomeDAOTest::class,
     Migration_34_37_Test::class,
     Migration_38_39_Test::class,
