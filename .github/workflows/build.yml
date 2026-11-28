@@ -20,7 +20,7 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-infoset-${{ github.ref }}
@@ -112,27 +112,18 @@ jobs:
             --tests me.rerere.oauth.OAuthLoopbackCallbackServerTest
           ./gradlew assembleGithubDebugAndroidTest
 
-      - name: Commit generated Room schema
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/mood-state-core'
-        run: |
-          schema=app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
-          test -f "$schema"
-          cp "$schema" "$RUNNER_TEMP/room-v40.json"
-          git fetch origin "$GITHUB_HEAD_REF"
-          git checkout -B "$GITHUB_HEAD_REF" "origin/$GITHUB_HEAD_REF"
-          cp "$RUNNER_TEMP/room-v40.json" "$schema"
-          if ! git diff --quiet -- "$schema"; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add "$schema"
-            git commit -m "db: refresh Room v40 schema"
-            git push origin "HEAD:$GITHUB_HEAD_REF"
-          fi
-
       - name: Verify Room schema
         run: |
           test -f app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
           git diff --exit-code -- app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
+
+      - name: Upload generated Room schema
+        uses: actions/upload-artifact@v4
+        with:
+          name: room-schema-v40
+          path: app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Build APK
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tests_only != true)
