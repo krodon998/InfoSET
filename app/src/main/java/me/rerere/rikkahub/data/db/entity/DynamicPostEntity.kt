@@ -37,6 +37,7 @@ data class DynamicPostEntity(
     val body: String? = null,
     val status: String,
     @ColumnInfo("scheduled_at") val scheduledAt: Long? = null,
+    @ColumnInfo("original_time_zone_id") val originalTimeZoneId: String? = null,
     @ColumnInfo("published_at") val publishedAt: Long? = null,
     @ColumnInfo("archived_at") val archivedAt: Long? = null,
     @ColumnInfo("deleted_at") val deletedAt: Long? = null,
