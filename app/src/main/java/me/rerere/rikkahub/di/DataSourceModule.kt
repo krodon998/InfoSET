@@ -151,6 +151,10 @@ val dataSourceModule = module {
         get<AppDatabase>().sharedStateDao()
     }
 
+    single {
+        get<AppDatabase>().dynamicPostDao()
+    }
+
     single { DaddyHomeRepository(dao = get()) }
 
     single {

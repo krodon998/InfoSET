@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import me.rerere.ai.core.TokenUsage
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.DaddyHomeDAO
+import me.rerere.rikkahub.data.db.dao.DynamicPostDAO
 import me.rerere.rikkahub.data.db.dao.FavoriteDAO
 import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
@@ -23,6 +24,9 @@ import me.rerere.rikkahub.data.db.dao.TranslationHistoryDAO
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.DynamicPostEntity
+import me.rerere.rikkahub.data.db.entity.DynamicPostInteractionEntity
+import me.rerere.rikkahub.data.db.entity.DynamicPostObjectEntity
 import me.rerere.rikkahub.data.db.entity.ActivityJournalEntity
 import me.rerere.rikkahub.data.db.entity.ActorAuditEventEntity
 import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
@@ -76,8 +80,11 @@ import me.rerere.rikkahub.utils.JsonInstant
         GitHubRepositoryBindingEntity::class,
         ActivityJournalEntity::class,
         SharedStateEventEntity::class,
+        DynamicPostEntity::class,
+        DynamicPostObjectEntity::class,
+        DynamicPostInteractionEntity::class,
     ],
-    version = 40,
+    version = 41,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -106,6 +113,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 37, to = 38),
         AutoMigration(from = 39, to = 40),
+        AutoMigration(from = 40, to = 41),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -141,6 +149,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun daddyHomeDao(): DaddyHomeDAO
 
     abstract fun sharedStateDao(): SharedStateDAO
+
+    abstract fun dynamicPostDao(): DynamicPostDAO
 }
 
 object TokenUsageConverter {

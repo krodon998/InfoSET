@@ -16,6 +16,11 @@ import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.entity.MailboxLetterEntity
 import me.rerere.rikkahub.data.db.entity.ActivityJournalEntity
 import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
+import me.rerere.rikkahub.data.db.entity.DynamicPostEntity
+import me.rerere.rikkahub.data.db.entity.DynamicPostInteractionEntity
+import me.rerere.rikkahub.data.db.entity.DynamicPostInteractionTypes
+import me.rerere.rikkahub.data.db.entity.DynamicPostObjectEntity
+import me.rerere.rikkahub.data.db.entity.DynamicPostStatuses
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
@@ -333,6 +338,63 @@ class BackupManagerTest {
         assertEquals(moment.id, restoredMoment.id)
         assertEquals("在床上窝着", restoredMoment.value)
         assertTrue(restoredMoment.affectsContext)
+    }
+
+    @Test fun dynamicPostsAndThreadsSurviveWholeHouseRestore() = runBlocking {
+        val dao = liveDatabase.dynamicPostDao()
+        val post = DynamicPostEntity(
+            id = "post-across-restore",
+            authorId = "assistant:aire",
+            authorLabel = "Aire",
+            body = "给未来的动态",
+            status = DynamicPostStatuses.PUBLISHED,
+            scheduledAt = 9_000,
+            publishedAt = 10_000,
+            sourceKind = "ASSISTANT_TOOL",
+            sourceRef = "conversation:test",
+            createdAt = 1_000,
+            updatedAt = 1_000,
+        )
+        val objectRef = DynamicPostObjectEntity(
+            id = "post-object-across-restore",
+            postId = post.id,
+            kind = "PHOTO",
+            ref = "media:stable",
+            label = "一张照片",
+            position = 0,
+            createdAt = 1_000,
+        )
+        val comment = DynamicPostInteractionEntity(
+            id = "post-comment-across-restore",
+            postId = post.id,
+            actorId = "user:self",
+            actorLabel = "隐",
+            type = DynamicPostInteractionTypes.COMMENT,
+            value = "等你发出来。",
+            source = "USER_UI",
+            createdAt = 1_100,
+            updatedAt = 1_100,
+        )
+        dao.insertPostWithObjects(post, listOf(objectRef))
+        dao.insertInteraction(comment)
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        liveDatabase.close()
+        assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
+        liveDatabase = AppDatabaseFactory.create(context)
+
+        val restoredDao = liveDatabase.dynamicPostDao()
+        val restoredPost = restoredDao.getPost(post.id)!!
+        val restoredObject = restoredDao.observeObjects(post.id).first().single()
+        val restoredComment = restoredDao.observeInteractions(post.id).first().single()
+        assertEquals(post.id, restoredPost.id)
+        assertEquals(DynamicPostStatuses.PUBLISHED, restoredPost.status)
+        assertEquals(9_000L, restoredPost.scheduledAt)
+        assertEquals(10_000L, restoredPost.publishedAt)
+        assertEquals("media:stable", restoredObject.ref)
+        assertEquals(comment.id, restoredComment.id)
+        assertEquals("等你发出来。", restoredComment.value)
     }
 
     @Test fun githubCredentialNoBackupBlobNeverEntersWholeHouseArchive() = runBlocking {
