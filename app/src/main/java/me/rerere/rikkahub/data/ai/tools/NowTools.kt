@@ -77,7 +77,7 @@ fun buildNowTools(
                     postId = obj.string("post_id"),
                     actorId = actorId,
                     body = obj.optionalString("body"),
-                    objects = emptyList(),
+                    objects = null,
                     scheduledAt = obj.optionalLong("scheduled_at_epoch_ms"),
                 )
                 "publish_pending" -> repository.publishPending(
