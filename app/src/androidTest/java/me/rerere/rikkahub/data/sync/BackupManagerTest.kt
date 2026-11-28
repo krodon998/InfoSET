@@ -347,8 +347,9 @@ class BackupManagerTest {
             authorId = "assistant:aire",
             authorLabel = "Aire",
             body = "给未来的动态",
-            status = DynamicPostStatuses.SCHEDULED,
+            status = DynamicPostStatuses.PUBLISHED,
             scheduledAt = 9_000,
+            publishedAt = 10_000,
             sourceKind = "ASSISTANT_TOOL",
             sourceRef = "conversation:test",
             createdAt = 1_000,
@@ -388,8 +389,9 @@ class BackupManagerTest {
         val restoredObject = restoredDao.observeObjects(post.id).first().single()
         val restoredComment = restoredDao.observeInteractions(post.id).first().single()
         assertEquals(post.id, restoredPost.id)
-        assertEquals(DynamicPostStatuses.SCHEDULED, restoredPost.status)
+        assertEquals(DynamicPostStatuses.PUBLISHED, restoredPost.status)
         assertEquals(9_000L, restoredPost.scheduledAt)
+        assertEquals(10_000L, restoredPost.publishedAt)
         assertEquals("media:stable", restoredObject.ref)
         assertEquals(comment.id, restoredComment.id)
         assertEquals("等你发出来。", restoredComment.value)
