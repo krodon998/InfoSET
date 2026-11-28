@@ -118,6 +118,7 @@ jobs:
           git diff --exit-code -- app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
 
       - name: Upload generated Room schema
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: room-schema-v40
