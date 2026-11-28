@@ -38,6 +38,9 @@ fun buildNowTools(
             this text tool only creates/edits post body.
         """.trimIndent().replace("
 ", " "),
+        needsApproval = {
+            (it.jsonObject["action"] as? JsonPrimitive)?.contentOrNull == "delete"
+        },
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -124,6 +127,9 @@ fun buildNowTools(
             delete_comment removes your own comment text while preserving its stable thread identity.
         """.trimIndent().replace("
 ", " "),
+        needsApproval = {
+            (it.jsonObject["action"] as? JsonPrimitive)?.contentOrNull == "delete_comment"
+        },
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
