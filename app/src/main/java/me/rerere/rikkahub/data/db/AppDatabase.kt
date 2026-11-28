@@ -17,6 +17,7 @@ import me.rerere.rikkahub.data.db.dao.MemoryAtomDAO
 import me.rerere.rikkahub.data.db.dao.MediaCreationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryConsolidationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
+import me.rerere.rikkahub.data.db.dao.SharedStateDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.dao.TranslationHistoryDAO
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
@@ -40,6 +41,7 @@ import me.rerere.rikkahub.data.db.entity.MediaCreationSessionEntity
 import me.rerere.rikkahub.data.db.entity.MemoryConsolidationEntity
 import me.rerere.rikkahub.data.db.entity.MemoryFileEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
+import me.rerere.rikkahub.data.db.entity.SharedStateEventEntity
 import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
 import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -73,8 +75,9 @@ import me.rerere.rikkahub.utils.JsonInstant
         ActorAuditEventEntity::class,
         GitHubRepositoryBindingEntity::class,
         ActivityJournalEntity::class,
+        SharedStateEventEntity::class,
     ],
-    version = 39,
+    version = 40,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -102,6 +105,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 31, to = 32),
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 37, to = 38),
+        AutoMigration(from = 39, to = 40),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -135,6 +139,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun memoryAtomDao(): MemoryAtomDAO
 
     abstract fun daddyHomeDao(): DaddyHomeDAO
+
+    abstract fun sharedStateDao(): SharedStateDAO
 }
 
 object TokenUsageConverter {

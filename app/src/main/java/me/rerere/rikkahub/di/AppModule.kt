@@ -112,6 +112,7 @@ val appModule = module {
             context = get(),
             memoryRepository = get(),
             atomicMemoryRepository = get(),
+            sharedStateRepository = get(),
             conversationRepository = get(),
             localTools = get(),
             mcpManager = get(),
@@ -136,6 +137,7 @@ val appModule = module {
             chatToolFactory = get(),
             memoryRepository = get(),
             atomicMemoryRepository = get(),
+            sharedStateRepository = get(),
             templateTransformer = get(),
             workspaceRepository = get(),
         )

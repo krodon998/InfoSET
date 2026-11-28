@@ -55,6 +55,7 @@ import me.rerere.rikkahub.data.repository.AtomicMemoryRepository
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.SharedStateRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import kotlin.time.Clock
@@ -92,6 +93,7 @@ class ChatRequestFactory(
     private val chatToolFactory: ChatToolFactory,
     private val memoryRepository: MemoryRepository,
     private val atomicMemoryRepository: AtomicMemoryRepository,
+    private val sharedStateRepository: SharedStateRepository,
     templateTransformer: TemplateTransformer,
     workspaceRepository: WorkspaceRepository,
 ) {
@@ -143,6 +145,10 @@ class ChatRequestFactory(
                 traceKey = "${conversation.id}:${cue.id}:${conversation.config?.activeSegmentId}",
             )
         }
+        val configuredSharedState = conversation.config?.currentSharedState
+            ?.takeIf { it.isNotBlank() }
+            ?: assistant.currentSharedState
+        val sharedState = sharedStateRepository.contextForAssistant(assistant.id.toString())
         return ChatTurnContext(
             settings = settings,
             assistant = assistant,
@@ -161,9 +167,9 @@ class ChatRequestFactory(
                 conversationId = conversation.id,
                 workspaceCwd = conversation.workspaceCwd,
             ),
-            currentSharedState = conversation.config?.currentSharedState
-                ?.takeIf { it.isNotBlank() }
-                ?: assistant.currentSharedState,
+            currentSharedState = listOf(configuredSharedState, sharedState)
+                .filter { it.isNotBlank() }
+                .joinToString("\n\n"),
             contextSegmentId = conversation.config?.activeSegmentId ?: conversation.id.toString(),
         )
     }

@@ -19,6 +19,8 @@ import me.rerere.rikkahub.data.db.entity.ActorCapabilityGrantEntity
 import me.rerere.rikkahub.data.db.entity.MemoryAtomEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallCandidateEntity
 import me.rerere.rikkahub.data.db.entity.MemoryRecallTraceEntity
+import me.rerere.rikkahub.data.db.entity.SharedStateEventEntity
+import me.rerere.rikkahub.data.db.entity.SharedStateKinds
 import me.rerere.rikkahub.data.model.MemoryAccessMode
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.After
@@ -268,6 +270,69 @@ class BackupManagerTest {
         assertEquals(400L, restoredActivity.waitingDurationMs)
         assertEquals(null, restoredActivity.executionOrganizationRef)
         assertEquals(null, restoredActivity.outputRefsJson)
+    }
+
+    @Test fun sharedStateHistoryAndVisibilitySurviveWholeHouseRestore() = runBlocking {
+        val mood = SharedStateEventEntity(
+            id = "mood-across-restore",
+            actorId = "user:self",
+            actorLabel = "隐",
+            kind = SharedStateKinds.MOOD,
+            value = "困困的",
+            presetKey = "sleepy",
+            intensity = 0.7,
+            emoji = "🌙",
+            startedAt = 1_000,
+            durationMs = 8_000,
+            expectedEndAt = 9_000,
+            visibleToPartner = true,
+            affectsContext = false,
+            source = "USER_UI",
+            sourceRef = "test",
+            createdAt = 1_000,
+            updatedAt = 1_000,
+        )
+        val moment = SharedStateEventEntity(
+            id = "moment-across-restore",
+            actorId = "user:self",
+            actorLabel = "隐",
+            kind = SharedStateKinds.MOMENT,
+            value = "在床上窝着",
+            startedAt = 1_000,
+            durationMs = 8_000,
+            expectedEndAt = 9_000,
+            visibleToPartner = true,
+            affectsContext = true,
+            source = "USER_UI",
+            sourceRef = "test",
+            createdAt = 1_000,
+            updatedAt = 1_000,
+        )
+        val dao = liveDatabase.sharedStateDao()
+        dao.insert(mood)
+        dao.insert(moment)
+
+        val archive = manager.createBackup(includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        liveDatabase.close()
+        assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
+        liveDatabase = AppDatabaseFactory.create(context)
+
+        val restoredDao = liveDatabase.sharedStateDao()
+        val restoredMood = restoredDao.getActive(mood.actorId, SharedStateKinds.MOOD, 2_000)!!
+        val restoredMoment = restoredDao.getActive(moment.actorId, SharedStateKinds.MOMENT, 2_000)!!
+        assertEquals(mood.id, restoredMood.id)
+        assertEquals("困困的", restoredMood.value)
+        assertEquals("sleepy", restoredMood.presetKey)
+        assertEquals(0.7, restoredMood.intensity!!, 0.0)
+        assertEquals("🌙", restoredMood.emoji)
+        assertTrue(restoredMood.visibleToPartner)
+        assertFalse(restoredMood.affectsContext)
+        assertEquals(8_000L, restoredMood.durationMs)
+        assertEquals(9_000L, restoredMood.expectedEndAt)
+        assertEquals(moment.id, restoredMoment.id)
+        assertEquals("在床上窝着", restoredMoment.value)
+        assertTrue(restoredMoment.affectsContext)
     }
 
     @Test fun githubCredentialNoBackupBlobNeverEntersWholeHouseArchive() = runBlocking {
