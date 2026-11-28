@@ -229,7 +229,7 @@ jobs:
                   totals[key] += int(root.attrib.get(key, 0))
 
           print("memory instrumentation:", ", ".join(f"{key}={value}" for key, value in totals.items()))
-          if totals != {"tests": 18, "failures": 0, "errors": 0, "skipped": 0}:
+          if totals != {"tests": 19, "failures": 0, "errors": 0, "skipped": 0}:
               raise SystemExit("memory instrumentation did not execute the complete green suite")
           PY
 
