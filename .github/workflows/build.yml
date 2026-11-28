@@ -74,6 +74,8 @@ jobs:
             --tests me.rerere.rikkahub.ui.pages.setting.InfoOsSettingsTest \
             --tests me.rerere.rikkahub.data.ai.ContextComposerTest \
             --tests me.rerere.rikkahub.data.ai.AtomicMemoryRecallEngineTest \
+            --tests me.rerere.rikkahub.data.ai.MemoryConsolidatorTest \
+            --tests me.rerere.rikkahub.data.ai.tools.QuestionnaireToolsTest \
             --tests me.rerere.rikkahub.data.repository.MarkdownMemoryImporterTest \
             --tests me.rerere.rikkahub.data.ai.UsageRecorderTest \
             --tests me.rerere.rikkahub.data.model.ConversationConfigTest \
@@ -101,6 +103,8 @@ jobs:
           ./gradlew :ai:testDebugUnitTest \
             --tests me.rerere.ai.core.UsageCostTest \
             --tests me.rerere.ai.ui.UIMessageSerializationTest \
+            --tests me.rerere.ai.ui.InfoSetLifeEventTest \
+            --tests me.rerere.ai.ui.InfoSetQuestionnaireTest \
             --tests me.rerere.ai.provider.providers.openai.ChatCompletionsUsageParsingTest \
             --tests me.rerere.ai.provider.providers.chatgpt.ChatGPTProviderTest \
             --tests me.rerere.ai.provider.QuotaQueryRunnerTest

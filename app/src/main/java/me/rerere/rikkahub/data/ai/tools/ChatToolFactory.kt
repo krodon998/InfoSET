@@ -73,6 +73,14 @@ class ChatToolFactory(
                     )
                 )
             }
+            addAll(
+                buildQuestionnaireTools(
+                    settings = settings,
+                    assistant = assistant,
+                    conversationRepository = conversationRepository,
+                    conversationId = conversationId,
+                )
+            )
             addAll(buildMoodTools(assistant = assistant, moodRepository = moodRepository))
             if (shouldUseExternalWebSearch(assistant, model)) {
                 addAll(createSearchTools(settings))

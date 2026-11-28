@@ -34,10 +34,15 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.ui.InfoSetQuestionnaire
+import me.rerere.ai.ui.InfoSetQuestionnaireAnswer
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.infoSetQuestionnaireAnswerNotice
+import me.rerere.ai.ui.infoSetQuestionnaireNotice
+import me.rerere.ai.ui.infoSetTapNotice
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
@@ -477,6 +482,88 @@ class ChatService(
     fun postNotice(conversationId: Uuid, key: String, notice: UIMessagePart.Notice) {
         sessionManager.getOrCreate(conversationId).inbox.post(key, notice)
         dispatchInbox(conversationId)
+    }
+
+    /**
+     * 把结构化事件作为独立时间线消息排入当前会话。
+     *
+     * 与 [postNotice] 的运行时通知不同，这里每次 enqueue 都保留，不按 key 合并；[answer] 为 false 时只落 Archive，
+     * 不启动模型。Notice 仍通过 expandNotices 以事件语义进入后续上下文。
+     */
+    fun sendStructuredNotice(
+        conversationId: Uuid,
+        notice: UIMessagePart.Notice,
+        answer: Boolean = true,
+    ) {
+        val session = sessionManager.getOrCreate(conversationId)
+        synchronized(session) {
+            if (session.inbox.state.value.messages.isEmpty()) session.inbox.resume()
+            session.inbox.enqueue(listOf(notice), answer = answer)
+            dispatchInbox(conversationId)
+        }
+    }
+
+    /**
+     * 记录并发送一条 InfoSET 拍一拍生活事件。
+     *
+     * 事件以结构化 Notice 进入 Conversation Archive；发生时间、双方快照与记忆候选标记都保存在 metadata。
+     * [requestResponse] 为 false 时只拍一下并留档，不触发模型调用。
+     */
+    fun postTap(
+        conversationId: Uuid,
+        senderLabel: String,
+        targetLabel: String,
+        senderId: String? = null,
+        targetId: String? = null,
+        style: String? = "轻轻",
+        memoryCandidate: Boolean = true,
+        requestResponse: Boolean = true,
+    ) {
+        sendStructuredNotice(
+            conversationId = conversationId,
+            notice = infoSetTapNotice(
+                senderLabel = senderLabel,
+                targetLabel = targetLabel,
+                senderId = senderId,
+                targetId = targetId,
+                style = style,
+                memoryCandidate = memoryCandidate,
+                requestBriefResponse = requestResponse,
+            ),
+            answer = requestResponse,
+        )
+    }
+
+    /** Add a structured questionnaire prompt to the canonical conversation timeline. */
+    fun postQuestionnaire(
+        conversationId: Uuid,
+        questionnaire: InfoSetQuestionnaire,
+        requestResponse: Boolean = true,
+    ) {
+        sendStructuredNotice(
+            conversationId = conversationId,
+            notice = infoSetQuestionnaireNotice(questionnaire),
+            answer = requestResponse,
+        )
+    }
+
+    /** Add a structured questionnaire answer while preserving its prompt/option snapshots. */
+    fun postQuestionnaireAnswer(
+        conversationId: Uuid,
+        questionnaire: InfoSetQuestionnaire,
+        answer: InfoSetQuestionnaireAnswer,
+        memoryCandidate: Boolean = true,
+        requestResponse: Boolean = true,
+    ) {
+        sendStructuredNotice(
+            conversationId = conversationId,
+            notice = infoSetQuestionnaireAnswerNotice(
+                questionnaire = questionnaire,
+                answer = answer,
+                memoryCandidate = memoryCandidate,
+            ),
+            answer = requestResponse,
+        )
     }
 
     /** 会话空闲时从收件箱开始下一轮：先发用户输入，只剩通知时单独开一轮 */

@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
+import me.rerere.ai.ui.InfoSetQuestionnaire
+import me.rerere.ai.ui.InfoSetQuestionnaireAnswer
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.UIMessageAnnotation
@@ -254,6 +256,59 @@ class ChatVM(
         analytics.logEvent("ai_send_message", null)
 
         chatService.sendMessage(_conversationId, content, annotations = annotations, answer = answer)
+    }
+
+    /**
+     * InfoSET 生活交互入口：记录一次结构化拍一拍并让当前会话自然回应。
+     *
+     * UI 入口与动效由表现层决定；这里仅提供稳定调用面。
+     */
+    fun handleTap(
+        senderLabel: String,
+        targetLabel: String,
+        senderId: String? = null,
+        targetId: String? = null,
+        style: String? = "轻轻",
+        requestResponse: Boolean = true,
+    ) {
+        analytics.logEvent("life_tap", null)
+        chatService.postTap(
+            conversationId = _conversationId,
+            senderLabel = senderLabel,
+            targetLabel = targetLabel,
+            senderId = senderId,
+            targetId = targetId,
+            style = style,
+            requestResponse = requestResponse,
+        )
+    }
+
+    fun handleQuestionnaire(
+        questionnaire: InfoSetQuestionnaire,
+        requestResponse: Boolean = true,
+    ) {
+        analytics.logEvent("life_questionnaire", null)
+        chatService.postQuestionnaire(
+            conversationId = _conversationId,
+            questionnaire = questionnaire,
+            requestResponse = requestResponse,
+        )
+    }
+
+    fun handleQuestionnaireAnswer(
+        questionnaire: InfoSetQuestionnaire,
+        answer: InfoSetQuestionnaireAnswer,
+        memoryCandidate: Boolean = true,
+        requestResponse: Boolean = true,
+    ) {
+        analytics.logEvent("life_questionnaire_answer", null)
+        chatService.postQuestionnaireAnswer(
+            conversationId = _conversationId,
+            questionnaire = questionnaire,
+            answer = answer,
+            memoryCandidate = memoryCandidate,
+            requestResponse = requestResponse,
+        )
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {
