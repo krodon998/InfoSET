@@ -76,13 +76,17 @@ fun buildNowTools(
                     body = obj.optionalString("body"),
                     scheduledAt = obj.long("scheduled_at_epoch_ms"),
                 )
-                "update_pending" -> repository.updatePending(
-                    postId = obj.string("post_id"),
-                    actorId = actorId,
-                    body = obj.optionalString("body"),
-                    objects = null,
-                    scheduledAt = obj.optionalLong("scheduled_at_epoch_ms"),
-                )
+                "update_pending" -> {
+                    val postId = obj.string("post_id")
+                    val current = requireNotNull(repository.getPost(postId)) { "post not found" }
+                    repository.updatePending(
+                        postId = postId,
+                        actorId = actorId,
+                        body = if ("body" in obj) obj.optionalString("body") else current.body,
+                        objects = null,
+                        scheduledAt = obj.optionalLong("scheduled_at_epoch_ms"),
+                    )
+                }
                 "publish_pending" -> repository.publishPending(
                     postId = obj.string("post_id"),
                     actorId = actorId,
@@ -190,11 +194,13 @@ fun buildNowTools(
                     interactionResult("replied", postId, interaction.id)
                 }
                 "delete_comment" -> {
+                    val postId = obj.string("post_id")
+                    val interactionId = obj.string("interaction_id")
                     repository.deleteComment(
-                        interactionId = obj.string("interaction_id"),
+                        interactionId = interactionId,
                         actorId = actorId,
                     )
-                    interactionResult("deleted", obj.string("post_id"), obj.string("interaction_id"))
+                    interactionResult("deleted", postId, interactionId)
                 }
                 else -> error("Unsupported now interaction action")
             }
