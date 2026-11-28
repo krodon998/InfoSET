@@ -36,8 +36,7 @@ fun buildNowTools(
             archive, restore, delete. Scheduled posts keep the planned time, while published_at
             records the actual publication time. Published media/object attachments are frozen;
             this text tool only creates/edits post body.
-        """.trimIndent().replace("
-", " "),
+        """.trimIndent().replace("\n", " "),
         needsApproval = {
             (it.jsonObject["action"] as? JsonPrimitive)?.contentOrNull == "delete"
         },
@@ -129,8 +128,7 @@ fun buildNowTools(
             reaction sets your single current reaction; omit reaction to remove it.
             favorite toggles your own favorite. comment/reply bodies are immutable after posting;
             delete_comment removes your own comment text while preserving its stable thread identity.
-        """.trimIndent().replace("
-", " "),
+        """.trimIndent().replace("\n", " "),
         needsApproval = {
             (it.jsonObject["action"] as? JsonPrimitive)?.contentOrNull == "delete_comment"
         },
