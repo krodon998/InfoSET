@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.db.entity.DynamicPostInteractionEntity
 import me.rerere.rikkahub.data.db.entity.DynamicPostInteractionTypes
 import me.rerere.rikkahub.data.db.entity.DynamicPostObjectEntity
 import me.rerere.rikkahub.data.db.entity.DynamicPostStatuses
+import java.time.ZoneId
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -84,6 +85,7 @@ class DynamicPostRepository(
             objects = objects,
             status = DynamicPostStatuses.SCHEDULED,
             scheduledAt = scheduledAt,
+            originalTimeZoneId = originalTimeZoneId,
             sourceKind = sourceKind,
             sourceRef = sourceRef,
             now = now,
@@ -118,6 +120,7 @@ class DynamicPostRepository(
         body: String?,
         objects: List<DynamicPostObjectDraft>? = null,
         scheduledAt: Long?,
+        timeZoneId: String? = null,
         now: Long = Clock.System.now().toEpochMilliseconds(),
     ): DynamicPostEntity {
         val current = requireOwnedPost(postId, actorId)
@@ -141,6 +144,11 @@ class DynamicPostRepository(
             "post must contain text or an object"
         }
         val status = if (scheduledAt == null) DynamicPostStatuses.DRAFT else DynamicPostStatuses.SCHEDULED
+        val originalTimeZoneId = when {
+            current.originalTimeZoneId != null -> current.originalTimeZoneId
+            scheduledAt != null -> timeZoneId?.takeIf(String::isNotBlank) ?: ZoneId.systemDefault().id
+            else -> null
+        }
         check(
             dao.updatePendingWithObjects(
                 id = postId,
@@ -148,6 +156,7 @@ class DynamicPostRepository(
                 body = normalizedBody,
                 status = status,
                 scheduledAt = scheduledAt,
+                originalTimeZoneId = originalTimeZoneId,
                 updatedAt = now,
                 objects = objects?.toRows(postId, now),
             ) == 1
@@ -373,6 +382,7 @@ class DynamicPostRepository(
         objects: List<DynamicPostObjectDraft>,
         status: String,
         scheduledAt: Long? = null,
+        originalTimeZoneId: String? = null,
         publishedAt: Long? = null,
         sourceKind: String,
         sourceRef: String?,
@@ -396,6 +406,7 @@ class DynamicPostRepository(
             body = normalizedBody,
             status = status,
             scheduledAt = scheduledAt,
+            originalTimeZoneId = originalTimeZoneId,
             publishedAt = publishedAt,
             sourceKind = sourceKind,
             sourceRef = sourceRef,
