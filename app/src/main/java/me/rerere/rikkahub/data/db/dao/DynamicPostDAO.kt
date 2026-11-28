@@ -171,6 +171,24 @@ interface DynamicPostDAO {
     }
 
     @Transaction
+    suspend fun updatePendingWithObjects(
+        id: String,
+        authorId: String,
+        body: String?,
+        status: String,
+        scheduledAt: Long?,
+        updatedAt: Long,
+        objects: List<DynamicPostObjectEntity>?,
+    ): Int {
+        val changed = updatePending(id, authorId, body, status, scheduledAt, updatedAt)
+        if (changed == 1 && objects != null) {
+            deleteObjects(id)
+            if (objects.isNotEmpty()) insertObjects(objects)
+        }
+        return changed
+    }
+
+    @Transaction
     suspend fun replaceActorInteraction(
         interaction: DynamicPostInteractionEntity?,
         postId: String,
