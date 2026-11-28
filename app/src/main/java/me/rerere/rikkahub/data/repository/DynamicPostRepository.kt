@@ -116,7 +116,7 @@ class DynamicPostRepository(
         postId: String,
         actorId: String,
         body: String?,
-        objects: List<DynamicPostObjectDraft>,
+        objects: List<DynamicPostObjectDraft>? = null,
         scheduledAt: Long?,
         now: Long = Clock.System.now().toEpochMilliseconds(),
     ): DynamicPostEntity {
@@ -128,8 +128,16 @@ class DynamicPostRepository(
             require(scheduledAt > now) { "scheduledAt must be in the future" }
         }
         val normalizedBody = body.normalized()
-        validateObjects(objects)
-        require(normalizedBody != null || objects.isNotEmpty()) {
+        objects?.let(::validateObjects)
+        val effectiveObjects = objects ?: dao.observeObjects(postId).first().map {
+            DynamicPostObjectDraft(
+                kind = it.kind,
+                ref = it.ref,
+                label = it.label,
+                payloadJson = it.payloadJson,
+            )
+        }
+        require(normalizedBody != null || effectiveObjects.isNotEmpty()) {
             "post must contain text or an object"
         }
         val status = if (scheduledAt == null) DynamicPostStatuses.DRAFT else DynamicPostStatuses.SCHEDULED
@@ -143,7 +151,7 @@ class DynamicPostRepository(
                 updatedAt = now,
             ) == 1
         ) { "pending post could not be updated" }
-        dao.replacePendingObjects(postId, objects.toRows(postId, now))
+        objects?.let { dao.replacePendingObjects(postId, it.toRows(postId, now)) }
         return requireNotNull(dao.getPost(postId))
     }
 
