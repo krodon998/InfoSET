@@ -117,6 +117,10 @@ jobs:
         run: |
           schema=app/schemas/me.rerere.rikkahub.data.db.AppDatabase/40.json
           test -f "$schema"
+          cp "$schema" "$RUNNER_TEMP/room-v40.json"
+          git fetch origin "$GITHUB_HEAD_REF"
+          git checkout -B "$GITHUB_HEAD_REF" "origin/$GITHUB_HEAD_REF"
+          cp "$RUNNER_TEMP/room-v40.json" "$schema"
           if ! git diff --quiet -- "$schema"; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
