@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 40,
-    "identityHash": "983c51e8a6c966ca7a6aa7022d9dfa86",
+    "identityHash": "03effeb90d9e81a2faaef72d26185b06",
     "entities": [
       {
         "tableName": "ConversationEntity",
@@ -2062,8 +2062,8 @@
         ]
       },
       {
-        "tableName": "mood_event",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `actor_id` TEXT NOT NULL, `actor_label` TEXT NOT NULL, `type` TEXT NOT NULL, `intensity` REAL, `started_at` INTEGER NOT NULL, `expected_end_at` INTEGER, `ended_at` INTEGER, `emoji` TEXT, `note` TEXT, `visible_to_partner` INTEGER NOT NULL, `affects_context` INTEGER NOT NULL, `source` TEXT NOT NULL, `source_ref` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "tableName": "shared_state_event",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `actor_id` TEXT NOT NULL, `actor_label` TEXT NOT NULL, `kind` TEXT NOT NULL, `value` TEXT NOT NULL, `preset_key` TEXT, `intensity` REAL, `emoji` TEXT, `started_at` INTEGER NOT NULL, `duration_ms` INTEGER NOT NULL, `expected_end_at` INTEGER NOT NULL, `ended_at` INTEGER, `visible_to_partner` INTEGER NOT NULL, `affects_context` INTEGER NOT NULL, `source` TEXT NOT NULL, `source_ref` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -2084,15 +2084,31 @@
             "notNull": true
           },
           {
-            "fieldPath": "type",
-            "columnName": "type",
+            "fieldPath": "kind",
+            "columnName": "kind",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "presetKey",
+            "columnName": "preset_key",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "intensity",
             "columnName": "intensity",
             "affinity": "REAL"
+          },
+          {
+            "fieldPath": "emoji",
+            "columnName": "emoji",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "startedAt",
@@ -2101,24 +2117,21 @@
             "notNull": true
           },
           {
+            "fieldPath": "durationMs",
+            "columnName": "duration_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
             "fieldPath": "expectedEndAt",
             "columnName": "expected_end_at",
-            "affinity": "INTEGER"
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
             "fieldPath": "endedAt",
             "columnName": "ended_at",
             "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "emoji",
-            "columnName": "emoji",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "note",
-            "columnName": "note",
-            "affinity": "TEXT"
           },
           {
             "fieldPath": "visibleToPartner",
@@ -2164,51 +2177,63 @@
         },
         "indices": [
           {
-            "name": "index_mood_event_actor_id_started_at",
+            "name": "index_shared_state_event_actor_id_kind_started_at",
             "unique": false,
             "columnNames": [
               "actor_id",
+              "kind",
               "started_at"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_mood_event_actor_id_started_at` ON `${TABLE_NAME}` (`actor_id`, `started_at`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shared_state_event_actor_id_kind_started_at` ON `${TABLE_NAME}` (`actor_id`, `kind`, `started_at`)"
           },
           {
-            "name": "index_mood_event_actor_id_ended_at",
+            "name": "index_shared_state_event_actor_id_kind_ended_at",
             "unique": false,
             "columnNames": [
               "actor_id",
+              "kind",
               "ended_at"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_mood_event_actor_id_ended_at` ON `${TABLE_NAME}` (`actor_id`, `ended_at`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shared_state_event_actor_id_kind_ended_at` ON `${TABLE_NAME}` (`actor_id`, `kind`, `ended_at`)"
           },
           {
-            "name": "index_mood_event_affects_context_ended_at",
+            "name": "index_shared_state_event_actor_id_updated_at",
+            "unique": false,
+            "columnNames": [
+              "actor_id",
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shared_state_event_actor_id_updated_at` ON `${TABLE_NAME}` (`actor_id`, `updated_at`)"
+          },
+          {
+            "name": "index_shared_state_event_affects_context_ended_at",
             "unique": false,
             "columnNames": [
               "affects_context",
               "ended_at"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_mood_event_affects_context_ended_at` ON `${TABLE_NAME}` (`affects_context`, `ended_at`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shared_state_event_affects_context_ended_at` ON `${TABLE_NAME}` (`affects_context`, `ended_at`)"
           },
           {
-            "name": "index_mood_event_source_source_ref",
+            "name": "index_shared_state_event_source_source_ref",
             "unique": false,
             "columnNames": [
               "source",
               "source_ref"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_mood_event_source_source_ref` ON `${TABLE_NAME}` (`source`, `source_ref`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shared_state_event_source_source_ref` ON `${TABLE_NAME}` (`source`, `source_ref`)"
           }
         ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '983c51e8a6c966ca7a6aa7022d9dfa86')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '03effeb90d9e81a2faaef72d26185b06')"
     ]
   }
 }
