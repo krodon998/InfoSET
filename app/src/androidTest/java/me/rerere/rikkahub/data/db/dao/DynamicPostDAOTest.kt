@@ -53,8 +53,20 @@ class DynamicPostDAOTest {
             body = "稍后发",
             objects = emptyList(),
             scheduledAt = 500,
+            timeZoneId = "Asia/Shanghai",
             now = 200,
         )
+        val rescheduled = repository.updatePending(
+            postId = draft.id,
+            actorId = "assistant:aire",
+            body = "改过正文但保留预约",
+            objects = null,
+            scheduledAt = 500,
+            timeZoneId = "America/Chicago",
+            now = 250,
+        )
+        assertEquals("Asia/Shanghai", rescheduled.originalTimeZoneId)
+        assertEquals("改过正文但保留预约", rescheduled.body)
         assertTrue(repository.observeTimeline().first().isEmpty())
         assertFalse(repository.publishScheduledIfDue(draft.id, now = 499))
         assertTrue(repository.publishScheduledIfDue(draft.id, now = 600))
@@ -65,6 +77,32 @@ class DynamicPostDAOTest {
         assertEquals(500L, published.scheduledAt)
         assertEquals(600L, published.publishedAt)
         assertEquals(draft.id, repository.observeTimeline().first().single().id)
+
+        val cancelDraft = repository.createDraft(
+            id = "cancel-schedule",
+            authorId = "assistant:aire",
+            authorLabel = "Aire",
+            body = "取消预约",
+            now = 700,
+        )
+        repository.updatePending(
+            postId = cancelDraft.id,
+            actorId = "assistant:aire",
+            body = cancelDraft.body,
+            scheduledAt = 900,
+            timeZoneId = "Asia/Shanghai",
+            now = 750,
+        )
+        val cancelled = repository.updatePending(
+            postId = cancelDraft.id,
+            actorId = "assistant:aire",
+            body = cancelDraft.body,
+            scheduledAt = null,
+            now = 800,
+        )
+        assertEquals(DynamicPostStatuses.DRAFT, cancelled.status)
+        assertEquals("Asia/Shanghai", cancelled.originalTimeZoneId)
+        assertNull(cancelled.scheduledAt)
     }
 
     @Test
