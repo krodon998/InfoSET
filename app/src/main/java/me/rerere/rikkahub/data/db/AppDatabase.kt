@@ -17,7 +17,7 @@ import me.rerere.rikkahub.data.db.dao.MemoryAtomDAO
 import me.rerere.rikkahub.data.db.dao.MediaCreationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryConsolidationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
-import me.rerere.rikkahub.data.db.dao.MoodDAO
+import me.rerere.rikkahub.data.db.dao.SharedStateDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.dao.TranslationHistoryDAO
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
@@ -41,7 +41,7 @@ import me.rerere.rikkahub.data.db.entity.MediaCreationSessionEntity
 import me.rerere.rikkahub.data.db.entity.MemoryConsolidationEntity
 import me.rerere.rikkahub.data.db.entity.MemoryFileEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
-import me.rerere.rikkahub.data.db.entity.MoodEventEntity
+import me.rerere.rikkahub.data.db.entity.SharedStateEventEntity
 import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
 import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -75,7 +75,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         ActorAuditEventEntity::class,
         GitHubRepositoryBindingEntity::class,
         ActivityJournalEntity::class,
-        MoodEventEntity::class,
+        SharedStateEventEntity::class,
     ],
     version = 40,
     autoMigrations = [
@@ -140,7 +140,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun daddyHomeDao(): DaddyHomeDAO
 
-    abstract fun moodDao(): MoodDAO
+    abstract fun sharedStateDao(): SharedStateDAO
 }
 
 object TokenUsageConverter {
