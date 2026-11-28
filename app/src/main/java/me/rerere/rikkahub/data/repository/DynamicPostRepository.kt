@@ -142,16 +142,16 @@ class DynamicPostRepository(
         }
         val status = if (scheduledAt == null) DynamicPostStatuses.DRAFT else DynamicPostStatuses.SCHEDULED
         check(
-            dao.updatePending(
+            dao.updatePendingWithObjects(
                 id = postId,
                 authorId = actorId,
                 body = normalizedBody,
                 status = status,
                 scheduledAt = scheduledAt,
                 updatedAt = now,
+                objects = objects?.toRows(postId, now),
             ) == 1
         ) { "pending post could not be updated" }
-        objects?.let { dao.replacePendingObjects(postId, it.toRows(postId, now)) }
         return requireNotNull(dao.getPost(postId))
     }
 
