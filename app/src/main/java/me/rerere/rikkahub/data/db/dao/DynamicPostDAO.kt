@@ -85,6 +85,7 @@ interface DynamicPostDAO {
 
     @Query(
         "UPDATE dynamic_post SET body = :body, status = :status, scheduled_at = :scheduledAt, " +
+            "original_time_zone_id = COALESCE(original_time_zone_id, :originalTimeZoneId), " +
             "updated_at = :updatedAt WHERE id = :id AND author_id = :authorId " +
             "AND status IN ('DRAFT','SCHEDULED')"
     )
@@ -94,6 +95,7 @@ interface DynamicPostDAO {
         body: String?,
         status: String,
         scheduledAt: Long?,
+        originalTimeZoneId: String?,
         updatedAt: Long,
     ): Int
 
@@ -177,10 +179,19 @@ interface DynamicPostDAO {
         body: String?,
         status: String,
         scheduledAt: Long?,
+        originalTimeZoneId: String?,
         updatedAt: Long,
         objects: List<DynamicPostObjectEntity>?,
     ): Int {
-        val changed = updatePending(id, authorId, body, status, scheduledAt, updatedAt)
+        val changed = updatePending(
+            id,
+            authorId,
+            body,
+            status,
+            scheduledAt,
+            originalTimeZoneId,
+            updatedAt,
+        )
         if (changed == 1 && objects != null) {
             deleteObjects(id)
             if (objects.isNotEmpty()) insertObjects(objects)
