@@ -73,9 +73,11 @@ class DynamicPostRepository(
         objects: List<DynamicPostObjectDraft> = emptyList(),
         sourceKind: String = DYNAMIC_POST_SOURCE_NATIVE,
         sourceRef: String? = null,
+        originalTimeZoneId: String = ZoneId.systemDefault().id,
         now: Long = Clock.System.now().toEpochMilliseconds(),
         id: String = Uuid.random().toString(),
     ): DynamicPostEntity {
+        require(originalTimeZoneId.isNotBlank()) { "originalTimeZoneId must not be blank" }
         require(scheduledAt > now) { "scheduledAt must be in the future" }
         return createPost(
             id = id,
