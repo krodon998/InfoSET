@@ -32,8 +32,8 @@ fun buildNowTools(
         name = NowToolNames.POST,
         description = """
             Manage your own InfoSET Now dynamic posts.
-            Actions: publish, draft, schedule, update_pending, publish_pending, edit_body,
-            archive, restore, delete. Scheduled posts keep the planned time, while published_at
+            Actions: publish, draft, schedule, update_pending, cancel_schedule, publish_pending,
+            edit_body, archive, restore, delete. Scheduled posts keep the planned time, while published_at
             records the actual publication time. Published media/object attachments are frozen;
             this text tool only creates/edits post body.
         """.trimIndent().replace("\n", " "),
@@ -44,12 +44,13 @@ fun buildNowTools(
             InputSchema.Obj(
                 properties = buildJsonObject {
                     put("action", enumSchema(
-                        "publish", "draft", "schedule", "update_pending", "publish_pending",
-                        "edit_body", "archive", "restore", "delete"
+                        "publish", "draft", "schedule", "update_pending", "cancel_schedule",
+                        "publish_pending", "edit_body", "archive", "restore", "delete"
                     ))
                     put("post_id", stringSchema("Existing post id for update actions."))
                     put("body", stringSchema("Post text."))
-                    put("scheduled_at_epoch_ms", integerSchema("Future scheduled publication time in epoch milliseconds."))
+                    put("scheduled_at_epoch_ms", integerSchema("Future scheduled publication time in epoch milliseconds. Omit on update_pending to keep the current schedule."))
+                    put("time_zone_id", stringSchema("IANA time zone id captured when a post first becomes scheduled."))
                 },
                 required = listOf("action"),
             )
@@ -74,6 +75,8 @@ fun buildNowTools(
                     authorLabel = actorLabel,
                     body = obj.optionalString("body"),
                     scheduledAt = obj.long("scheduled_at_epoch_ms"),
+                    originalTimeZoneId = obj.optionalString("time_zone_id")
+                        ?: java.time.ZoneId.systemDefault().id,
                 )
                 "update_pending" -> {
                     val postId = obj.string("post_id")
@@ -83,7 +86,23 @@ fun buildNowTools(
                         actorId = actorId,
                         body = if ("body" in obj) obj.optionalString("body") else current.body,
                         objects = null,
-                        scheduledAt = obj.optionalLong("scheduled_at_epoch_ms"),
+                        scheduledAt = if ("scheduled_at_epoch_ms" in obj) {
+                            obj.optionalLong("scheduled_at_epoch_ms")
+                        } else {
+                            current.scheduledAt
+                        },
+                        timeZoneId = obj.optionalString("time_zone_id"),
+                    )
+                }
+                "cancel_schedule" -> {
+                    val postId = obj.string("post_id")
+                    val current = requireNotNull(repository.getPost(postId)) { "post not found" }
+                    repository.updatePending(
+                        postId = postId,
+                        actorId = actorId,
+                        body = current.body,
+                        objects = null,
+                        scheduledAt = null,
                     )
                 }
                 "publish_pending" -> repository.publishPending(
